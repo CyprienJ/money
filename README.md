@@ -56,7 +56,7 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 - **Reprise automatique de catégorie** : à l'import, une opération dont le libellé normalisé a déjà été catégorisé reçoit la même catégorie. L'utilisateur peut corriger.
 
 #### Échéancier
-- **Opérations récurrentes** (loyer, salaire, abonnements) avec une périodicité : mensuelle, trimestrielle, annuelle…
+- **Opérations récurrentes** (loyer, salaire, abonnements) avec une périodicité : hebdomadaire, mensuelle, trimestrielle, semestrielle ou annuelle. Le jour est le jour de la semaine pour une échéance hebdomadaire, le jour du mois sinon (ramené au dernier jour des mois plus courts) ; les périodicités de plus d'un mois se répètent à partir du mois de la date de début.
 - **En V1, l'échéancier sert à l'affichage** : il liste les prochaines échéances sur le tableau de bord, sans créer d'opérations. Les opérations réelles viennent de l'import, ce qui évite tout doublon.
 
 #### Analyse et graphiques

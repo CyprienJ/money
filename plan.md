@@ -225,10 +225,10 @@ Maquette : `Analyses.dc.html`.
 ### Étape 7 — Finitions
 
 #### V1-07.1 · Échéancier (affichage seulement) — M
-- [ ] CRUD `scheduled_operation` (libellé, compte, montant, catégorie, périodicité, jour, début, fin).
-- [ ] Calcul des prochaines occurrences sur N jours, **sans créer d'opérations**.
-- [ ] Écran Échéancier.
-- 🟡 Pas de maquette ; liste exacte des périodicités au-delà de mensuelle / trimestrielle / annuelle.
+- [x] CRUD `scheduled_operation` (libellé, compte, montant, catégorie, périodicité, jour, début, fin).
+- [x] Calcul des prochaines occurrences sur N jours, **sans créer d'opérations**.
+- [x] Écran Échéancier : prochaines échéances sur 30 jours, liste des opérations récurrentes, fenêtre de saisie.
+- Périodicités hebdomadaire, mensuelle, trimestrielle, semestrielle, annuelle ; jour = jour de la semaine (hebdomadaire) ou du mois, ramené au dernier jour des mois courts (décision du 20/10/2026, inscrite au README). Pas de maquette : style des cartes de l'écran Comptes.
 
 #### V1-07.2 · Comparaison de périodes — M
 - [ ] Requête de comparaison : période vs précédente, ou vs même période l'an dernier.
@@ -328,6 +328,6 @@ Ordre indicatif : catégorisation et tiers d'abord (gain quotidien), puis opéra
 
 | Ticket | Question |
 |---|---|
-| V1-07.1, V1-07.5 | Design des écrans sans maquette : Échéancier, Paramètres |
+| V1-07.5 | Design de l'écran Paramètres (sans maquette) |
 | V1-07.3 | Sens de « hors crédit » dans le top tiers |
 | V2-12 | Source des cours de bourse (accès réseau) |
