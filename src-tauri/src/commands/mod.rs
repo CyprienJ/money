@@ -15,6 +15,8 @@ pub fn builder() -> Builder<tauri::Wry> {
     Builder::new()
         .commands(collect_commands![app::app_version])
         .typ::<AppError>()
+        // Amounts are i64 cents: exact as a JS number up to 2^53 (README, stack).
+        .dangerously_cast_bigints_to_number()
 }
 
 pub fn typescript() -> Typescript {

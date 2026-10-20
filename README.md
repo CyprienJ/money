@@ -237,8 +237,10 @@ L'application est une **application de bureau Tauri**. L'interface est écrite e
 | Import PDF | **pdfium-render** | Texte avec positions via PDFium ; bibliothèque PDFium embarquée dans le bundle |
 | Normalisation des libellés | crate **regex** | |
 | Frontend | **Vue 3 + TypeScript + Vite** | |
+| Navigation | **Vue Router** | Un écran par entrée de la barre latérale |
+| Police | **Plus Jakarta Sans** | Fichiers `.woff2` (licence OFL) commités dans `src/assets/fonts/`, aucun chargement réseau |
 | Graphiques | **Apache ECharts** (via **vue-echarts**) | Camemberts, séries temporelles, zoom sur une période |
-| Typage front ↔ back | **tauri-specta** | Génère les types et fonctions TypeScript à partir des commandes Rust |
+| Typage front ↔ back | **tauri-specta** | Génère les types et fonctions TypeScript à partir des commandes Rust ; les `i64` (centimes) sont exportés en `number`, exact jusqu'à 2⁵³ |
 | Accès système | **tauri-plugin-dialog**, **tauri-plugin-fs** | Sélection des fichiers de relevés |
 | Tests | `cargo test` (back), **Vitest** (front) | Relevés réels anonymisés comme fixtures d'import |
 | Packaging | Bundler Tauri | `.msi` / NSIS (Windows), `.deb`, `.rpm`, AppImage (Linux) |
