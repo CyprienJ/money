@@ -4,8 +4,8 @@ use tauri::State;
 
 use crate::error::AppResult;
 use crate::stats::{
-    self, BalancePoint, BalanceStep, CategoryExpense, CategoryLevel, Granularity, NetWorth,
-    PeriodIncomeExpenses,
+    self, BalancePoint, BalanceStep, CategoryComparison, CategoryExpense, CategoryLevel, DateRange,
+    Granularity, NetWorth, PeriodIncomeExpenses,
 };
 
 /// Net expenses by category between `from` and `to` (included), internal transfers excluded.
@@ -65,4 +65,17 @@ pub async fn net_worth_history(
     step: BalanceStep,
 ) -> AppResult<Vec<NetWorth>> {
     stats::net_worth_history(&pool, from, to, step).await
+}
+
+/// Net expenses by category of `current` and `previous`, internal transfers excluded.
+#[tauri::command]
+#[specta::specta]
+pub async fn compare_expenses_by_category(
+    pool: State<'_, SqlitePool>,
+    current: DateRange,
+    previous: DateRange,
+    accounts: Option<Vec<i64>>,
+    level: CategoryLevel,
+) -> AppResult<Vec<CategoryComparison>> {
+    stats::compare_expenses_by_category(&pool, current, previous, accounts.as_deref(), level).await
 }

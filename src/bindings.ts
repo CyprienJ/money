@@ -90,6 +90,8 @@ export const commands = {
 	netWorthAt: (date: string) => typedError<NetWorth, AppError>(__TAURI_INVOKE("net_worth_at", { date })),
 	/**  Net worth at the end of each day, week or month between `from` and `to`. */
 	netWorthHistory: (from: string, to: string, step: BalanceStep) => typedError<NetWorth[], AppError>(__TAURI_INVOKE("net_worth_history", { from, to, step })),
+	/**  Net expenses by category of `current` and `previous`, internal transfers excluded. */
+	compareExpensesByCategory: (current: DateRange, previous: DateRange, accounts: number[] | null, level: CategoryLevel) => typedError<CategoryComparison[], AppError>(__TAURI_INVOKE("compare_expenses_by_category", { current, previous, accounts, level })),
 };
 
 /* Types */
@@ -198,6 +200,15 @@ export type CategoryColor = "housing" | "groceries" | "restaurants" |
 /**  Internal transfer and other. */
 "neutral";
 
+export type CategoryComparison = {
+	/**  `None` for uncategorized expenses. */
+	categoryId: number | null,
+	/**  Net expenses of the period. */
+	currentCents: number,
+	/**  Net expenses of the compared period. */
+	previousCents: number,
+};
+
 export type CategoryExpense = {
 	/**  `None` for uncategorized expenses. */
 	categoryId: number | null,
@@ -238,6 +249,12 @@ export type CsvMapping = {
 	amountColumns: AmountColumns,
 	/**  Lines ignored at the top of the file, column headers included. */
 	skipLines: number,
+};
+
+/**  First and last days of a period, both included. */
+export type DateRange = {
+	from: string,
+	to: string,
 };
 
 /**  Decimal separator of the amounts. */

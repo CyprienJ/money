@@ -17,8 +17,10 @@ use sqlx::SqlitePool;
 
 use crate::error::{AppResult, ErrorKind};
 
+mod comparison;
 mod net_worth;
 
+pub use comparison::{CategoryComparison, DateRange, compare_expenses_by_category};
 pub use net_worth::{NetWorth, net_worth_at, net_worth_history};
 
 /// How expenses are grouped by category.
