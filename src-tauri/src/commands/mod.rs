@@ -7,6 +7,7 @@ use crate::error::AppError;
 
 mod account;
 mod app;
+mod csv_mapping;
 mod operation;
 
 /// Path of the generated TypeScript bindings (`src/bindings.ts`).
@@ -31,6 +32,12 @@ pub fn builder() -> Builder<tauri::Wry> {
             operation::set_operation_category,
             operation::delete_operation,
             operation::list_categories,
+            csv_mapping::list_csv_mappings,
+            csv_mapping::get_csv_mapping,
+            csv_mapping::create_csv_mapping,
+            csv_mapping::update_csv_mapping,
+            csv_mapping::delete_csv_mapping,
+            csv_mapping::suggest_csv_mappings,
         ])
         .typ::<AppError>()
         // Amounts are i64 cents: exact as a JS number up to 2^53 (README, stack).

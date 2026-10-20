@@ -1,0 +1,158 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!\", name, delimiter, encoding, date_format, decimal_separator,\n                  column_date, column_label, column_amount, column_debit, column_credit, skip_lines\n           FROM csv_mapping\n           WHERE id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "csv_mapping",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "name",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "csv_mapping",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "delimiter",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "csv_mapping",
+            "name": "delimiter"
+          }
+        }
+      },
+      {
+        "name": "encoding",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "csv_mapping",
+            "name": "encoding"
+          }
+        }
+      },
+      {
+        "name": "date_format",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "csv_mapping",
+            "name": "date_format"
+          }
+        }
+      },
+      {
+        "name": "decimal_separator",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "csv_mapping",
+            "name": "decimal_separator"
+          }
+        }
+      },
+      {
+        "name": "column_date",
+        "ordinal": 6,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "csv_mapping",
+            "name": "column_date"
+          }
+        }
+      },
+      {
+        "name": "column_label",
+        "ordinal": 7,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "csv_mapping",
+            "name": "column_label"
+          }
+        }
+      },
+      {
+        "name": "column_amount",
+        "ordinal": 8,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "csv_mapping",
+            "name": "column_amount"
+          }
+        }
+      },
+      {
+        "name": "column_debit",
+        "ordinal": 9,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "csv_mapping",
+            "name": "column_debit"
+          }
+        }
+      },
+      {
+        "name": "column_credit",
+        "ordinal": 10,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "csv_mapping",
+            "name": "column_credit"
+          }
+        }
+      },
+      {
+        "name": "skip_lines",
+        "ordinal": 11,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "csv_mapping",
+            "name": "skip_lines"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "38619fbd0f456a743d2f4149907f578b17c92465de81a8fd5f1791ebefcfd86e"
+}

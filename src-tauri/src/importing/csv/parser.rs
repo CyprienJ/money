@@ -7,13 +7,7 @@ use crate::importing::RawLine;
 /// Reads the statement lines of a CSV file with the given mapping. Blank lines are ignored;
 /// any other line that cannot be read fails the whole file, with its line number.
 pub fn parse(bytes: &[u8], mapping: &CsvMapping) -> Result<Vec<RawLine>, CsvError> {
-    let delimiter = u8::try_from(mapping.delimiter)
-        .ok()
-        .filter(u8::is_ascii)
-        .ok_or(CsvError::InvalidDelimiter(mapping.delimiter))?;
-    if mapping.date_format.trim().is_empty() {
-        return Err(CsvError::EmptyDateFormat);
-    }
+    let delimiter = mapping.validate()?;
 
     let encoding = mapping.encoding.encoding();
     let (text, malformed) = encoding.decode_with_bom_removal(bytes);

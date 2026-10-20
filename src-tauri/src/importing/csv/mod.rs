@@ -1,10 +1,15 @@
 //! CSV statement parser and column mappings.
 
 mod amount;
+mod mapping;
 mod parser;
 #[cfg(test)]
 mod tests;
 
+pub use mapping::{
+    CsvMappingError, MappingSuggestion, NewCsvMapping, SavedCsvMapping, create, delete, get, list,
+    suggest, update,
+};
 pub use parser::parse;
 
 use serde::{Deserialize, Serialize};
@@ -86,6 +91,25 @@ pub struct CsvMapping {
     pub skip_lines: u32,
 }
 
+impl CsvMapping {
+    /// Checks the settings that do not depend on the file; returns the delimiter byte.
+    pub fn validate(&self) -> Result<u8, CsvError> {
+        let delimiter = u8::try_from(self.delimiter)
+            .ok()
+            .filter(u8::is_ascii)
+            .ok_or(CsvError::InvalidDelimiter(self.delimiter))?;
+        if self.date_format.trim().is_empty() {
+            return Err(CsvError::EmptyDateFormat);
+        }
+        let invalid = chrono::format::StrftimeItems::new(&self.date_format)
+            .any(|item| matches!(item, chrono::format::Item::Error));
+        if invalid {
+            return Err(CsvError::InvalidDateFormat(self.date_format.clone()));
+        }
+        Ok(delimiter)
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum CsvError {
     #[error("the CSV delimiter must be a single ASCII character, got {0:?}")]
@@ -93,6 +117,9 @@ pub enum CsvError {
 
     #[error("the date format cannot be empty")]
     EmptyDateFormat,
+
+    #[error("invalid date format {0:?}")]
+    InvalidDateFormat(String),
 
     #[error("the file is not valid {0}")]
     InvalidEncoding(&'static str),

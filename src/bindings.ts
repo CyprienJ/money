@@ -24,6 +24,13 @@ export const commands = {
 	setOperationCategory: (id: number, categoryId: number | null) => typedError<Operation, AppError>(__TAURI_INVOKE("set_operation_category", { id, categoryId })),
 	deleteOperation: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_operation", { id })),
 	listCategories: () => typedError<Category[], AppError>(__TAURI_INVOKE("list_categories")),
+	listCsvMappings: () => typedError<SavedCsvMapping[], AppError>(__TAURI_INVOKE("list_csv_mappings")),
+	getCsvMapping: (id: number) => typedError<SavedCsvMapping, AppError>(__TAURI_INVOKE("get_csv_mapping", { id })),
+	createCsvMapping: (mapping: NewCsvMapping) => typedError<SavedCsvMapping, AppError>(__TAURI_INVOKE("create_csv_mapping", { mapping })),
+	updateCsvMapping: (id: number, changes: NewCsvMapping) => typedError<SavedCsvMapping, AppError>(__TAURI_INVOKE("update_csv_mapping", { id, changes })),
+	deleteCsvMapping: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_csv_mapping", { id })),
+	/**  Saved mappings that read the CSV file at `path`, the most lines read first. */
+	suggestCsvMappings: (path: string) => typedError<MappingSuggestion[], AppError>(__TAURI_INVOKE("suggest_csv_mappings", { path })),
 };
 
 /* Types */
@@ -63,6 +70,13 @@ export type AccountUpdate = {
 	openingDate: string,
 };
 
+/**  Where the amount of a line is read. Column indexes are zero-based. */
+export type AmountColumns = 
+/**  One signed amount column. */
+{ kind: "signed"; amount: number } | 
+/**  Separate debit and credit columns; their sign is ignored. */
+{ kind: "debitCredit"; debit: number; credit: number };
+
 /**  Error returned by commands to the frontend: `{ kind, message }`. */
 export type AppError = {
 	kind: ErrorKind,
@@ -87,12 +101,39 @@ export type CategoryColor = "housing" | "groceries" | "restaurants" |
 /**  Internal transfer and other. */
 "neutral";
 
+/**  Text encoding of a CSV file. */
+export type CsvEncoding = "UTF-8" | "ISO-8859-1" | "WINDOWS-1252";
+
+/**  How to read the CSV export of a bank. Column indexes are zero-based. */
+export type CsvMapping = {
+	delimiter: string,
+	encoding: CsvEncoding,
+	/**  `chrono` format, e.g. `%d/%m/%Y`. */
+	dateFormat: string,
+	decimalSeparator: DecimalSeparator,
+	columnDate: number,
+	columnLabel: number,
+	amountColumns: AmountColumns,
+	/**  Lines ignored at the top of the file, column headers included. */
+	skipLines: number,
+};
+
+/**  Decimal separator of the amounts. */
+export type DecimalSeparator = "," | ".";
+
 /**  Stable identifier the frontend can match on. */
 export type ErrorKind = "database" | "migration" | "io" | 
 /**  The requested entity does not exist. */
 "not_found" | 
 /**  The input breaks a business rule; the message says which. */
 "validation";
+
+/**  A saved mapping that reads a file without error. */
+export type MappingSuggestion = {
+	mapping: SavedCsvMapping,
+	/**  Statement lines read from the file with this mapping. */
+	lineCount: number,
+};
 
 /**  Fields chosen when creating an account. */
 export type NewAccount = {
@@ -101,6 +142,12 @@ export type NewAccount = {
 	institution: string | null,
 	openingBalanceCents: number,
 	openingDate: string,
+};
+
+/**  A mapping to save, on creation or update. */
+export type NewCsvMapping = {
+	name: string,
+	mapping: CsvMapping,
 };
 
 /**  A manual entry. */
@@ -148,6 +195,13 @@ export type OperationUpdate = {
 	amountCents: number,
 	label: string,
 	categoryId: number | null,
+};
+
+/**  A mapping saved under a name, e.g. "Banque X - export CSV". */
+export type SavedCsvMapping = {
+	id: number,
+	name: string,
+	mapping: CsvMapping,
 };
 
 /* Tauri Specta runtime */

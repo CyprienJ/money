@@ -91,8 +91,8 @@ Maquette : `Operations.dc.html`.
 - Fixtures inventées au format bancaire français courant, faute de relevé réel : à valider sur les exports de la banque principale.
 
 #### V1-02.2 · Mémorisation des mappings — S
-- [ ] CRUD `csv_mapping`, nommé par banque ou format.
-- [ ] Proposition automatique du mapping déjà utilisé pour un compte / un format.
+- [x] CRUD `csv_mapping`, nommé par banque ou format.
+- [x] Proposition automatique : chaque mapping enregistré est essayé sur le fichier ; ceux qui le lisent sans erreur sont proposés, le plus de lignes lues en premier (décision du 20/10/2026, sans lien compte ↔ mapping).
 
 #### V1-02.3 · Détection des doublons — M
 - [ ] Doublon certain : même compte, même date, même montant, même libellé brut → exclu.
