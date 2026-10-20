@@ -236,9 +236,9 @@ Maquette : `Analyses.dc.html`.
 - [x] Sélecteur « Comparer à … » : même période l'an dernier par défaut (comme la maquette), ou période précédente.
 
 #### V1-07.3 · Top tiers et plus grosses dépenses — S
-- [ ] `top_payees(period, limit)` et `largest_expenses(period, limit)` sur les libellés normalisés, virements internes exclus.
-- [ ] Cartes correspondantes dans Analyses.
-- 🟡 Sens de « hors crédit » dans la maquette (« Top tiers sur 12 mois hors crédit ») alors que le Dashboard affiche le crédit immobilier dans le top.
+- [x] `top_payees(from, to, accounts?, limit)` et `largest_expenses(from, to, accounts?, limit)` sur les libellés normalisés, virements internes et revenus exclus.
+- [x] Cartes correspondantes dans Analyses : « Top tiers sur 12 mois » et tuiles « Plus grosses dépenses » de la période.
+- « Hors crédit » abandonné : le top porte sur toutes les dépenses, crédit compris, comme au tableau de bord (décision du 20/10/2026, inscrite au README).
 
 #### V1-07.4 · Tableau de bord — L
 Maquette : `Dashboard.dc.html`.
@@ -329,5 +329,4 @@ Ordre indicatif : catégorisation et tiers d'abord (gain quotidien), puis opéra
 | Ticket | Question |
 |---|---|
 | V1-07.5 | Design de l'écran Paramètres (sans maquette) |
-| V1-07.3 | Sens de « hors crédit » dans le top tiers |
 | V2-12 | Source des cours de bourse (accès réseau) |

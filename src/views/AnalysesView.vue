@@ -7,7 +7,9 @@ import {
   type Category,
   type CategoryComparison,
   type CategoryExpense,
+  type LargestExpense,
   type NetWorth,
+  type PayeeExpense,
   type PeriodIncomeExpenses,
 } from "../bindings";
 import AppChart from "../components/AppChart.vue";
@@ -23,7 +25,8 @@ import { readTokens } from "../charts/theme";
 import { ACCOUNT_TYPES } from "../utils/accounts";
 import { categorySlices, comparisonSlices, trendTotals } from "../utils/analyses";
 import { errorMessage, unwrap } from "../utils/commands";
-import { formatAmount } from "../utils/format";
+import CategoryPill from "../components/CategoryPill.vue";
+import { displayLabel, formatAmount, formatDate } from "../utils/format";
 import {
   type AnalysisGranularity,
   type ComparisonMode,
@@ -52,6 +55,10 @@ const expenses = ref<CategoryExpense[]>([]);
 const comparing = ref(true);
 const comparisonMode = ref<ComparisonMode>("previousYear");
 const comparison = ref<CategoryComparison[]>([]);
+/** Payees with the largest expenses over the 12 months of the trend. */
+const topPayees = ref<PayeeExpense[]>([]);
+/** Largest single expenses of the period. */
+const largest = ref<LargestExpense[]>([]);
 const balance = ref<BalancePoint[]>([]);
 /** Net worth at the end of each month, from the end of the month before the trend. */
 const netWorth = ref<NetWorth[]>([]);
@@ -67,6 +74,8 @@ const slices = computed(() =>
 /** Current expenses only, for the ring. */
 const currentSlices = computed(() => slices.value.filter((s) => s.amountCents > 0));
 const lowerFirst = (text: string) => text.charAt(0).toLowerCase() + text.slice(1);
+const categoriesById = computed(() => new Map(categories.value.map((c) => [c.id, c])));
+const categoryOf = (id: number | null) => (id === null ? undefined : categoriesById.value.get(id));
 /** The periods offered for the comparison: a year earlier, or the period before. */
 const comparisonOptions = computed(() =>
   (["previousYear", "previousPeriod"] as ComparisonMode[]).map((mode) => ({
@@ -120,6 +129,10 @@ async function loadStats() {
         : Promise.resolve([]),
       unwrap(commands.balanceHistory(trendFrom, to, balanceAccounts, "day")),
       unwrap(commands.netWorthHistory(trendBase, to, "month")),
+    ]);
+    [topPayees.value, largest.value] = await Promise.all([
+      unwrap(commands.topPayees(trendFrom, to, null, 5)),
+      unwrap(commands.largestExpenses(from, to, null, 4)),
     ]);
   } catch (e) {
     error.value = errorMessage(e);
@@ -248,6 +261,27 @@ watch([period, balanceAccount, comparing, comparisonMode], loadStats);
 
       <div class="card">
         <div class="card-header">
+          <h2 class="card-title">Top tiers sur 12 mois</h2>
+          <span class="muted">jusqu'à {{ lowerFirst(period.label) }}</span>
+        </div>
+        <ol v-if="topPayees.length > 0" class="payees">
+          <li v-for="payee in topPayees" :key="payee.normalizedLabel">
+            <span class="payee-row">
+              <span class="payee-name">{{ displayLabel(payee.normalizedLabel) }}</span>
+              <CategoryPill
+                :label="categoryOf(payee.categoryId)?.name ?? 'À catégoriser'"
+                :color="categoryOf(payee.categoryId)?.color"
+                :pending="payee.categoryId === null"
+              />
+              <strong class="payee-amount">{{ formatAmount(payee.expenseCents, { cents: false }) }}</strong>
+            </span>
+          </li>
+        </ol>
+        <p v-else class="muted empty">Aucune dépense sur la période.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
           <h2 class="card-title">Répartition des dépenses</h2>
           <span class="muted">{{ period.label }}</span>
         </div>
@@ -257,6 +291,31 @@ watch([period, balanceAccount, comparing, comparisonMode], loadStats);
         <p v-else class="muted empty">Aucune dépense sur la période.</p>
       </div>
     </div>
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <h2 class="card-title">Plus grosses dépenses</h2>
+      <span class="muted">{{ period.label }}</span>
+    </div>
+    <div v-if="largest.length > 0" class="tiles">
+      <div
+        v-for="expense in largest"
+        :key="expense.operationId"
+        class="tile"
+        :style="{
+          background: `var(--cat-${categoryOf(expense.categoryId)?.color ?? 'neutral'}-bg)`,
+          '--tile-accent': `var(--cat-${categoryOf(expense.categoryId)?.color ?? 'neutral'}-fg)`,
+        }"
+      >
+        <span class="tile-meta">
+          {{ formatDate(expense.date, "day-month") }} · {{ categoryOf(expense.categoryId)?.name ?? "À catégoriser" }}
+        </span>
+        <span class="tile-label">{{ displayLabel(expense.normalizedLabel) }}</span>
+        <strong class="tile-amount">{{ formatAmount(expense.expenseCents) }}</strong>
+      </div>
+    </div>
+    <p v-else class="muted empty">Aucune dépense sur la période.</p>
   </section>
 </template>
 
@@ -471,6 +530,69 @@ h1 {
 
 .chart.net-worth-chart {
   height: 120px;
+}
+
+.payees {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0 0 0 22px;
+  font-size: 14px;
+}
+
+.payees li::marker {
+  color: var(--color-text-muted);
+  font-weight: 700;
+}
+
+.payee-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.payee-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.payee-amount {
+  width: 84px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 14px;
+}
+
+.tile-meta {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tile-accent);
+}
+
+.tile-label {
+  font-weight: 700;
+}
+
+.tile-amount {
+  font-size: 20px;
 }
 
 .account-select {

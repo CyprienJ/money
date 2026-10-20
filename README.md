@@ -64,7 +64,7 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 - **Évolution du solde** dans le temps, par compte et tous comptes confondus.
 - **Revenus vs dépenses** par mois et par année.
 - **Comparaison de périodes** : ce mois contre le mois précédent, ou contre le même mois l'an dernier.
-- **Top tiers et plus grosses dépenses**, calculés sur les libellés normalisés.
+- **Top tiers et plus grosses dépenses**, calculés sur les libellés normalisés, sur toutes les dépenses (remboursements de crédit compris ; virements internes et revenus exclus).
 - **Patrimoine net** dans le temps : liquidités + placements + actifs − dettes.
 - **Tableau de bord** d'accueil : soldes des comptes, patrimoine net, prochaines échéances, graphiques résumés du mois.
 
