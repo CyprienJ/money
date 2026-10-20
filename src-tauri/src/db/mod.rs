@@ -30,6 +30,9 @@ async fn connect(
 }
 
 #[cfg(test)]
+mod schema_tests;
+
+#[cfg(test)]
 pub mod tests {
     use super::*;
 

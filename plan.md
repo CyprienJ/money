@@ -52,9 +52,9 @@ Remplacer le projet Cargo actuel (`Cargo.toml` et `src/main.rs` à la racine) pa
 
 #### V1-01.1 · Migration initiale du modèle de données — M
 Créer toutes les tables V1 du README, y compris les colonnes *(prévu)* : `account`, `operation`, `operation_split`, `category`, `import_batch`, `csv_mapping`, `label_category_memory`, `valuation`, `scheduled_operation`.
-- [ ] Montants en `INTEGER` (centimes), clés étrangères et index (compte + date, `normalized_label`).
-- [ ] `currency` par défaut `'EUR'` ; `payee_id`, `transfer_pair_id`, `note` créés mais inutilisés.
-- [ ] Suppression en cascade : `import_batch` → `operation` → `operation_split`.
+- [x] Montants en `INTEGER` (centimes), clés étrangères et index (compte + date, `normalized_label`).
+- [x] `currency` par défaut `'EUR'` ; `payee_id`, `transfer_pair_id`, `note` créés mais inutilisés.
+- [x] Suppression en cascade : `import_batch` → `operation` → `operation_split`.
 
 #### V1-01.2 · Module `account` (backend) — S
 - [ ] CRUD des comptes (types `CHECKING | SAVINGS | CREDIT_CARD | INVESTMENT | ASSET | LIABILITY`), archivage.
