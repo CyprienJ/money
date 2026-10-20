@@ -18,9 +18,9 @@ Légende des tailles : **S** (≤ ½ jour), **M** (1–2 jours), **L** (3 jours 
 
 #### V1-00.1 · Squelette Tauri 2 + Vue 3 — M
 Remplacer le projet Cargo actuel (`Cargo.toml` et `src/main.rs` à la racine) par la structure du README : `src/` pour le front Vue 3 + TypeScript + Vite, `src-tauri/` pour le backend Rust.
-- [ ] `npm run tauri dev` ouvre une fenêtre vide sous Linux (WebKitGTK).
-- [ ] Arborescence Rust créée : `commands/`, `db/`, `account/`, `operation/`, `importing/{csv,pdf}/`, `labeling/`, `stats/`.
-- [ ] `.gitignore` couvre `target/`, `node_modules/`, `dist/`, `.idea/`.
+- [x] `npm run tauri dev` ouvre une fenêtre vide sous Linux (WebKitGTK).
+- [x] Arborescence Rust créée : `commands/`, `db/`, `account/`, `operation/`, `importing/{csv,pdf}/`, `labeling/`, `stats/`.
+- [x] `.gitignore` couvre `target/`, `node_modules/`, `dist/`, `.idea/`.
 
 #### V1-00.2 · Base SQLite et migrations — S
 - [ ] Pool `sqlx` (SQLite) ouvert sur un fichier dans `app_data_dir()`.
