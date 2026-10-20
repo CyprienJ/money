@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatAmount, formatDate } from "./format";
+import { formatAmount, formatAmountInput, formatDate, parseAmount } from "./format";
 
 // Intl groups thousands with a narrow no-break space; normalize to plain spaces for readability.
 const plain = (text: string) => text.replace(/[  ]/g, " ");
@@ -56,5 +56,41 @@ describe("formatDate", () => {
 
   it("rejects malformed dates", () => {
     expect(() => formatDate("20/10/2026")).toThrow(RangeError);
+  });
+});
+
+describe("parseAmount", () => {
+  it("parses euros and cents with a comma or a dot", () => {
+    expect(parseAmount("1234,56")).toBe(123456);
+    expect(parseAmount("8.4")).toBe(840);
+    expect(parseAmount("12")).toBe(1200);
+    expect(parseAmount("0,05")).toBe(5);
+  });
+
+  it("accepts spaces, the euro sign and both minus signs", () => {
+    expect(parseAmount(" 1 234,56 € ")).toBe(123456);
+    expect(parseAmount("-842")).toBe(-84200);
+    expect(parseAmount("−64,28")).toBe(-6428);
+    expect(parseAmount("+3280")).toBe(328000);
+  });
+
+  it("does not lose precision on large amounts", () => {
+    expect(parseAmount("210000,01")).toBe(21000001);
+    expect(parseAmount("0,29")).toBe(29);
+  });
+
+  it("rejects invalid input", () => {
+    for (const text of ["", "abc", "1,234", "12,", ",5", "1,2,3", "--5"]) {
+      expect(parseAmount(text)).toBeNull();
+    }
+  });
+});
+
+describe("formatAmountInput", () => {
+  it("round-trips with parseAmount", () => {
+    for (const cents of [0, 5, 840, -6428, 21000001]) {
+      expect(parseAmount(formatAmountInput(cents))).toBe(cents);
+    }
+    expect(formatAmountInput(-123456)).toBe("-1234,56");
   });
 });

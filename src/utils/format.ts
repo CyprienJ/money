@@ -2,7 +2,16 @@
 export const MINUS = "−";
 const NBSP = " ";
 
-const integerFormat = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 });
+/**
+ * No-break space: same width as the plain space of the mockups, but keeps amounts on one line.
+ * (The narrow no-break space U+202F is nearly invisible in Plus Jakarta Sans.)
+ */
+const THOUSANDS_SEPARATOR = "\u00a0";
+
+/** Groups digits by three. Done by hand: Intl locale data varies between web engines. */
+function groupThousands(value: number): string {
+  return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, THOUSANDS_SEPARATOR);
+}
 
 export interface AmountFormatOptions {
   /** Prefix positive amounts with "+" (negative amounts always get "−"). */
@@ -23,8 +32,8 @@ export function formatAmount(amountCents: number, options: AmountFormatOptions =
 
   const abs = Math.abs(amountCents);
   const body = cents
-    ? `${integerFormat.format(Math.floor(abs / 100))},${String(abs % 100).padStart(2, "0")}`
-    : integerFormat.format(Math.floor((abs + 50) / 100));
+    ? `${groupThousands(Math.floor(abs / 100))},${String(abs % 100).padStart(2, "0")}`
+    : groupThousands(Math.floor((abs + 50) / 100));
 
   const isZero = cents ? abs === 0 : abs < 50;
   const sign = isZero ? "" : amountCents < 0 ? MINUS : signed ? "+" : "";
@@ -65,4 +74,40 @@ export function formatDate(isoDate: string, style: DateStyle = "short"): string 
       return text.charAt(0).toUpperCase() + text.slice(1);
     }
   }
+}
+
+/**
+ * Parses an amount typed in euros (`"1 234,56"`, `"-8.4"`, `"−12"`) into cents.
+ * Returns `null` when the text is not a valid amount with at most two decimals.
+ * Parsing is done on the digits, without floating point.
+ */
+export function parseAmount(text: string): number | null {
+  const compact = text.replace(/[\s  €]/g, "").replace(MINUS, "-");
+  const match = /^([+-]?)(\d+)(?:[.,](\d{1,2}))?$/.exec(compact);
+  if (!match) {
+    return null;
+  }
+  const [, sign, euros, decimals = ""] = match;
+  const cents = Number(euros) * 100 + Number(decimals.padEnd(2, "0"));
+  if (!Number.isSafeInteger(cents)) {
+    return null;
+  }
+  return sign === "-" ? -cents : cents;
+}
+
+/** Formats cents for an editable input: `-123456` → `"-1234,56"`. */
+export function formatAmountInput(amountCents: number): string {
+  const abs = Math.abs(amountCents);
+  const text = `${Math.floor(abs / 100)},${String(abs % 100).padStart(2, "0")}`;
+  return amountCents < 0 ? `-${text}` : text;
+}
+
+/** Today's local date as `YYYY-MM-DD`. */
+export function todayIso(): string {
+  const now = new Date();
+  return [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("-");
 }

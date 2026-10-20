@@ -62,9 +62,9 @@ Créer toutes les tables V1 du README, y compris les colonnes *(prévu)* : `acco
 - [x] Tests unitaires du calcul de solde.
 
 #### V1-01.3 · Écran Comptes — M
-- [ ] Liste des comptes par type avec solde (pastille d'initiales comme dans le Dashboard).
-- [ ] Création / édition / archivage d'un compte (nom, type, établissement, solde et date d'ouverture).
-- 🟡 Pas de maquette pour cet écran : s'aligner sur la carte « Comptes » du Dashboard.
+- [x] Liste des comptes par type avec solde (pastille d'initiales comme dans le Dashboard).
+- [x] Création / édition / archivage d'un compte (nom, type, établissement, solde et date d'ouverture).
+- Pas de maquette : présentation alignée sur la carte « Comptes » du Dashboard (validée le 20/10/2026).
 
 #### V1-01.4 · Module `operation` (backend) — M
 - [ ] Création / édition / suppression d'une opération manuelle, avec **une ligne `operation_split`** systématique.
