@@ -70,6 +70,15 @@ pub enum ImportError {
 
     #[error("statement line with an empty label or a zero amount")]
     InvalidLine,
+
+    #[error("the file changed since its preview, start the import again")]
+    FileChanged,
+
+    #[error("line {0} of the preview does not exist")]
+    LineOutOfRange(u32),
+
+    #[error("line {0} is already in the account and cannot be imported again")]
+    DuplicateLine(u32),
 }
 
 impl ImportError {

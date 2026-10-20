@@ -41,6 +41,9 @@ pub fn builder() -> Builder<tauri::Wry> {
             csv_mapping::suggest_csv_mappings,
             import::list_import_batches,
             import::cancel_import,
+            import::read_file_head,
+            import::preview_csv_import,
+            import::import_csv,
         ])
         .typ::<AppError>()
         // Amounts are i64 cents: exact as a JS number up to 2^53 (README, stack).

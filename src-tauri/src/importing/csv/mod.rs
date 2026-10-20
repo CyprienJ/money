@@ -10,7 +10,7 @@ pub use mapping::{
     CsvMappingError, MappingSuggestion, NewCsvMapping, SavedCsvMapping, create, delete, get, list,
     suggest, update,
 };
-pub use parser::parse;
+pub use parser::{head, parse};
 
 use serde::{Deserialize, Serialize};
 use specta::Type;

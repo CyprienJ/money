@@ -214,15 +214,6 @@ fn loads_operations_of_the_account_around_the_file_period() {
                 .unwrap()
                 .is_empty()
         );
-        let statuses = find_duplicates(&pool, account_id, &[line("2026-09-10", -200, "Op -200")])
-            .await
-            .unwrap();
-        assert_eq!(
-            statuses,
-            vec![Duplicate {
-                operation_id: inside
-            }]
-        );
     });
 }
 

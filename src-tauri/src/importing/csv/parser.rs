@@ -1,8 +1,15 @@
 use chrono::NaiveDate;
 
 use super::amount::parse_cents;
-use super::{AmountColumns, CsvError, CsvMapping};
+use super::{AmountColumns, CsvEncoding, CsvError, CsvMapping};
 use crate::importing::RawLine;
+
+/// First `count` lines of the file decoded with `encoding`, to help define a mapping.
+/// Bytes invalid in the encoding are replaced rather than rejected.
+pub fn head(bytes: &[u8], encoding: CsvEncoding, count: usize) -> Vec<String> {
+    let (text, _) = encoding.encoding().decode_with_bom_removal(bytes);
+    text.lines().take(count).map(str::to_owned).collect()
+}
 
 /// Reads the statement lines of a CSV file with the given mapping. Blank lines are ignored;
 /// any other line that cannot be read fails the whole file, with its line number.

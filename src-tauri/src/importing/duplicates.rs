@@ -23,7 +23,8 @@ use crate::error::AppResult;
 pub const MANUAL_ENTRY_DAYS: u64 = 3;
 
 /// An existing operation of the account, as needed for duplicate detection.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Type)]
+#[serde(rename_all = "camelCase")]
 pub struct ExistingOperation {
     pub id: i64,
     pub date: NaiveDate,
@@ -44,7 +45,7 @@ pub enum AmbiguityReason {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Type)]
-#[serde(tag = "status", rename_all = "camelCase")]
+#[serde(tag = "status", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum DuplicateStatus {
     New,
     Duplicate {
@@ -178,16 +179,6 @@ pub async fn existing_operations(
     .fetch_all(pool)
     .await?;
     Ok(operations)
-}
-
-/// Status of each line against the operations already in the account.
-pub async fn find_duplicates(
-    pool: &SqlitePool,
-    account_id: i64,
-    lines: &[RawLine],
-) -> AppResult<Vec<DuplicateStatus>> {
-    let existing = existing_operations(pool, account_id, lines).await?;
-    Ok(classify(lines, &existing))
 }
 
 #[cfg(test)]

@@ -35,6 +35,15 @@ export const commands = {
 	listImportBatches: (accountId: number) => typedError<ImportBatch[], AppError>(__TAURI_INVOKE("list_import_batches", { accountId })),
 	/**  Deletes an import and all its operations. */
 	cancelImport: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("cancel_import", { id })),
+	/**  First lines of the file at `path`, decoded with `encoding`. */
+	readFileHead: (path: string, encoding: CsvEncoding) => typedError<string[], AppError>(__TAURI_INVOKE("read_file_head", { path, encoding })),
+	/**  Reads the CSV file at `path` with a saved mapping and compares it with the account. */
+	previewCsvImport: (path: string, accountId: number, mappingId: number) => typedError<ImportPreview, AppError>(__TAURI_INVOKE("preview_csv_import", { path, accountId, mappingId })),
+	/**
+	 *  Imports the lines at `included` (preview indexes) of the CSV file at `path`.
+	 *  `file_hash` comes from the preview and guards against a file changed in between.
+	 */
+	importCsv: (path: string, accountId: number, mappingId: number, fileHash: string, included: number[]) => typedError<ImportBatch, AppError>(__TAURI_INVOKE("import_csv", { path, accountId, mappingId, fileHash, included })),
 };
 
 /* Types */
@@ -73,6 +82,14 @@ export type AccountUpdate = {
 	openingBalanceCents: number,
 	openingDate: string,
 };
+
+export type AmbiguityReason = 
+/**  The account has this exact operation, but fewer times than the file. */
+"repeatedLine" | 
+/**  An operation has the same date and amount, with another label. */
+"sameDayOtherLabel" | 
+/**  A manual entry has the same amount, a few days apart. */
+"nearManualEntry";
 
 /**  Where the amount of a line is read. Column indexes are zero-based. */
 export type AmountColumns = 
@@ -130,12 +147,25 @@ export type CsvMapping = {
 /**  Decimal separator of the amounts. */
 export type DecimalSeparator = "," | ".";
 
+export type DuplicateStatus = { status: "new" } | { status: "duplicate"; operationId: number } | { status: "ambiguous"; reason: AmbiguityReason; 
+/**  Existing operations the line may duplicate. */
+candidateIds: number[] };
+
 /**  Stable identifier the frontend can match on. */
 export type ErrorKind = "database" | "migration" | "io" | 
 /**  The requested entity does not exist. */
 "not_found" | 
 /**  The input breaks a business rule; the message says which. */
 "validation";
+
+/**  An existing operation of the account, as needed for duplicate detection. */
+export type ExistingOperation = {
+	id: number,
+	date: string,
+	amountCents: number,
+	rawLabel: string,
+	isManual: boolean,
+};
 
 export type ImportBatch = {
 	id: number,
@@ -149,6 +179,20 @@ export type ImportBatch = {
 	statementEndBalanceCents: number | null,
 	balanceCheckStatus: BalanceCheckStatus,
 	operationCount: number,
+};
+
+export type ImportPreview = {
+	fileName: string,
+	/**  To check at import time that the file did not change. */
+	fileHash: string,
+	/**  Statement lines in file order; the import refers to them by index. */
+	lines: PreviewLine[],
+	/**  Existing operations that lines duplicate or may duplicate. */
+	matchedOperations: ExistingOperation[],
+	/**  Earlier imports of the same file, in any account. */
+	previousImports: ImportBatch[],
+	firstDate: string | null,
+	lastDate: string | null,
 };
 
 /**  A saved mapping that reads a file without error. */
@@ -218,6 +262,33 @@ export type OperationUpdate = {
 	amountCents: number,
 	label: string,
 	categoryId: number | null,
+};
+
+/**  A statement line in the import preview. */
+export type PreviewLine = {
+	line: RawLine,
+	normalizedLabel: string,
+	duplicate: DuplicateStatus,
+	/**
+	 *  Dated before the account opening: already counted in the opening balance, never
+	 *  imported.
+	 */
+	beforeOpening: boolean,
+	/**  Checked in the preview unless the user unchecks it: new lines only. */
+	includedByDefault: boolean,
+};
+
+/**
+ *  A statement line as read from the bank file, before normalization and duplicate detection.
+ *  Every parser (CSV mapping, bank-specific PDF parser) produces this structure.
+ */
+export type RawLine = {
+	date: string,
+	valueDate: string | null,
+	/**  Label exactly as written by the bank, only trimmed. */
+	label: string,
+	/**  Negative for a debit, positive for a credit. */
+	amountCents: number,
 };
 
 /**  A mapping saved under a name, e.g. "Banque X - export CSV". */
