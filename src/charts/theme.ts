@@ -12,6 +12,9 @@ export interface ChartTokens {
   positive: string;
   /** Full color of each category family. */
   categories: Record<CategoryColor, string>;
+  /** Badge colors of an expense going up or down. */
+  increase: { background: string; text: string };
+  decrease: { background: string; text: string };
 }
 
 const CATEGORY_COLORS: CategoryColor[] = [
@@ -42,6 +45,8 @@ export function readTokens(element: Element = document.documentElement): ChartTo
       CategoryColor,
       string
     >,
+    increase: { background: token("--cat-restaurants-bg"), text: token("--cat-restaurants-fg") },
+    decrease: { background: token("--cat-transport-bg"), text: token("--cat-transport-fg") },
   };
 }
 

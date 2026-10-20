@@ -28,6 +28,8 @@ const tokens: ChartTokens = {
     health: "#8c5ad8",
     neutral: "#b9b4c6",
   },
+  increase: { background: "#fde7de", text: "#9a3412" },
+  decrease: { background: "#ddf3ef", text: "#0f5e52" },
 };
 
 describe("periodLabel", () => {
@@ -128,5 +130,37 @@ describe("netWorthOption", () => {
     expect(option.series[0].data).toEqual([13910000, 14824000]);
     expect(option.series[0].lineStyle.color).toBe("#f26b3a");
     expect([option.xAxis.show, option.yAxis.show]).toEqual([false, false]);
+  });
+});
+
+/** The main series of the category bars, which carries the amount labels. */
+type LabelledSeries = Extract<ReturnType<typeof categoryBarsOption>["series"][number], { label: unknown }>;
+
+describe("categoryBarsOption with a comparison", () => {
+  it("adds the thin compared bars and the change badges", () => {
+    const option = categoryBarsOption(
+      [
+        { name: "Courses", color: "groceries", amountCents: 41200, previousCents: 36800 },
+        { name: "Logement", color: "housing", amountCents: 93800, previousCents: 92100 },
+        { name: "Restaurants", color: "restaurants", amountCents: 21400, previousCents: 25100 },
+        { name: "Cadeaux", color: "leisure", amountCents: 5000, previousCents: 0 },
+      ],
+      tokens,
+    );
+    const current = option.series[0] as LabelledSeries;
+    const previous = option.series[1];
+    expect(previous.data).toEqual([92100, 36800, 25100, 0]);
+    expect(previous.barWidth).toBe(4);
+    const label = (index: number) => current.label.formatter({ dataIndex: index });
+    expect(label(0)).toBe("{amount|938\u00a0€}  {up|+2 %}");
+    expect(label(2)).toBe("{amount|214\u00a0€}  {down|−15 %}");
+    // No badge without a compared amount.
+    expect(label(3)).toBe("{amount|50\u00a0€}");
+  });
+
+  it("shows amounts only without a comparison", () => {
+    const option = categoryBarsOption([{ name: "Courses", color: "groceries", amountCents: 41200 }], tokens);
+    expect(option.series).toHaveLength(1);
+    expect((option.series[0] as LabelledSeries).label.formatter({ dataIndex: 0 })).toBe("{amount|412\u00a0€}");
   });
 });

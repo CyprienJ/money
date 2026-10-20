@@ -231,9 +231,9 @@ Maquette : `Analyses.dc.html`.
 - Périodicités hebdomadaire, mensuelle, trimestrielle, semestrielle, annuelle ; jour = jour de la semaine (hebdomadaire) ou du mois, ramené au dernier jour des mois courts (décision du 20/10/2026, inscrite au README). Pas de maquette : style des cartes de l'écran Comptes.
 
 #### V1-07.2 · Comparaison de périodes — M
-- [ ] Requête de comparaison : période vs précédente, ou vs même période l'an dernier.
-- [ ] Analyses : « Par catégorie » avec barre fine de la période comparée et badge de variation en %.
-- [ ] Sélecteur « Comparer à … ».
+- [x] Requête de comparaison (`compare_expenses_by_category`) : période vs précédente, ou vs même période l'an dernier.
+- [x] Analyses : « Par catégorie » avec barre fine de la période comparée et badge de variation en % (rouge en hausse, vert en baisse).
+- [x] Sélecteur « Comparer à … » : même période l'an dernier par défaut (comme la maquette), ou période précédente.
 
 #### V1-07.3 · Top tiers et plus grosses dépenses — S
 - [ ] `top_payees(period, limit)` et `largest_expenses(period, limit)` sur les libellés normalisés, virements internes exclus.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Category } from "../bindings";
-import { categorySlices, trendTotals } from "./analyses";
+import { categorySlices, comparisonSlices, trendTotals, variationPercent } from "./analyses";
 
 describe("trendTotals", () => {
   it("sums income and expenses and computes the savings rate", () => {
@@ -43,5 +43,33 @@ describe("categorySlices", () => {
       { name: "Courses", color: "groceries", amountCents: 41200 },
       { name: "À catégoriser", color: "neutral", amountCents: 4000 },
     ]);
+  });
+});
+
+describe("comparisons", () => {
+  const categories: Category[] = [
+    { id: 2, name: "Logement", parentId: null, color: "housing", isInternalTransfer: false, isIncome: false, operationCount: 0 },
+  ];
+
+  it("keeps categories spent in either period", () => {
+    expect(
+      comparisonSlices(
+        [
+          { categoryId: 2, currentCents: 93800, previousCents: 92100 },
+          { categoryId: null, currentCents: 0, previousCents: 1500 },
+          { categoryId: 3, currentCents: -200, previousCents: 0 },
+        ],
+        categories,
+      ),
+    ).toEqual([
+      { name: "Logement", color: "housing", amountCents: 93800, previousCents: 92100 },
+      { name: "À catégoriser", color: "neutral", amountCents: 0, previousCents: 1500 },
+    ]);
+  });
+
+  it("computes the change in percent", () => {
+    expect(variationPercent(93800, 92100)).toBe(2);
+    expect(variationPercent(21400, 25100)).toBe(-15);
+    expect(variationPercent(500, 0)).toBe(null);
   });
 });

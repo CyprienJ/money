@@ -1,4 +1,5 @@
 import type { BalancePoint, CategoryColor, NetWorth, PeriodIncomeExpenses } from "../bindings";
+import { variationPercent } from "../utils/analyses";
 import { formatAmount, formatDate } from "../utils/format";
 import type { ChartTokens } from "./theme";
 
@@ -79,14 +80,52 @@ export interface CategorySlice {
   name: string;
   color: CategoryColor;
   amountCents: number;
+  /** Amount of the compared period, when comparing. */
+  previousCents?: number;
 }
 
-/** Horizontal bars, the largest expense on top. */
+/**
+ * Horizontal bars, the largest expense on top. When the slices carry a compared amount, a
+ * thin grey bar shows it and a badge gives the change in percent, as in the Analyses mockup.
+ */
 export function categoryBarsOption(slices: CategorySlice[], tokens: ChartTokens) {
   const sorted = [...slices].sort((a, b) => b.amountCents - a.amountCents);
+  const comparing = sorted.some((s) => s.previousCents !== undefined);
+  const amountLabel = (index: number) => {
+    const slice = sorted[index];
+    const amount = `{amount|${euros(slice.amountCents)}}`;
+    if (!comparing) return amount;
+    const change = variationPercent(slice.amountCents, slice.previousCents ?? 0);
+    if (change === null) return amount;
+    const badge = change > 0 ? "up" : "down";
+    const sign = change > 0 ? "+" : change < 0 ? "−" : "";
+    return `${amount}  {${badge}|${sign}${Math.abs(change)} %}`;
+  };
+  const badge = (colors: { background: string; text: string }) => ({
+    backgroundColor: colors.background,
+    color: colors.text,
+    borderRadius: 99,
+    padding: [2, 7],
+    fontSize: 12,
+    fontWeight: 800,
+  });
+  const previousSeries = comparing
+    ? [
+        {
+          name: "Période comparée",
+          type: "bar",
+          data: sorted.map((s) => s.previousCents ?? 0),
+          barWidth: 4,
+          barGap: "60%",
+          itemStyle: { color: tokens.categories.neutral, borderRadius: 2 },
+        },
+      ]
+    : [];
   return {
-    grid: { left: 8, right: 72, top: 8, bottom: 8, containLabel: true },
-    tooltip: { trigger: "item", formatter: (p: TooltipParam) => `${p.name} <b>${formatAmount(p.value)}</b>` },
+    grid: { left: 8, right: comparing ? 128 : 72, top: 8, bottom: 8, containLabel: true },
+    tooltip: comparing
+      ? { trigger: "axis", axisPointer: { type: "none" }, formatter: comparisonTooltip(sorted) }
+      : { trigger: "item", formatter: (p: TooltipParam) => `${p.name} <b>${formatAmount(p.value)}</b>` },
     xAxis: { type: "value", axisLabel: { show: false }, splitLine: { show: false } },
     yAxis: {
       type: "category",
@@ -100,17 +139,30 @@ export function categoryBarsOption(slices: CategorySlice[], tokens: ChartTokens)
         data: sorted.map((s) => ({ value: s.amountCents, itemStyle: { color: tokens.categories[s.color] } })),
         barWidth: 10,
         itemStyle: { borderRadius: 5 },
-        // Amount at the end of each bar, as in the mockup.
+        // Amount (and change) at the end of each bar, as in the mockup.
         label: {
           show: true,
           position: "right",
-          formatter: (p: TooltipParam) => euros(p.value),
-          color: tokens.text,
-          fontSize: 13,
-          fontWeight: 700,
+          formatter: (p: { dataIndex: number }) => amountLabel(p.dataIndex),
+          rich: {
+            amount: { color: tokens.text, fontSize: 13, fontWeight: 700 },
+            up: badge(tokens.increase),
+            down: badge(tokens.decrease),
+          },
         },
       },
+      ...previousSeries,
     ],
+  };
+}
+
+/** Tooltip of a compared category: both amounts. */
+function comparisonTooltip(sorted: CategorySlice[]) {
+  return (params: { dataIndex: number }[]) => {
+    const slice = sorted[params[0].dataIndex];
+    return `${slice.name}<br>Période : <b>${formatAmount(slice.amountCents)}</b><br>Comparée : <b>${formatAmount(
+      slice.previousCents ?? 0,
+    )}</b>`;
   };
 }
 

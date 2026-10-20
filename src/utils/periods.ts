@@ -95,3 +95,18 @@ export function analysisPeriod(
     trendBase: iso(startYear, startMonth + length - 12, 0),
   };
 }
+
+/** Period compared with the selected one in the Analyses screen. */
+export type ComparisonMode = "previousYear" | "previousPeriod";
+
+/** The same period a year earlier, or the period just before. */
+export function comparedPeriod(
+  granularity: AnalysisGranularity,
+  offset: number,
+  mode: ComparisonMode,
+  today: Date = new Date(),
+): AnalysisPeriod {
+  const periodsPerYear = { month: 12, quarter: 4, year: 1 }[granularity];
+  const shift = mode === "previousYear" ? periodsPerYear : 1;
+  return analysisPeriod(granularity, offset - shift, today);
+}

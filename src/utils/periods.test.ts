@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analysisPeriod, periodOptions } from "./periods";
+import { analysisPeriod, comparedPeriod, periodOptions } from "./periods";
 
 describe("periodOptions", () => {
   const options = periodOptions(new Date(2026, 9, 20)); // 20 October 2026
@@ -64,5 +64,18 @@ describe("analysisPeriod", () => {
     });
     expect(analysisPeriod("quarter", -4, today).label).toBe("4e trimestre 2025");
     expect(analysisPeriod("year", -1, today).from).toBe("2025-01-01");
+  });
+});
+
+describe("comparedPeriod", () => {
+  const today = new Date(2026, 9, 20);
+
+  it("goes back a year or one period", () => {
+    expect(comparedPeriod("month", 0, "previousYear", today).label).toBe("Octobre 2025");
+    expect(comparedPeriod("month", 0, "previousPeriod", today).label).toBe("Septembre 2026");
+    expect(comparedPeriod("quarter", 0, "previousYear", today).label).toBe("4e trimestre 2025");
+    expect(comparedPeriod("quarter", -1, "previousPeriod", today).label).toBe("2e trimestre 2026");
+    expect(comparedPeriod("year", 0, "previousYear", today)).toMatchObject({ from: "2025-01-01", to: "2025-12-31" });
+    expect(comparedPeriod("year", 0, "previousPeriod", today).label).toBe("2025");
   });
 });

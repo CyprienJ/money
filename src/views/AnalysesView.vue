@@ -5,6 +5,7 @@ import {
   type AccountSummary,
   type BalancePoint,
   type Category,
+  type CategoryComparison,
   type CategoryExpense,
   type NetWorth,
   type PeriodIncomeExpenses,
@@ -20,10 +21,15 @@ import {
 } from "../charts/options";
 import { readTokens } from "../charts/theme";
 import { ACCOUNT_TYPES } from "../utils/accounts";
-import { categorySlices, trendTotals } from "../utils/analyses";
+import { categorySlices, comparisonSlices, trendTotals } from "../utils/analyses";
 import { errorMessage, unwrap } from "../utils/commands";
 import { formatAmount } from "../utils/format";
-import { type AnalysisGranularity, analysisPeriod } from "../utils/periods";
+import {
+  type AnalysisGranularity,
+  type ComparisonMode,
+  analysisPeriod,
+  comparedPeriod,
+} from "../utils/periods";
 
 const GRANULARITIES: { id: AnalysisGranularity; label: string }[] = [
   { id: "month", label: "Mois" },
@@ -42,6 +48,10 @@ const accounts = ref<AccountSummary[]>([]);
 const categories = ref<Category[]>([]);
 const trend = ref<PeriodIncomeExpenses[]>([]);
 const expenses = ref<CategoryExpense[]>([]);
+/** Compare the expenses by category with another period, as in the mockup (on by default). */
+const comparing = ref(true);
+const comparisonMode = ref<ComparisonMode>("previousYear");
+const comparison = ref<CategoryComparison[]>([]);
 const balance = ref<BalancePoint[]>([]);
 /** Net worth at the end of each month, from the end of the month before the trend. */
 const netWorth = ref<NetWorth[]>([]);
@@ -49,12 +59,29 @@ const error = ref("");
 
 const period = computed(() => analysisPeriod(granularity.value, offset.value));
 const totals = computed(() => trendTotals(trend.value));
-const slices = computed(() => categorySlices(expenses.value, categories.value));
+const slices = computed(() =>
+  comparing.value
+    ? comparisonSlices(comparison.value, categories.value)
+    : categorySlices(expenses.value, categories.value),
+);
+/** Current expenses only, for the ring. */
+const currentSlices = computed(() => slices.value.filter((s) => s.amountCents > 0));
+const lowerFirst = (text: string) => text.charAt(0).toLowerCase() + text.slice(1);
+/** The periods offered for the comparison: a year earlier, or the period before. */
+const comparisonOptions = computed(() =>
+  (["previousYear", "previousPeriod"] as ComparisonMode[]).map((mode) => ({
+    mode,
+    label: lowerFirst(comparedPeriod(granularity.value, offset.value, mode).label),
+  })),
+);
+const comparedLabel = computed(
+  () => comparisonOptions.value.find((o) => o.mode === comparisonMode.value)?.label ?? "",
+);
 const lastBalance = computed(() => balance.value[balance.value.length - 1]?.balanceCents ?? null);
 
 const trendOption = computed(() => incomeExpensesOption(trend.value, "month", tokens));
 const barsOption = computed(() => categoryBarsOption(slices.value, tokens));
-const donutOption = computed(() => categoryDonutOption(slices.value, tokens));
+const donutOption = computed(() => categoryDonutOption(currentSlices.value, tokens));
 const balanceOption = computed(() => balanceHistoryOption(balance.value, tokens));
 const netWorthChart = computed(() => netWorthOption(netWorth.value, tokens));
 const currentNetWorth = computed(() => netWorth.value[netWorth.value.length - 1]?.netWorthCents ?? 0);
@@ -77,9 +104,20 @@ async function loadStats() {
   const { from, to, trendFrom, trendBase } = period.value;
   const balanceAccounts = balanceAccount.value === null ? null : [balanceAccount.value];
   try {
-    [trend.value, expenses.value, balance.value, netWorth.value] = await Promise.all([
+    const compared = comparedPeriod(granularity.value, offset.value, comparisonMode.value);
+    [trend.value, expenses.value, comparison.value, balance.value, netWorth.value] = await Promise.all([
       unwrap(commands.incomeVsExpenses(trendFrom, to, null, "month")),
       unwrap(commands.expensesByCategory(from, to, null, "topLevel")),
+      comparing.value
+        ? unwrap(
+            commands.compareExpensesByCategory(
+              { from, to },
+              { from: compared.from, to: compared.to },
+              null,
+              "topLevel",
+            ),
+          )
+        : Promise.resolve([]),
       unwrap(commands.balanceHistory(trendFrom, to, balanceAccounts, "day")),
       unwrap(commands.netWorthHistory(trendBase, to, "month")),
     ]);
@@ -101,7 +139,7 @@ onMounted(async () => {
   }
   await loadStats();
 });
-watch([period, balanceAccount], loadStats);
+watch([period, balanceAccount, comparing, comparisonMode], loadStats);
 </script>
 
 <template>
@@ -126,6 +164,15 @@ watch([period, balanceAccount], loadStats);
         <button type="button" aria-label="Période précédente" @click="offset--">‹</button>
         <span>{{ period.label }}</span>
         <button type="button" aria-label="Période suivante" :disabled="offset >= 0" @click="offset++">›</button>
+      </div>
+      <div class="compare">
+        <label>
+          <input v-model="comparing" type="checkbox" />
+          Comparer à
+        </label>
+        <select v-model="comparisonMode" :disabled="!comparing" aria-label="Période comparée">
+          <option v-for="o in comparisonOptions" :key="o.mode" :value="o.mode">{{ o.label }}</option>
+        </select>
       </div>
     </div>
   </header>
@@ -158,7 +205,9 @@ watch([period, balanceAccount], loadStats);
       <div class="card">
         <div class="card-header">
           <h2 class="card-title">Par catégorie</h2>
-          <span class="muted">{{ period.label }}</span>
+          <span class="muted">
+            {{ period.label }}<template v-if="comparing"> vs {{ comparedLabel }} (barre fine)</template>
+          </span>
         </div>
         <div v-if="slices.length > 0" class="chart" :style="{ height: `${Math.max(160, slices.length * 40)}px` }">
           <AppChart :option="barsOption" :label="`Dépenses par catégorie, ${period.label}`" />
@@ -202,7 +251,7 @@ watch([period, balanceAccount], loadStats);
           <h2 class="card-title">Répartition des dépenses</h2>
           <span class="muted">{{ period.label }}</span>
         </div>
-        <div v-if="slices.length > 0" class="chart donut">
+        <div v-if="currentSlices.length > 0" class="chart donut">
           <AppChart :option="donutOption" :label="`Répartition des dépenses, ${period.label}`" />
         </div>
         <p v-else class="muted empty">Aucune dépense sur la période.</p>
@@ -267,6 +316,44 @@ h1 {
 .segmented button[aria-pressed="true"] {
   background: var(--color-primary);
   color: var(--color-on-primary);
+}
+
+.compare {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 46px;
+  padding: 0 6px 0 14px;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.compare label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.compare input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-primary);
+}
+
+.compare select {
+  height: 34px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--color-page);
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .period span {

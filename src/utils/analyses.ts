@@ -1,4 +1,4 @@
-import type { Category, CategoryExpense, PeriodIncomeExpenses } from "../bindings";
+import type { Category, CategoryComparison, CategoryExpense, PeriodIncomeExpenses } from "../bindings";
 import type { CategorySlice } from "../charts/options";
 
 export interface TrendTotals {
@@ -39,4 +39,29 @@ export function categorySlices(rows: CategoryExpense[], categories: Category[]):
         amountCents: row.expenseCents,
       };
     });
+}
+
+/**
+ * Chart slices comparing two periods: categories with expenses in either period, the
+ * compared amount in `previousCents`.
+ */
+export function comparisonSlices(rows: CategoryComparison[], categories: Category[]): CategorySlice[] {
+  const byId = new Map(categories.map((c) => [c.id, c]));
+  return rows
+    .filter((row) => row.currentCents > 0 || row.previousCents > 0)
+    .map((row) => {
+      const category = row.categoryId === null ? undefined : byId.get(row.categoryId);
+      return {
+        name: category?.name ?? "À catégoriser",
+        color: category?.color ?? "neutral",
+        amountCents: Math.max(0, row.currentCents),
+        previousCents: Math.max(0, row.previousCents),
+      };
+    });
+}
+
+/** Change from `previous` to `current` in percent, rounded; `null` without a previous amount. */
+export function variationPercent(current: number, previous: number): number | null {
+  if (previous <= 0) return null;
+  return Math.round(((current - previous) * 100) / previous);
 }
