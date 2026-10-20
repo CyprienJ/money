@@ -1,8 +1,504 @@
 <script setup lang="ts">
-import PageHeader from "../components/PageHeader.vue";
+import { computed, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import {
+  commands,
+  type AccountSummary,
+  type Category,
+  type Operation,
+  type OperationRow,
+} from "../bindings";
+import CategoryPill from "../components/CategoryPill.vue";
+import OperationFormModal from "../components/OperationFormModal.vue";
+import { ACCOUNT_TYPES } from "../utils/accounts";
+import { categoryTree } from "../utils/categories";
+import { errorMessage, unwrap } from "../utils/commands";
+import { formatAmount, formatDate, todayIso } from "../utils/format";
+import { matchesSearch, summarize } from "../utils/operations";
+import { periodOptions } from "../utils/periods";
+
+const route = useRoute();
+const router = useRouter();
+
+const accounts = ref<AccountSummary[]>([]);
+const categories = ref<Category[]>([]);
+const rows = ref<OperationRow[]>([]);
+const loaded = ref(false);
+const error = ref("");
+
+const periods = periodOptions();
+const periodId = ref(periods[0].id);
+/** "all", "none" (to categorize) or a category id. */
+const categoryFilter = ref<"all" | "none" | number>("all");
+const search = ref("");
+
+const modalOpen = ref(false);
+const editedOperation = ref<Operation | null>(null);
+
+const selected = computed(() => {
+  const id = Number(route.query.account);
+  return accounts.value.find((s) => s.account.id === id) ?? accounts.value[0] ?? null;
+});
+
+const categoriesById = computed(() => new Map(categories.value.map((c) => [c.id, c])));
+const tree = computed(() => categoryTree(categories.value));
+
+/** Ids matched by the category filter: a parent includes its children. */
+const filterIds = computed(() => {
+  const filter = categoryFilter.value;
+  if (typeof filter !== "number") return null;
+  return new Set([filter, ...categories.value.filter((c) => c.parentId === filter).map((c) => c.id)]);
+});
+
+const visibleRows = computed(() =>
+  rows.value.filter(({ operation }) => {
+    if (categoryFilter.value === "none" && operation.categoryId !== null) return false;
+    if (filterIds.value && (operation.categoryId === null || !filterIds.value.has(operation.categoryId))) {
+      return false;
+    }
+    return matchesSearch(operation, search.value);
+  }),
+);
+
+const totals = computed(() => summarize(visibleRows.value.map((r) => r.operation)));
+
+async function loadAccounts() {
+  const summaries = await unwrap(commands.listAccountSummaries(false));
+  accounts.value = summaries.filter((s) => ACCOUNT_TYPES[s.account.type].hasOperations);
+  categories.value = await unwrap(commands.listCategories());
+}
+
+async function loadOperations() {
+  const account = selected.value;
+  if (!account) {
+    rows.value = [];
+    return;
+  }
+  const period = periods.find((p) => p.id === periodId.value) ?? periods[0];
+  rows.value = await unwrap(commands.listOperations(account.account.id, period.from, period.to));
+}
+
+async function reload(withAccounts = false) {
+  error.value = "";
+  try {
+    if (withAccounts) await loadAccounts();
+    await loadOperations();
+  } catch (e) {
+    error.value = errorMessage(e);
+  } finally {
+    loaded.value = true;
+  }
+}
+
+function selectAccount(id: number) {
+  router.replace({ query: { ...route.query, account: String(id) } });
+}
+
+function label(operation: Operation): string {
+  // Manual entries keep the text typed by the user; imported ones show the cleaned label.
+  return operation.importBatchId === null ? operation.rawLabel : operation.normalizedLabel;
+}
+
+function amountClass(operation: Operation): string {
+  if (operation.isInternalTransfer) return "internal";
+  return operation.amountCents > 0 ? "positive" : "";
+}
+
+function openCreate() {
+  editedOperation.value = null;
+  modalOpen.value = true;
+}
+
+function openEdit(operation: Operation) {
+  editedOperation.value = operation;
+  modalOpen.value = true;
+}
+
+async function onChanged() {
+  modalOpen.value = false;
+  await reload(true);
+}
+
+onMounted(() => reload(true));
+watch([() => selected.value?.account.id, periodId], () => reload());
 </script>
 
 <template>
-  <PageHeader title="Opérations" />
-  <p class="placeholder">Liste des opérations (V1-01.5).</p>
+  <header class="header">
+    <div>
+      <div class="subtitle">
+        <template v-if="selected">{{ selected.account.name }} · solde au {{ formatDate(todayIso(), "day-month") }}</template>
+        <template v-else>Comptes</template>
+      </div>
+      <h1>
+        Opérations
+        <span
+          v-if="selected && selected.balanceCents !== null"
+          class="balance"
+          :class="{ negative: selected.balanceCents < 0 }"
+        >
+          {{ formatAmount(selected.balanceCents) }}
+        </span>
+      </h1>
+    </div>
+    <div class="actions">
+      <RouterLink to="/import" class="btn btn-secondary">Importer un relevé</RouterLink>
+      <button type="button" class="btn btn-primary" :disabled="!selected" @click="openCreate">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+          <path d="M12 5v14M5 12h14" stroke-linecap="round" />
+        </svg>
+        Nouvelle opération
+      </button>
+    </div>
+  </header>
+
+  <p v-if="error" class="error-banner">{{ error }}</p>
+
+  <section v-if="loaded && accounts.length === 0" class="card">
+    <h2 class="card-title">Aucun compte</h2>
+    <p class="muted">
+      Les opérations se rattachent à un compte courant, d'épargne ou à une carte.
+      <RouterLink to="/accounts">Crée un compte</RouterLink> pour commencer.
+    </p>
+  </section>
+
+  <template v-else-if="selected">
+    <div role="tablist" aria-label="Comptes" class="tabs">
+      <button
+        v-for="{ account } in accounts"
+        :key="account.id"
+        type="button"
+        role="tab"
+        class="tab"
+        :aria-selected="account.id === selected.account.id"
+        @click="selectAccount(account.id)"
+      >
+        {{ account.name }}
+      </button>
+    </div>
+
+    <div class="filters">
+      <label class="field search">
+        Rechercher
+        <input v-model="search" type="search" placeholder="Libellé, tiers, montant…" />
+      </label>
+      <label class="field">
+        Période
+        <select v-model="periodId">
+          <option v-for="period in periods" :key="period.id" :value="period.id">
+            {{ period.label }}
+          </option>
+        </select>
+      </label>
+      <label class="field">
+        Catégorie
+        <select v-model="categoryFilter">
+          <option value="all">Toutes</option>
+          <option value="none">À catégoriser</option>
+          <template v-for="{ parent, children } in tree" :key="parent.id">
+            <option :value="parent.id">{{ parent.name }}</option>
+            <option v-for="child in children" :key="child.id" :value="child.id">
+              &nbsp;&nbsp;&nbsp;{{ child.name }}
+            </option>
+          </template>
+        </select>
+      </label>
+    </div>
+
+    <div class="table-card">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col" class="col-date">Date</th>
+            <th scope="col">Libellé</th>
+            <th scope="col" class="col-category">Catégorie</th>
+            <th scope="col" class="col-amount">Montant</th>
+            <th scope="col" class="col-balance">Solde</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="{ operation, balanceCents } in visibleRows"
+            :key="operation.id"
+            :class="{ pending: operation.categoryId === null }"
+            tabindex="0"
+            @click="openEdit(operation)"
+            @keydown.enter="openEdit(operation)"
+          >
+            <td class="col-date">{{ formatDate(operation.date, "day-month") }}</td>
+            <td>
+              <span class="label">{{ label(operation) }}</span>
+              <span v-if="operation.importBatchId !== null" class="raw">{{ operation.rawLabel }}</span>
+            </td>
+            <td>
+              <CategoryPill v-if="operation.categoryId === null" label="À catégoriser" pending />
+              <template v-else>
+                <CategoryPill
+                  :label="categoriesById.get(operation.categoryId)?.name ?? '?'"
+                  :color="categoriesById.get(operation.categoryId)?.color"
+                />
+                <span v-if="operation.isInternalTransfer" class="excluded">Exclu des statistiques</span>
+              </template>
+            </td>
+            <td class="col-amount" :class="amountClass(operation)">
+              {{ formatAmount(operation.amountCents, { signed: true }) }}
+            </td>
+            <td class="col-balance">{{ formatAmount(balanceCents) }}</td>
+          </tr>
+          <tr v-if="loaded && visibleRows.length === 0" class="empty">
+            <td colspan="5">Aucune opération sur cette période.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="footer">
+      <span>{{ totals.count }} opération{{ totals.count > 1 ? "s" : "" }}</span>
+      <span>Entrées <strong class="positive">{{ formatAmount(totals.incomeCents, { signed: true }) }}</strong></span>
+      <span>Sorties <strong>{{ formatAmount(totals.expenseCents, { signed: true }) }}</strong></span>
+      <span>
+        Virements internes
+        <strong>{{ formatAmount(totals.internalTransferCents, { signed: true }) }}</strong>
+      </span>
+      <span v-if="totals.uncategorized > 0" class="to-categorize">
+        <strong>
+          {{ totals.uncategorized }} opération{{ totals.uncategorized > 1 ? "s" : "" }} à catégoriser
+        </strong>
+      </span>
+    </div>
+
+    <OperationFormModal
+      :open="modalOpen"
+      :account="selected.account"
+      :categories="categories"
+      :operation="editedOperation"
+      @close="modalOpen = false"
+      @changed="onChanged"
+    />
+  </template>
 </template>
+
+<style scoped>
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.subtitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+h1 {
+  margin: 2px 0 0;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.balance {
+  color: var(--color-positive);
+  white-space: nowrap;
+}
+
+.balance.negative {
+  color: var(--cat-restaurants-fg);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.muted {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tab {
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-card);
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tab[aria-selected="true"] {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.filters .field {
+  flex: 1 1 160px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.filters .search {
+  flex: 2 1 260px;
+}
+
+.filters input,
+.filters select {
+  height: 44px;
+  border-radius: var(--radius-control);
+}
+
+.table-card {
+  overflow-x: auto;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+th {
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-align: left;
+}
+
+td {
+  padding: 12px;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+tbody tr:not(.empty) {
+  cursor: pointer;
+}
+
+tbody tr:not(.empty):hover,
+tbody tr:focus-visible {
+  background: var(--color-page);
+  outline: none;
+}
+
+tbody tr.pending {
+  background: var(--color-pending-row);
+}
+
+th.col-date,
+td.col-date {
+  width: 70px;
+  padding-left: 20px;
+}
+
+td.col-date {
+  color: var(--color-text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.col-category {
+  width: 190px;
+}
+
+.col-amount,
+.col-balance {
+  width: 120px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+th.col-balance,
+td.col-balance {
+  padding-right: 20px;
+}
+
+td.col-amount {
+  font-weight: 800;
+}
+
+td.col-amount.positive {
+  color: var(--color-positive);
+}
+
+td.col-amount.internal {
+  color: var(--color-text-muted);
+}
+
+td.col-balance {
+  color: var(--color-text-muted);
+}
+
+.label {
+  display: block;
+  font-weight: 700;
+}
+
+.raw {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.excluded {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.empty td {
+  padding: 28px 20px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.footer strong {
+  color: var(--color-text);
+}
+
+.footer strong.positive {
+  color: var(--color-positive);
+}
+
+.to-categorize {
+  margin-left: auto;
+}
+
+.footer .to-categorize strong {
+  color: var(--cat-groceries-fg);
+}
+</style>

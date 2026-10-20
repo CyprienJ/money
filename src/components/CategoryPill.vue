@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { CategoryColor } from "./categoryColors";
+import type { CategoryColor } from "../bindings";
 
 const props = withDefaults(
   defineProps<{

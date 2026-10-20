@@ -9,6 +9,8 @@
   --color-card: #ffffff;
   --color-border: #e7e3ef;
   --color-divider: #f0eef5;
+  /* Row of an operation still to categorize */
+  --color-pending-row: #fffbf3;
 
   /* Text */
   --color-text: #1e1830;
@@ -33,7 +35,7 @@
   --radius-nav: 10px;
   --radius-pill: 99px;
 
-  /* Category colors: solid (charts) / pill background / pill text */
+  /* Category colors (families of the CategoryColor type in bindings.ts): solid (charts) / pill background / pill text */
   --cat-housing: #5b6cf0;
   --cat-housing-bg: #e5e8fd;
   --cat-housing-fg: #3341b8;

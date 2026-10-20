@@ -1,5 +1,4 @@
-import type { AccountType } from "../bindings";
-import type { CategoryColor } from "../components/categoryColors";
+import type { AccountType, CategoryColor } from "../bindings";
 
 interface AccountTypeInfo {
   label: string;

@@ -73,11 +73,11 @@ Créer toutes les tables V1 du README, y compris les colonnes *(prévu)* : `acco
 
 #### V1-01.5 · Écran Opérations — L
 Maquette : `Operations.dc.html`.
-- [ ] Sélecteur de compte (onglets), en-tête « solde au JJ/MM ».
-- [ ] Tableau : date, libellé normalisé + libellé brut en secondaire, pastille de catégorie, montant, solde.
-- [ ] Filtres : recherche texte, période, catégorie (dont « À catégoriser »).
-- [ ] Pied de tableau : nombre d'opérations, entrées, sorties, virements internes, opérations à catégoriser.
-- [ ] Modale « Nouvelle opération » et édition d'une opération.
+- [x] Sélecteur de compte (onglets), en-tête « solde au JJ/MM ».
+- [x] Tableau : date, libellé normalisé + libellé brut en secondaire, pastille de catégorie, montant, solde.
+- [x] Filtres : recherche texte, période, catégorie (dont « À catégoriser »).
+- [x] Pied de tableau : nombre d'opérations, entrées, sorties, virements internes, opérations à catégoriser.
+- [x] Modale « Nouvelle opération » et édition d'une opération.
 
 ---
 
