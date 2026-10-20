@@ -250,9 +250,11 @@ Maquette : `Dashboard.dc.html`.
 - État vide (aucun compte) : invitation à créer un compte ou importer un relevé. Écran chargé à la demande avec ECharts.
 
 #### V1-07.5 · Paramètres et finitions — S
-- [ ] Écran Paramètres : emplacement des données, dossier des sauvegardes, mappings CSV enregistrés.
-- [ ] États vides (aucun compte, aucune opération) et messages d'erreur métier lisibles.
+- [x] Écran Paramètres : emplacement des données, dossier des sauvegardes (avec leur nombre), mappings CSV enregistrés, banques PDF prises en charge, version.
+- [x] États vides (aucun compte, aucune opération) et messages d'erreur métier lisibles : erreurs structurées (domaine, code, paramètres) traduites en français côté front, avec vérification d'exhaustivité au typage.
 - [ ] Recette complète sur Windows et Linux, packaging de la V1.
+  - Fait : paquet Linux `.deb` construit (`npm run tauri build -- --bundles deb`), PDFium et sa licence embarqués dans `/usr/lib/Finances perso/pdfium/` ; binaire release démarré sur une base vierge (migration et catégories par défaut OK).
+  - Reste : recette manuelle dans la vraie fenêtre (Linux et Windows), paquets Windows (`.msi` / NSIS) via le workflow `release.yml`.
 
 ---
 
@@ -329,5 +331,4 @@ Ordre indicatif : catégorisation et tiers d'abord (gain quotidien), puis opéra
 
 | Ticket | Question |
 |---|---|
-| V1-07.5 | Design de l'écran Paramètres (sans maquette) |
 | V2-12 | Source des cours de bourse (accès réseau) |
