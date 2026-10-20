@@ -72,7 +72,14 @@ pub async fn import_statement(
     let bytes = std::fs::read(&path)?;
     let pdfium_dir = pdfium_dir(&app)?;
     let file = statement_file(&path, account_id, format, &bytes, &pdfium_dir);
-    statement_import::import(&pool, &backup_dir(&app)?, file, &file_hash, &selections).await
+    statement_import::import(
+        &pool,
+        &super::app::backups_dir(&app)?,
+        file,
+        &file_hash,
+        &selections,
+    )
+    .await
 }
 
 fn statement_file<'a>(
@@ -121,13 +128,4 @@ fn pdfium_dir(app: &AppHandle) -> AppResult<PathBuf> {
         .resource_dir()
         .map_err(|error| AppError::Io(std::io::Error::other(error)))?;
     Ok(resources.join("pdfium"))
-}
-
-/// `backups/` in the application data directory (README, storage).
-fn backup_dir(app: &AppHandle) -> AppResult<PathBuf> {
-    let data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| AppError::Io(std::io::Error::other(error)))?;
-    Ok(data_dir.join("backups"))
 }

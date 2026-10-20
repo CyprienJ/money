@@ -20,6 +20,7 @@ pub fn builder() -> Builder<tauri::Wry> {
     Builder::new()
         .commands(collect_commands![
             app::app_version,
+            app::data_location,
             account::list_accounts,
             account::list_account_summaries,
             account::get_account,

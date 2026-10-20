@@ -25,10 +25,4 @@ import AppSidebar from "./components/AppSidebar.vue";
   gap: 24px;
   padding: 32px 40px 48px;
 }
-
-/* Placeholder text of screens not built yet. */
-.content :deep(.placeholder) {
-  margin: 0;
-  color: var(--color-text-muted);
-}
 </style>

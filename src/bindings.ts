@@ -7,6 +7,7 @@ import { invoke as __TAURI_INVOKE } from "@tauri-apps/api/core";
 export const commands = {
 	/**  Version of the application, as declared in `tauri.conf.json`. */
 	appVersion: () => __TAURI_INVOKE<string>("app_version"),
+	dataLocation: () => typedError<DataLocation, AppError>(__TAURI_INVOKE("data_location")),
 	listAccounts: (includeArchived: boolean) => typedError<Account[], AppError>(__TAURI_INVOKE("list_accounts", { includeArchived })),
 	/**  Accounts with their balance as of today (local date). */
 	listAccountSummaries: (includeArchived: boolean) => typedError<AccountSummary[], AppError>(__TAURI_INVOKE("list_account_summaries", { includeArchived })),
@@ -290,6 +291,15 @@ export type CsvMapping = {
 
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
 export type CsvMappingError = { code: "notFound"; params: number } | { code: "emptyName" } | { code: "duplicateName"; params: string } | { code: "corrupt"; params: number };
+
+/**  Where the application keeps its data, for the Settings screen. */
+export type DataLocation = {
+	/**  The SQLite data file. */
+	dataFile: string,
+	/**  Directory of the automatic backups made before each import. */
+	backupsDir: string,
+	backupCount: number,
+};
 
 /**  First and last days of a period, both included. */
 export type DateRange = {
