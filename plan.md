@@ -164,9 +164,9 @@ Module `stats/`, signatures claires (futurs outils de l'assistant IA). Toutes pa
 - Revenu ou dépense selon la catégorie (`is_income`), non catégorisé selon le signe (décision du 20/10/2026, inscrite au README). Par défaut, comptes non archivés ayant des opérations.
 
 #### V1-04.2 · Intégration ECharts — S
-- [ ] `vue-echarts` installé, thème ECharts basé sur les tokens CSS.
-- [ ] Rendu et performances d'ECharts vérifiés sous WebKitGTK (Linux) et WebView2 (Windows).
-- [ ] Builders d'options dans `src/charts/`.
+- [x] `vue-echarts` installé, thème ECharts basé sur les tokens CSS (composant `AppChart`, rendu SVG, imports réduits aux graphiques utilisés).
+- [x] Rendu et performances d'ECharts vérifiés sous WebKitGTK (Linux) et Chromium, moteur de WebView2 : rendu identique ; 4 graphiques dont 3 650 points en ~120 ms (Chromium) et ~440 ms (WebKitGTK en rendu logiciel). Reste à confirmer dans la vraie fenêtre Windows.
+- [x] Builders d'options dans `src/charts/` : revenus et dépenses, barres et anneau par catégorie, évolution du solde avec zoom.
 
 #### V1-04.3 · Écran Analyses (première version) — L
 Maquette : `Analyses.dc.html`.
