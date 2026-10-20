@@ -95,10 +95,13 @@ Maquette : `Operations.dc.html`.
 - [x] Proposition automatique : chaque mapping enregistré est essayé sur le fichier ; ceux qui le lisent sans erreur sont proposés, le plus de lignes lues en premier (décision du 20/10/2026, sans lien compte ↔ mapping).
 
 #### V1-02.3 · Détection des doublons — M
-- [ ] Doublon certain : même compte, même date, même montant, même libellé brut → exclu.
-- [ ] Cas ambigus (ex. même date et montant, libellé différent ; plusieurs occurrences identiques dans le même fichier) → présentés à l'utilisateur.
-- [ ] Tests unitaires couvrant les cas limites.
-- 🟡 Définir précisément les critères d'un cas « ambigu ».
+- [x] Doublon certain : même compte, même date, même montant, même libellé brut → exclu. Correspondances décomptées une à une (une opération existante ne couvre qu'une ligne).
+- [x] Cas ambigus → présentés à l'utilisateur, non cochés par défaut (décision du 20/10/2026) :
+  - ligne présente dans le compte, mais moins de fois que dans le fichier ;
+  - même date et même montant qu'une opération existante, libellé différent ;
+  - même montant qu'une opération **saisie à la main**, à ±3 jours.
+- [x] Des lignes identiques dans un même fichier, absentes du compte, sont des opérations distinctes (nouvelles).
+- [x] Tests unitaires couvrant les cas limites.
 
 #### V1-02.4 · Lots d'import, sauvegarde et annulation — M
 - [ ] Hash du fichier source (`source_file_hash`) ; alerte si le même fichier a déjà été importé.
@@ -321,7 +324,6 @@ Ordre indicatif : catégorisation et tiers d'abord (gain quotidien), puis opéra
 |---|---|
 | V1-01.3, V1-03.2, V1-07.1, V1-07.5 | Design des écrans sans maquette : Comptes, Catégories, Échéancier, Paramètres |
 | V1-02.5 | Design de l'étape 1 de l'import et de l'édition du mapping CSV |
-| V1-02.3 | Critères d'un doublon « ambigu » |
 | V1-03.1 | Arborescence de catégories par défaut ; stockage des couleurs de catégorie |
 | V1-03.3 | Affichage lisible des libellés normalisés en V1 |
 | V1-05.4 | Sens de « corriger » un import suspect |

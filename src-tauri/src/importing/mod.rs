@@ -1,6 +1,11 @@
 //! Import batches, duplicate detection, balance check and backup.
 
 pub mod csv;
+#[cfg_attr(
+    not(test),
+    allow(dead_code, reason = "called by the import preview of V1-02.5")
+)]
+pub mod duplicates;
 pub mod pdf;
 
 use chrono::NaiveDate;
