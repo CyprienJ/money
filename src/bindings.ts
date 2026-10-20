@@ -126,6 +126,8 @@ export type Category = {
 	/**  System category excluded from income and expense statistics. */
 	isInternalTransfer: boolean,
 	isIncome: boolean,
+	/**  Operations in this category (not counting its subcategories). */
+	operationCount: number,
 };
 
 /**  Color family of a category, mapped to the `--cat-<color>` design tokens. */

@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id, name, parent_id, color AS \"color: CategoryColor\",\n                  is_internal_transfer AS \"is_internal_transfer: bool\", is_income AS \"is_income: bool\"\n           FROM category\n           WHERE id = ?1",
+  "query": "SELECT c.id, c.name, c.parent_id, c.color AS \"color: CategoryColor\",\n                  c.is_internal_transfer AS \"is_internal_transfer: bool\",\n                  c.is_income AS \"is_income: bool\",\n                  (SELECT COUNT(*) FROM operation_split s WHERE s.category_id = c.id)\n                      AS \"operation_count!: i64\"\n           FROM category c\n           WHERE c.id = ?1",
   "describe": {
     "columns": [
       {
@@ -68,6 +68,12 @@
             "name": "is_income"
           }
         }
+      },
+      {
+        "name": "operation_count!: i64",
+        "ordinal": 6,
+        "type_info": "Integer",
+        "origin": "Expression"
       }
     ],
     "parameters": {
@@ -79,8 +85,9 @@
       true,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "c4a8dbc2906c6f67a297b02f00f59a2222f846cea730ea92953d642e099a90e5"
+  "hash": "98f1ecae4a9804af234483b9f86682abd03008c0a73c82779a86bb1ea7c7669c"
 }

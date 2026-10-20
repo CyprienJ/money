@@ -261,7 +261,10 @@ fn deleting_moves_operations_to_another_category() {
         let transfer = internal_transfer(&pool).await;
 
         let moved = operation_in(&pool, food.id).await;
+        assert_eq!(get(&pool, food.id).await.unwrap().operation_count, 1);
+        assert_eq!(get(&pool, home.id).await.unwrap().operation_count, 0);
         delete(&pool, food.id, Some(home.id)).await.unwrap();
+        assert_eq!(get(&pool, home.id).await.unwrap().operation_count, 1);
         assert!(matches!(
             category_error(get(&pool, food.id).await),
             CategoryError::NotFound(_)

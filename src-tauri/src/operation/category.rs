@@ -36,6 +36,8 @@ pub struct Category {
     /// System category excluded from income and expense statistics.
     pub is_internal_transfer: bool,
     pub is_income: bool,
+    /// Operations in this category (not counting its subcategories).
+    pub operation_count: i64,
 }
 
 /// Fields of a category to create or update. For a subcategory, `color` and `is_income` are
@@ -86,10 +88,13 @@ impl CategoryError {
 pub async fn list(pool: &SqlitePool) -> AppResult<Vec<Category>> {
     let categories = sqlx::query_as!(
         Category,
-        r#"SELECT id, name, parent_id, color AS "color: CategoryColor",
-                  is_internal_transfer AS "is_internal_transfer: bool", is_income AS "is_income: bool"
-           FROM category
-           ORDER BY name COLLATE NOCASE"#
+        r#"SELECT c.id, c.name, c.parent_id, c.color AS "color: CategoryColor",
+                  c.is_internal_transfer AS "is_internal_transfer: bool",
+                  c.is_income AS "is_income: bool",
+                  (SELECT COUNT(*) FROM operation_split s WHERE s.category_id = c.id)
+                      AS "operation_count!: i64"
+           FROM category c
+           ORDER BY c.name COLLATE NOCASE"#
     )
     .fetch_all(pool)
     .await?;
@@ -192,10 +197,13 @@ pub async fn delete(pool: &SqlitePool, id: i64, reassign_to: Option<i64>) -> App
 async fn fetch(conn: &mut SqliteConnection, id: i64) -> AppResult<Category> {
     let category = sqlx::query_as!(
         Category,
-        r#"SELECT id, name, parent_id, color AS "color: CategoryColor",
-                  is_internal_transfer AS "is_internal_transfer: bool", is_income AS "is_income: bool"
-           FROM category
-           WHERE id = ?1"#,
+        r#"SELECT c.id, c.name, c.parent_id, c.color AS "color: CategoryColor",
+                  c.is_internal_transfer AS "is_internal_transfer: bool",
+                  c.is_income AS "is_income: bool",
+                  (SELECT COUNT(*) FROM operation_split s WHERE s.category_id = c.id)
+                      AS "operation_count!: i64"
+           FROM category c
+           WHERE c.id = ?1"#,
         id
     )
     .fetch_optional(conn)
