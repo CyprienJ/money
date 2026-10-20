@@ -69,7 +69,7 @@ Créer toutes les tables V1 du README, y compris les colonnes *(prévu)* : `acco
 #### V1-01.4 · Module `operation` (backend) — M
 - [x] Création / édition / suppression d'une opération manuelle, avec **une ligne `operation_split`** systématique.
 - [x] `raw_label` saisi = libellé brut ; `normalized_label` calculé (stub jusqu'à V1-03.3).
-- [x] Requête de liste paginée par compte et période, avec solde courant par ligne.
+- [x] Requête de liste par compte et période (sans pagination : le filtre par période suffit), avec solde courant par ligne.
 
 #### V1-01.5 · Écran Opérations — L
 Maquette : `Operations.dc.html`.
@@ -110,7 +110,7 @@ Maquette : `Import.dc.html` (étape 2 « Vérification et aperçu »).
 - [ ] Étape 1 « Fichier » : sélection via `tauri-plugin-dialog`, choix du compte de destination, choix / création du mapping CSV.
 - [ ] Étape 2 : compteurs (lues, doublons ignorés, nouvelles, catégorisées, à catégoriser), tableau des nouvelles opérations avec case « Inclure », bloc repliable des doublons ignorés, mention de la sauvegarde.
 - [ ] Étape 3 : import, puis retour à l'écran Opérations.
-- [ ] Bandeau « Dernier import … · Annuler cet import » sur l'écran Opérations.
+- [ ] Bandeau « Dernier import … · Annuler cet import » sur l'écran Opérations. (masqué depuis V1-01.5 en attendant les lots d'import)
 - 🟡 Pas de maquette pour l'étape 1 ni pour l'édition du mapping CSV.
 
 ---
@@ -118,6 +118,7 @@ Maquette : `Import.dc.html` (étape 2 « Vérification et aperçu »).
 ### Étape 3 — Catégorisation
 
 #### V1-03.1 · Catégories (backend) — M
+- [x] Lecture seule `list_categories` (avancée au ticket V1-01.5 pour l'écran Opérations).
 - [ ] CRUD sur deux niveaux (`parent_id`), indicateur `is_income`.
 - [ ] Catégorie système « Virement interne » (`is_internal_transfer`), non supprimable.
 - [ ] Arborescence par défaut créée au premier lancement, avec les couleurs du design.
