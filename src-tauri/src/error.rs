@@ -8,6 +8,7 @@ use crate::importing::csv::{CsvError, CsvMappingError};
 use crate::importing::pdf::PdfError;
 use crate::operation::OperationError;
 use crate::operation::category::CategoryError;
+use crate::operation::schedule::ScheduleError;
 use crate::stats::StatsError;
 
 /// Error type returned by the domain layer and propagated to the frontend.
@@ -30,6 +31,9 @@ pub enum AppError {
 
     #[error(transparent)]
     Category(#[from] CategoryError),
+
+    #[error(transparent)]
+    Schedule(#[from] ScheduleError),
 
     #[error(transparent)]
     Stats(#[from] StatsError),
@@ -77,6 +81,7 @@ impl AppError {
             AppError::Account(error) => error.kind(),
             AppError::Operation(error) => error.kind(),
             AppError::Category(error) => error.kind(),
+            AppError::Schedule(error) => error.kind(),
             AppError::Stats(error) => error.kind(),
             AppError::Csv(error) => error.kind(),
             AppError::CsvMapping(error) => error.kind(),

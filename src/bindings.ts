@@ -37,6 +37,16 @@ export const commands = {
 	 *  uncategorized with `null`.
 	 */
 	deleteCategory: (id: number, reassignTo: number | null) => typedError<null, AppError>(__TAURI_INVOKE("delete_category", { id, reassignTo })),
+	/**  Scheduled operations, by label. */
+	listScheduledOperations: () => typedError<ScheduledOperation[], AppError>(__TAURI_INVOKE("list_scheduled_operations")),
+	createScheduledOperation: (schedule: ScheduledOperationInput) => typedError<ScheduledOperation, AppError>(__TAURI_INVOKE("create_scheduled_operation", { schedule })),
+	updateScheduledOperation: (id: number, schedule: ScheduledOperationInput) => typedError<ScheduledOperation, AppError>(__TAURI_INVOKE("update_scheduled_operation", { id, schedule })),
+	deleteScheduledOperation: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_scheduled_operation", { id })),
+	/**
+	 *  Occurrences of the scheduled operations over the next `days` days, today included. No
+	 *  operation is created.
+	 */
+	upcomingOperations: (days: number) => typedError<UpcomingOperation[], AppError>(__TAURI_INVOKE("upcoming_operations", { days })),
 	listCsvMappings: () => typedError<SavedCsvMapping[], AppError>(__TAURI_INVOKE("list_csv_mappings")),
 	getCsvMapping: (id: number) => typedError<SavedCsvMapping, AppError>(__TAURI_INVOKE("get_csv_mapping", { id })),
 	createCsvMapping: (mapping: NewCsvMapping) => typedError<SavedCsvMapping, AppError>(__TAURI_INVOKE("create_csv_mapping", { mapping })),
@@ -253,6 +263,8 @@ export type ExistingOperation = {
 	isManual: boolean,
 };
 
+export type Frequency = "WEEKLY" | "MONTHLY" | "QUARTERLY" | "SEMIANNUAL" | "YEARLY";
+
 /**  Length of the periods of `income_vs_expenses`. */
 export type Granularity = "month" | "year";
 
@@ -432,12 +444,47 @@ export type SavedCsvMapping = {
 	mapping: CsvMapping,
 };
 
+export type ScheduledOperation = {
+	id: number,
+	accountId: number,
+	label: string,
+	/**  Negative for a debit, positive for a credit. */
+	amountCents: number,
+	categoryId: number | null,
+	frequency: Frequency,
+	dayOfPeriod: number,
+	startDate: string,
+	endDate: string | null,
+};
+
+/**  Fields of a scheduled operation to create or update. */
+export type ScheduledOperationInput = {
+	accountId: number,
+	label: string,
+	amountCents: number,
+	categoryId: number | null,
+	frequency: Frequency,
+	dayOfPeriod: number,
+	startDate: string,
+	endDate: string | null,
+};
+
 export type SourceType = "CSV" | "PDF";
 
 /**  A bank whose PDF statements can be imported. */
 export type SupportedBank = {
 	id: string,
 	name: string,
+};
+
+/**  An upcoming occurrence of a scheduled operation. */
+export type UpcomingOperation = {
+	scheduledOperationId: number,
+	date: string,
+	accountId: number,
+	label: string,
+	amountCents: number,
+	categoryId: number | null,
 };
 
 export type Valuation = {

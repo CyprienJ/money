@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE scheduled_operation\n         SET account_id = ?2, label = ?3, amount_cents = ?4, category_id = ?5, frequency = ?6,\n             day_of_period = ?7, start_date = ?8, end_date = ?9\n         WHERE id = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 9
+    },
+    "nullable": []
+  },
+  "hash": "7e5cd79096d322a20ac62b8fcc4813147f822289b76a063de3ccf8c03f9a4511"
+}

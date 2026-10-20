@@ -4,6 +4,9 @@ use tauri::State;
 
 use crate::error::AppResult;
 use crate::operation::category::{self, Category, CategoryInput};
+use crate::operation::schedule::{
+    self, ScheduledOperation, ScheduledOperationInput, UpcomingOperation,
+};
 use crate::operation::{self, NewOperation, Operation, OperationRow, OperationUpdate};
 
 /// Operations of an account, most recent first, with the balance after each one.
@@ -95,4 +98,50 @@ pub async fn delete_category(
     reassign_to: Option<i64>,
 ) -> AppResult<()> {
     category::delete(&pool, id, reassign_to).await
+}
+
+/// Scheduled operations, by label.
+#[tauri::command]
+#[specta::specta]
+pub async fn list_scheduled_operations(
+    pool: State<'_, SqlitePool>,
+) -> AppResult<Vec<ScheduledOperation>> {
+    schedule::list(&pool).await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn create_scheduled_operation(
+    pool: State<'_, SqlitePool>,
+    schedule: ScheduledOperationInput,
+) -> AppResult<ScheduledOperation> {
+    schedule::create(&pool, schedule).await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn update_scheduled_operation(
+    pool: State<'_, SqlitePool>,
+    id: i64,
+    schedule: ScheduledOperationInput,
+) -> AppResult<ScheduledOperation> {
+    schedule::update(&pool, id, schedule).await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn delete_scheduled_operation(pool: State<'_, SqlitePool>, id: i64) -> AppResult<()> {
+    schedule::delete(&pool, id).await
+}
+
+/// Occurrences of the scheduled operations over the next `days` days, today included. No
+/// operation is created.
+#[tauri::command]
+#[specta::specta]
+pub async fn upcoming_operations(
+    pool: State<'_, SqlitePool>,
+    days: u32,
+) -> AppResult<Vec<UpcomingOperation>> {
+    let today = chrono::Local::now().date_naive();
+    schedule::upcoming(&pool, today, days).await
 }
