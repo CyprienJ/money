@@ -4,6 +4,7 @@ import {
   categoryBarsOption,
   categoryDonutOption,
   incomeExpensesOption,
+  netWorthOption,
   periodLabel,
 } from "./options";
 import { createTheme, type ChartTokens } from "./theme";
@@ -110,5 +111,22 @@ describe("createTheme", () => {
     expect(theme.color[0]).toBe("#5b6cf0");
     expect(theme.color).toHaveLength(8);
     expect(theme.textStyle.fontFamily).toBe("Plus Jakarta Sans");
+  });
+});
+
+describe("netWorthOption", () => {
+  it("draws the net worth in cents with the accent color and no axes", () => {
+    const point = (date: string, netWorthCents: number) => ({
+      date,
+      netWorthCents,
+      cashCents: 0,
+      investmentsCents: 0,
+      assetsCents: 0,
+      liabilitiesCents: 0,
+    });
+    const option = netWorthOption([point("2026-09-30", 13910000), point("2026-10-31", 14824000)], tokens);
+    expect(option.series[0].data).toEqual([13910000, 14824000]);
+    expect(option.series[0].lineStyle.color).toBe("#f26b3a");
+    expect([option.xAxis.show, option.yAxis.show]).toEqual([false, false]);
   });
 });

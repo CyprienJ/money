@@ -37,18 +37,21 @@ describe("analysisPeriod", () => {
       from: "2026-10-01",
       to: "2026-10-31",
       trendFrom: "2025-11-01",
+      trendBase: "2025-10-31",
     });
     expect(analysisPeriod("quarter", 0, today)).toEqual({
       label: "4e trimestre 2026",
       from: "2026-10-01",
       to: "2026-12-31",
       trendFrom: "2026-01-01",
+      trendBase: "2025-12-31",
     });
     expect(analysisPeriod("year", 0, today)).toEqual({
       label: "2026",
       from: "2026-01-01",
       to: "2026-12-31",
       trendFrom: "2026-01-01",
+      trendBase: "2025-12-31",
     });
   });
 

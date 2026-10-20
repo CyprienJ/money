@@ -6,6 +6,7 @@ import {
   type BalancePoint,
   type Category,
   type CategoryExpense,
+  type NetWorth,
   type PeriodIncomeExpenses,
 } from "../bindings";
 import AppChart from "../components/AppChart.vue";
@@ -14,6 +15,8 @@ import {
   categoryBarsOption,
   categoryDonutOption,
   incomeExpensesOption,
+  netWorthOption,
+  periodLabel,
 } from "../charts/options";
 import { readTokens } from "../charts/theme";
 import { ACCOUNT_TYPES } from "../utils/accounts";
@@ -40,6 +43,8 @@ const categories = ref<Category[]>([]);
 const trend = ref<PeriodIncomeExpenses[]>([]);
 const expenses = ref<CategoryExpense[]>([]);
 const balance = ref<BalancePoint[]>([]);
+/** Net worth at the end of each month, from the end of the month before the trend. */
+const netWorth = ref<NetWorth[]>([]);
 const error = ref("");
 
 const period = computed(() => analysisPeriod(granularity.value, offset.value));
@@ -51,6 +56,15 @@ const trendOption = computed(() => incomeExpensesOption(trend.value, "month", to
 const barsOption = computed(() => categoryBarsOption(slices.value, tokens));
 const donutOption = computed(() => categoryDonutOption(slices.value, tokens));
 const balanceOption = computed(() => balanceHistoryOption(balance.value, tokens));
+const netWorthChart = computed(() => netWorthOption(netWorth.value, tokens));
+const currentNetWorth = computed(() => netWorth.value[netWorth.value.length - 1]?.netWorthCents ?? 0);
+/** Change over the 12 months of the trend. */
+const netWorthChange = computed(() => currentNetWorth.value - (netWorth.value[0]?.netWorthCents ?? 0));
+/** "nov. 2025" … "oct. 2026" under the curve. */
+const netWorthRange = computed(() => {
+  const label = (iso: string) => `${periodLabel(iso, "month")} ${iso.slice(0, 4)}`;
+  return [label(period.value.trendFrom), label(period.value.to)];
+});
 
 async function loadReferences() {
   const summaries = await unwrap(commands.listAccountSummaries(false));
@@ -60,13 +74,14 @@ async function loadReferences() {
 
 async function loadStats() {
   error.value = "";
-  const { from, to, trendFrom } = period.value;
+  const { from, to, trendFrom, trendBase } = period.value;
   const balanceAccounts = balanceAccount.value === null ? null : [balanceAccount.value];
   try {
-    [trend.value, expenses.value, balance.value] = await Promise.all([
+    [trend.value, expenses.value, balance.value, netWorth.value] = await Promise.all([
       unwrap(commands.incomeVsExpenses(trendFrom, to, null, "month")),
       unwrap(commands.expensesByCategory(from, to, null, "topLevel")),
       unwrap(commands.balanceHistory(trendFrom, to, balanceAccounts, "day")),
+      unwrap(commands.netWorthHistory(trendBase, to, "month")),
     ]);
   } catch (e) {
     error.value = errorMessage(e);
@@ -139,25 +154,14 @@ watch([period, balanceAccount], loadStats);
   </section>
 
   <section class="grid">
-    <div class="card">
-      <div class="card-header">
-        <h2 class="card-title">Par catégorie</h2>
-        <span class="muted">{{ period.label }}</span>
-      </div>
-      <div v-if="slices.length > 0" class="chart" :style="{ height: `${Math.max(160, slices.length * 40)}px` }">
-        <AppChart :option="barsOption" :label="`Dépenses par catégorie, ${period.label}`" />
-      </div>
-      <p v-else class="muted empty">Aucune dépense sur la période.</p>
-    </div>
-
     <div class="column">
       <div class="card">
         <div class="card-header">
-          <h2 class="card-title">Répartition des dépenses</h2>
+          <h2 class="card-title">Par catégorie</h2>
           <span class="muted">{{ period.label }}</span>
         </div>
-        <div v-if="slices.length > 0" class="chart donut">
-          <AppChart :option="donutOption" :label="`Répartition des dépenses, ${period.label}`" />
+        <div v-if="slices.length > 0" class="chart" :style="{ height: `${Math.max(160, slices.length * 40)}px` }">
+          <AppChart :option="barsOption" :label="`Dépenses par catégorie, ${period.label}`" />
         </div>
         <p v-else class="muted empty">Aucune dépense sur la période.</p>
       </div>
@@ -174,6 +178,34 @@ watch([period, balanceAccount], loadStats);
         <div class="chart balance-chart">
           <AppChart :option="balanceOption" label="Évolution du solde sur 12 mois" />
         </div>
+      </div>
+    </div>
+
+    <div class="column">
+      <div class="card net-worth">
+        <div class="card-header">
+          <h2 class="card-title">Patrimoine net</h2>
+          <span class="change">{{ formatAmount(netWorthChange, { cents: false, signed: true }) }} sur 12 mois</span>
+        </div>
+        <div class="net-worth-value">{{ formatAmount(currentNetWorth, { cents: false }) }}</div>
+        <div class="chart net-worth-chart">
+          <AppChart :option="netWorthChart" label="Patrimoine net en fin de mois sur 12 mois" />
+        </div>
+        <div class="range">
+          <span>{{ netWorthRange[0] }}</span>
+          <span>{{ netWorthRange[1] }}</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Répartition des dépenses</h2>
+          <span class="muted">{{ period.label }}</span>
+        </div>
+        <div v-if="slices.length > 0" class="chart donut">
+          <AppChart :option="donutOption" :label="`Répartition des dépenses, ${period.label}`" />
+        </div>
+        <p v-else class="muted empty">Aucune dépense sur la période.</p>
       </div>
     </div>
   </section>
@@ -319,6 +351,39 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.net-worth {
+  gap: 12px;
+  border-color: transparent;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.net-worth .card-title {
+  color: var(--color-on-primary);
+}
+
+.net-worth .change,
+.net-worth .range {
+  font-size: 13px;
+  color: var(--color-on-primary-muted);
+}
+
+.net-worth .range {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+}
+
+.net-worth-value {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.chart.net-worth-chart {
+  height: 120px;
 }
 
 .account-select {

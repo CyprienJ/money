@@ -1,4 +1,4 @@
-import type { BalancePoint, CategoryColor, PeriodIncomeExpenses } from "../bindings";
+import type { BalancePoint, CategoryColor, NetWorth, PeriodIncomeExpenses } from "../bindings";
 import { formatAmount, formatDate } from "../utils/format";
 import type { ChartTokens } from "./theme";
 
@@ -195,6 +195,31 @@ export function balanceHistoryOption(points: BalancePoint[], tokens: ChartTokens
         smooth: 0.2,
         lineStyle: { color: tokens.categories.housing, width: 2.5 },
         areaStyle: { color: tokens.categories.housing, opacity: 0.08 },
+      },
+    ],
+  };
+}
+
+/** Net worth curve of the dark card: no axes, coral line over a light coral area. */
+export function netWorthOption(points: NetWorth[], tokens: ChartTokens) {
+  return {
+    grid: { left: 0, right: 0, top: 6, bottom: 0 },
+    tooltip: {
+      trigger: "axis",
+      formatter: (params: TooltipParam[]) => {
+        const point = points[(params[0] as unknown as { dataIndex: number }).dataIndex];
+        return `${formatDate(point.date)}<br><b>${formatAmount(point.netWorthCents)}</b>`;
+      },
+    },
+    xAxis: { type: "category", show: false, boundaryGap: false, data: points.map((p) => p.date) },
+    yAxis: { type: "value", show: false, scale: true },
+    series: [
+      {
+        type: "line",
+        data: points.map((p) => p.netWorthCents),
+        showSymbol: false,
+        lineStyle: { color: tokens.accent, width: 3, cap: "round", join: "round" },
+        areaStyle: { color: tokens.accent, opacity: 0.22 },
       },
     ],
   };

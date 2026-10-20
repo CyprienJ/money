@@ -60,6 +60,8 @@ export interface AnalysisPeriod {
   to: string;
   /** The 12 months ending with the period, for the income and expenses trend. */
   trendFrom: string;
+  /** Last day before `trendFrom`: the reference of the 12-month variations. */
+  trendBase: string;
 }
 
 /**
@@ -90,5 +92,6 @@ export function analysisPeriod(
     from: iso(startYear, startMonth, 1),
     to: iso(startYear, startMonth + length, 0),
     trendFrom: iso(startYear, startMonth + length - 12, 1),
+    trendBase: iso(startYear, startMonth + length - 12, 0),
   };
 }

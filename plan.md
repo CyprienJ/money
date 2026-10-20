@@ -218,7 +218,7 @@ Maquette : `Analyses.dc.html`.
 - Cartes à débit différé : encours compté dans le patrimoine et déduit du « Disponible » (décision du 20/10/2026, inscrite au README) ; le libellé du Disponible sur le tableau de bord deviendra « Comptes courants et épargne, cartes déduites ».
 
 #### V1-06.3 · Graphique du patrimoine net — S
-- [ ] Carte « Patrimoine net » de l'écran Analyses : valeur actuelle, variation sur 12 mois, courbe.
+- [x] Carte « Patrimoine net » de l'écran Analyses : valeur à la fin de la période, variation sur les 12 mois, courbe des fins de mois (ECharts, sans axes, comme la maquette).
 
 ---
 

@@ -42,9 +42,9 @@ registerTheme("money", createTheme(readTokens()));
 </template>
 
 <style scoped>
+/* The parent sets the height of the chart. */
 .chart {
   width: 100%;
   height: 100%;
-  min-height: 220px;
 }
 </style>
