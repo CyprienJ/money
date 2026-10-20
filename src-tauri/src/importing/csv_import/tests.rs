@@ -151,7 +151,7 @@ fn previews_lines_with_their_status() {
         assert!(!lines[2].included_by_default);
         assert_eq!(lines[3].duplicate, DuplicateStatus::New);
         assert!(lines[3].included_by_default);
-        assert_eq!(lines[3].normalized_label, "VIR SALAIRE");
+        assert_eq!(lines[3].normalized_label, "SALAIRE");
 
         let matched: Vec<i64> = preview.matched_operations.iter().map(|o| o.id).collect();
         assert_eq!(matched, vec![exact, manual]);

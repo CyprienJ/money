@@ -139,7 +139,7 @@ fn imports_lines_as_uncategorized_operations() {
             .unwrap();
         let operations: Vec<_> = rows.iter().rev().map(|row| &row.operation).collect();
         assert_eq!(operations[0].raw_label, "CB  Boulangerie");
-        assert_eq!(operations[0].normalized_label, "CB BOULANGERIE");
+        assert_eq!(operations[0].normalized_label, "BOULANGERIE");
         assert_eq!(operations[0].amount_cents, -420);
         assert_eq!(operations[1].value_date, Some(date("2026-09-04")));
         assert!(operations.iter().all(|operation| {

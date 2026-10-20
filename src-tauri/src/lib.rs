@@ -22,8 +22,12 @@ pub fn run() {
         .setup(|app| {
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;
-            let pool =
-                tauri::async_runtime::block_on(db::open(&data_dir.join(db::DATA_FILE_NAME)))?;
+            let pool = tauri::async_runtime::block_on(async {
+                let pool = db::open(&data_dir.join(db::DATA_FILE_NAME)).await?;
+                // Applies label normalization changes to existing operations.
+                labeling::renormalize_all(&pool).await?;
+                Ok::<_, error::AppError>(pool)
+            })?;
             app.manage(pool);
             Ok(())
         })
