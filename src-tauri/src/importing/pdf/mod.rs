@@ -4,9 +4,12 @@
 //! recognizes its own statements and turns them into the `RawLine`s shared with the CSV
 //! import, along with the statement balances and period when it gives them.
 
+mod fortuneo;
+mod french;
 #[cfg(test)]
 mod tests;
 mod text;
+mod trade_republic;
 
 pub use text::{DocumentText, extract};
 
@@ -42,7 +45,7 @@ pub trait StatementParser: Send + Sync {
 }
 
 /// Parsers of the supported banks, tried in this order.
-static PARSERS: &[&dyn StatementParser] = &[];
+static PARSERS: &[&dyn StatementParser] = &[&fortuneo::Fortuneo, &trade_republic::TradeRepublic];
 
 /// A bank whose PDF statements can be imported.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Type)]
@@ -90,6 +93,9 @@ pub enum PdfError {
 
     #[error("the file is not a readable PDF ({0})")]
     InvalidPdf(String),
+
+    #[error("this PDF is not a statement of a supported bank")]
+    UnknownFormat,
 
     #[error("unexpected statement layout: {0}")]
     Layout(String),

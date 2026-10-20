@@ -185,11 +185,12 @@ Maquette : `Analyses.dc.html`.
 - [x] Extraction du texte avec positions (lignes triées, éléments de gauche à droite), testée sur les relevés Fortuneo et Trade Republic.
 - [x] Trait `StatementParser` : détection du format, extraction des `RawLine` + soldes initial et final + période.
 - [x] Détection automatique du parser à partir du contenu (commande `detect_pdf_statement`), liste `supported_banks`. Le « Format reconnu : … » s'affichera avec les parsers (V1-05.2).
-- Retirer en V1-05.2 l'`allow(dead_code)` temporaire du module `importing::pdf`.
+- `allow(dead_code)` temporaire du module `importing::pdf` retiré en V1-05.2.
 
 #### V1-05.2 · Parsers Fortuneo et Trade Republic — L
-- [ ] Un parser par banque : Fortuneo (compte courant), Trade Republic (compte courant) ; fixtures anonymisées dans `tests/fixtures/` + résultats attendus.
-- [ ] Liste des banques prises en charge, exposée au front et affichée à l'étape 1 de l'import.
+- [x] Un parser par banque : Fortuneo (compte courant), Trade Republic (compte courant, la partie PEA du relevé est ignorée) ; fixtures anonymisées dans `tests/fixtures/` + résultats attendus. Trade Republic : chaque ligne est vérifiée contre le solde imprimé après elle.
+- [x] Liste des banques prises en charge, exposée au front et affichée à l'étape 1 de l'import ; « Format reconnu : … » à l'étape 1 et dans l'aperçu, avec les soldes du relevé.
+- [x] Aperçu et import communs au CSV et au PDF (`preview_import`, `import_statement`), soldes du relevé enregistrés sur le lot.
 - Les autres banques françaises s'ajoutent ensuite, un ticket par banque, dès qu'un relevé anonymisé est fourni (outil : `tools/anonymize_pdf.py`).
 
 #### V1-05.3 · Contrôle des soldes — S

@@ -2,7 +2,6 @@
 
 pub mod batch;
 pub mod csv;
-pub mod csv_import;
 pub mod duplicates;
 #[cfg_attr(
     not(test),
@@ -12,6 +11,7 @@ pub mod duplicates;
     )
 )]
 pub mod pdf;
+pub mod statement_import;
 
 use chrono::NaiveDate;
 use serde::Serialize;

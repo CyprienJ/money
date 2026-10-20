@@ -29,12 +29,15 @@ struct Setup {
 }
 
 impl Setup {
-    fn file(&self) -> CsvFile<'static> {
-        CsvFile {
+    fn file(&self) -> StatementFile<'static> {
+        StatementFile {
             account_id: self.account_id,
-            mapping_id: self.mapping_id,
             file_name: "releve.csv",
             bytes: FILE.as_bytes(),
+            format: ImportFormat::Csv {
+                mapping_id: self.mapping_id,
+            },
+            pdfium_dir: Path::new(""),
         }
     }
 }
@@ -378,5 +381,77 @@ fn remembers_categories_chosen_in_the_preview() {
         assert_eq!(remembered.get("RESTAURANT"), Some(&restaurants));
         assert_eq!(remembered.get("SALAIRE"), Some(&salary));
         assert_eq!(remembered.get("BOULANGERIE"), None);
+    });
+}
+
+#[test]
+fn previews_and_imports_a_pdf_statement() {
+    run(|setup| async move {
+        let path = format!(
+            "{}/../tests/fixtures/fortuneo.pdf",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        let bytes = std::fs::read(path).unwrap();
+        let pdfium_dir = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/pdfium"));
+        let file = StatementFile {
+            account_id: setup.account_id,
+            file_name: "fortuneo.pdf",
+            bytes: &bytes,
+            format: ImportFormat::Pdf,
+            pdfium_dir,
+        };
+
+        let preview = preview(&setup.pool, file).await.unwrap();
+        assert_eq!(preview.bank.as_deref(), Some("Fortuneo"));
+        assert_eq!(preview.start_balance_cents, Some(797));
+        assert_eq!(preview.end_balance_cents, Some(8_717));
+        assert_eq!(preview.first_date, Some(date("2026-09-01")));
+        assert_eq!(preview.last_date, Some(date("2026-09-30")));
+        assert_eq!(preview.lines.len(), 2);
+        assert_eq!(preview.lines[0].normalized_label, "MAXICOFFEE SUD SATURNE");
+
+        let selections = [
+            ImportSelection {
+                index: 0,
+                category_id: None,
+            },
+            ImportSelection {
+                index: 1,
+                category_id: None,
+            },
+        ];
+        let batch = import(
+            &setup.pool,
+            &setup.backups,
+            file,
+            &preview.file_hash,
+            &selections,
+        )
+        .await
+        .unwrap();
+        assert_eq!(batch.source_type, SourceType::Pdf);
+        assert_eq!(batch.operation_count, 2);
+        assert_eq!(batch.statement_start_balance_cents, Some(797));
+        assert_eq!(batch.statement_end_balance_cents, Some(8_717));
+    });
+}
+
+#[test]
+fn refuses_pdfs_of_unsupported_banks() {
+    run(|setup| async move {
+        let pdfium_dir = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/pdfium"));
+        // A minimal valid PDF with no statement in it.
+        let bytes = b"%PDF-1.1\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF";
+        let file = StatementFile {
+            account_id: setup.account_id,
+            file_name: "autre.pdf",
+            bytes,
+            format: ImportFormat::Pdf,
+            pdfium_dir,
+        };
+        assert!(matches!(
+            preview(&setup.pool, file).await,
+            Err(AppError::Pdf(PdfError::UnknownFormat))
+        ));
     });
 }

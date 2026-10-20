@@ -1,4 +1,5 @@
-//! CSV import workflow: preview of a file, then import of the lines the user kept.
+//! Statement import workflow, for CSV and PDF files: preview of a file, then import of the
+//! lines the user kept.
 
 use std::collections::HashSet;
 use std::path::Path;
@@ -14,6 +15,7 @@ use super::batch::{
 };
 use super::csv;
 use super::duplicates::{self, DuplicateStatus, ExistingOperation};
+use super::pdf::{self, PdfError};
 use crate::account;
 use crate::error::AppResult;
 use crate::labeling::{memory, normalize_label};
@@ -34,13 +36,66 @@ pub struct PreviewLine {
     pub category_id: Option<i64>,
 }
 
-/// A CSV file to import into an account with a saved mapping.
+/// How to read a statement file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Type)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum ImportFormat {
+    /// CSV export read with a saved mapping.
+    Csv { mapping_id: i64 },
+    /// PDF statement read by the parser of its bank, detected from its content.
+    Pdf,
+}
+
+/// A statement file to import into an account.
 #[derive(Debug, Clone, Copy)]
-pub struct CsvFile<'a> {
+pub struct StatementFile<'a> {
     pub account_id: i64,
-    pub mapping_id: i64,
     pub file_name: &'a str,
     pub bytes: &'a [u8],
+    pub format: ImportFormat,
+    /// Directory of the PDFium library, for PDF files.
+    pub pdfium_dir: &'a Path,
+}
+
+/// Lines and balances read from a statement file.
+struct ReadStatement {
+    lines: Vec<RawLine>,
+    /// Bank recognized from a PDF statement.
+    bank: Option<String>,
+    start_balance_cents: Option<i64>,
+    end_balance_cents: Option<i64>,
+    period: Option<(NaiveDate, NaiveDate)>,
+}
+
+async fn read(pool: &SqlitePool, file: StatementFile<'_>) -> AppResult<ReadStatement> {
+    match file.format {
+        ImportFormat::Csv { mapping_id } => {
+            let mapping = csv::get(pool, mapping_id).await?;
+            Ok(ReadStatement {
+                lines: csv::parse(file.bytes, &mapping.mapping)?,
+                bank: None,
+                start_balance_cents: None,
+                end_balance_cents: None,
+                period: None,
+            })
+        }
+        ImportFormat::Pdf => {
+            let document = pdf::extract(file.pdfium_dir, file.bytes)?;
+            let parser = pdf::detect(&document).ok_or(PdfError::UnknownFormat)?;
+            let statement = parser.parse(&document)?;
+            Ok(ReadStatement {
+                lines: statement.lines,
+                bank: Some(parser.bank().to_owned()),
+                start_balance_cents: statement.start_balance_cents,
+                end_balance_cents: statement.end_balance_cents,
+                period: statement.period,
+            })
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Type)]
@@ -55,15 +110,21 @@ pub struct ImportPreview {
     pub matched_operations: Vec<ExistingOperation>,
     /// Earlier imports of the same file, in any account.
     pub previous_imports: Vec<ImportBatch>,
+    /// Statement period, or else the dates of its first and last lines.
     pub first_date: Option<NaiveDate>,
     pub last_date: Option<NaiveDate>,
+    /// Bank recognized from a PDF statement ("Format reconnu : …").
+    pub bank: Option<String>,
+    /// Balances printed on the statement, when it gives them.
+    pub start_balance_cents: Option<i64>,
+    pub end_balance_cents: Option<i64>,
 }
 
-/// Reads `bytes` with the saved mapping and compares its lines with the account.
-pub async fn preview(pool: &SqlitePool, file: CsvFile<'_>) -> AppResult<ImportPreview> {
+/// Reads the statement file and compares its lines with the account.
+pub async fn preview(pool: &SqlitePool, file: StatementFile<'_>) -> AppResult<ImportPreview> {
     let account = account::get(pool, file.account_id).await?;
-    let mapping = csv::get(pool, file.mapping_id).await?;
-    let raw_lines = csv::parse(file.bytes, &mapping.mapping)?;
+    let statement = read(pool, file).await?;
+    let raw_lines = statement.lines;
 
     let existing = duplicates::existing_operations(pool, file.account_id, &raw_lines).await?;
     let statuses = duplicates::classify(&raw_lines, &existing);
@@ -104,11 +165,21 @@ pub async fn preview(pool: &SqlitePool, file: CsvFile<'_>) -> AppResult<ImportPr
         })
         .collect::<Vec<_>>();
 
+    let (first_date, last_date) = match statement.period {
+        Some((first, last)) => (Some(first), Some(last)),
+        None => (
+            lines.iter().map(|preview| preview.line.date).min(),
+            lines.iter().map(|preview| preview.line.date).max(),
+        ),
+    };
     Ok(ImportPreview {
         file_name: file.file_name.to_owned(),
         file_hash,
-        first_date: lines.iter().map(|preview| preview.line.date).min(),
-        last_date: lines.iter().map(|preview| preview.line.date).max(),
+        first_date,
+        last_date,
+        bank: statement.bank,
+        start_balance_cents: statement.start_balance_cents,
+        end_balance_cents: statement.end_balance_cents,
         lines,
         matched_operations: existing
             .into_iter()
@@ -135,7 +206,7 @@ pub struct ImportSelection {
 pub async fn import(
     pool: &SqlitePool,
     backup_dir: &Path,
-    file: CsvFile<'_>,
+    file: StatementFile<'_>,
     expected_hash: &str,
     selections: &[ImportSelection],
 ) -> AppResult<ImportBatch> {
@@ -170,11 +241,15 @@ pub async fn import(
         backup_dir,
         NewImportBatch {
             account_id: file.account_id,
-            source_type: SourceType::Csv,
+            source_type: match file.format {
+                ImportFormat::Csv { .. } => SourceType::Csv,
+                ImportFormat::Pdf => SourceType::Pdf,
+            },
             source_file_name: file.file_name.to_owned(),
             source_file_hash: file_hash,
-            statement_start_balance_cents: None,
-            statement_end_balance_cents: None,
+            statement_start_balance_cents: preview.start_balance_cents,
+            statement_end_balance_cents: preview.end_balance_cents,
+            // Computed by the balance check (V1-05.3).
             balance_check_status: BalanceCheckStatus::NotAvailable,
         },
         &lines,

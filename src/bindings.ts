@@ -45,13 +45,16 @@ export const commands = {
 	cancelImport: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("cancel_import", { id })),
 	/**  First lines of the file at `path`, decoded with `encoding`. */
 	readFileHead: (path: string, encoding: CsvEncoding) => typedError<string[], AppError>(__TAURI_INVOKE("read_file_head", { path, encoding })),
-	/**  Reads the CSV file at `path` with a saved mapping and compares it with the account. */
-	previewCsvImport: (path: string, accountId: number, mappingId: number) => typedError<ImportPreview, AppError>(__TAURI_INVOKE("preview_csv_import", { path, accountId, mappingId })),
 	/**
-	 *  Imports the selected lines of the CSV file at `path`, with their categories.
+	 *  Reads the statement file at `path` (CSV with a saved mapping, or PDF of a supported
+	 *  bank) and compares it with the account.
+	 */
+	previewImport: (path: string, accountId: number, format: ImportFormat) => typedError<ImportPreview, AppError>(__TAURI_INVOKE("preview_import", { path, accountId, format })),
+	/**
+	 *  Imports the selected lines of the statement file at `path`, with their categories.
 	 *  `file_hash` comes from the preview and guards against a file changed in between.
 	 */
-	importCsv: (path: string, accountId: number, mappingId: number, fileHash: string, selections: ImportSelection[]) => typedError<ImportBatch, AppError>(__TAURI_INVOKE("import_csv", { path, accountId, mappingId, fileHash, selections })),
+	importStatement: (path: string, accountId: number, format: ImportFormat, fileHash: string, selections: ImportSelection[]) => typedError<ImportBatch, AppError>(__TAURI_INVOKE("import_statement", { path, accountId, format, fileHash, selections })),
 	/**  Banks whose PDF statements can be imported. */
 	supportedBanks: () => __TAURI_INVOKE<SupportedBank[]>("supported_banks"),
 	/**  Bank of the PDF statement at `path`, `null` when no parser recognizes it. */
@@ -244,6 +247,13 @@ export type ImportBatch = {
 	operationCount: number,
 };
 
+/**  How to read a statement file. */
+export type ImportFormat = 
+/**  CSV export read with a saved mapping. */
+{ kind: "csv"; mappingId: number } | 
+/**  PDF statement read by the parser of its bank, detected from its content. */
+{ kind: "pdf" };
+
 export type ImportPreview = {
 	fileName: string,
 	/**  To check at import time that the file did not change. */
@@ -254,8 +264,14 @@ export type ImportPreview = {
 	matchedOperations: ExistingOperation[],
 	/**  Earlier imports of the same file, in any account. */
 	previousImports: ImportBatch[],
+	/**  Statement period, or else the dates of its first and last lines. */
 	firstDate: string | null,
 	lastDate: string | null,
+	/**  Bank recognized from a PDF statement ("Format reconnu : …"). */
+	bank: string | null,
+	/**  Balances printed on the statement, when it gives them. */
+	startBalanceCents: number | null,
+	endBalanceCents: number | null,
 };
 
 /**  A preview line to import, with the category the user kept or chose. */

@@ -6,9 +6,11 @@ import {
   commands,
   type AccountSummary,
   type Category,
+  type ImportFormat,
   type ImportPreview,
   type MappingSuggestion,
   type SavedCsvMapping,
+  type SupportedBank,
 } from "../bindings";
 import CategoryPicker from "../components/CategoryPicker.vue";
 import CsvMappingModal from "../components/CsvMappingModal.vue";
@@ -38,6 +40,10 @@ const suggestions = ref<MappingSuggestion[]>([]);
 const path = ref<string | null>(null);
 const accountId = ref<number | null>(null);
 const mappingId = ref<number | null>(null);
+/** Banks whose PDF statements are supported. */
+const banks = ref<SupportedBank[]>([]);
+/** Bank recognized from the chosen PDF; `null` when not recognized. */
+const detectedBank = ref<SupportedBank | null>(null);
 const preview = ref<ImportPreview | null>(null);
 const selected = ref(new Set<number>());
 /** Categories chosen by the user in the preview, by line index. */
@@ -61,8 +67,15 @@ const mapping = computed(() => mappings.value.find((m) => m.id === mappingId.val
 const suggestedLines = computed(
   () => new Map(suggestions.value.map((s) => [s.mapping.id, s.lineCount])),
 );
+const isPdf = computed(() => /\.pdf$/i.test(path.value ?? ""));
+const banksText = computed(() => banks.value.map((b) => b.name).join(", "));
+/** How the chosen file is read: by the parser of its bank, or with a saved CSV format. */
+const format = computed<ImportFormat | null>(() => {
+  if (isPdf.value) return detectedBank.value ? { kind: "pdf" } : null;
+  return mappingId.value === null ? null : { kind: "csv", mappingId: mappingId.value };
+});
 const canPreview = computed(
-  () => path.value !== null && accountId.value !== null && mappingId.value !== null && !busy.value,
+  () => path.value !== null && accountId.value !== null && format.value !== null && !busy.value,
 );
 
 const groups = computed(() => (preview.value ? groupPreview(preview.value) : null));
@@ -83,6 +96,7 @@ async function load() {
     accounts.value = summaries.filter((s) => ACCOUNT_TYPES[s.account.type].hasOperations);
     mappings.value = await unwrap(commands.listCsvMappings());
     categories.value = await unwrap(commands.listCategories());
+    banks.value = await commands.supportedBanks();
     const requested = Number(route.query.account);
     accountId.value =
       accounts.value.find((s) => s.account.id === requested)?.account.id ??
@@ -98,11 +112,26 @@ async function chooseFile() {
   const chosen = await openDialog({
     multiple: false,
     directory: false,
-    filters: [{ name: "Relevé CSV", extensions: ["csv", "CSV", "txt"] }],
+    filters: [{ name: "Relevé PDF ou CSV", extensions: ["pdf", "PDF", "csv", "CSV", "txt"] }],
   });
   if (typeof chosen !== "string") return;
   path.value = chosen;
-  await suggest();
+  detectedBank.value = null;
+  if (isPdf.value) await detectBank();
+  else await suggest();
+}
+
+/** Recognizes the bank of a PDF statement from its content. */
+async function detectBank() {
+  if (!path.value) return;
+  busy.value = true;
+  try {
+    detectedBank.value = await unwrap(commands.detectPdfStatement(path.value));
+  } catch (e) {
+    error.value = errorMessage(e);
+  } finally {
+    busy.value = false;
+  }
 }
 
 /** Picks the saved format reading the most lines of the file. */
@@ -147,13 +176,11 @@ async function onMappingDeleted(id: number) {
 }
 
 async function showPreview() {
-  if (!path.value || accountId.value === null || mappingId.value === null) return;
+  if (!path.value || accountId.value === null || format.value === null) return;
   busy.value = true;
   error.value = "";
   try {
-    preview.value = await unwrap(
-      commands.previewCsvImport(path.value, accountId.value, mappingId.value),
-    );
+    preview.value = await unwrap(commands.previewImport(path.value, accountId.value, format.value));
     selected.value = defaultSelection(preview.value);
     chosen.value = new Map();
     step.value = "preview";
@@ -201,15 +228,15 @@ function back() {
 
 async function runImport() {
   const current = preview.value;
-  if (!current || !path.value || accountId.value === null || mappingId.value === null) return;
+  if (!current || !path.value || accountId.value === null || format.value === null) return;
   step.value = "importing";
   error.value = "";
   try {
     await unwrap(
-      commands.importCsv(
+      commands.importStatement(
         path.value,
         accountId.value,
-        mappingId.value,
+        format.value,
         current.fileHash,
         [...selected.value].map((index) => ({
           index,
@@ -264,10 +291,10 @@ onMounted(load);
 
     <template v-else>
       <div class="file-row">
-        <span class="file-icon csv">CSV</span>
+        <span class="file-icon" :class="isPdf ? 'pdf' : 'csv'">{{ isPdf ? "PDF" : "CSV" }}</span>
         <div class="file-info">
           <span class="file-name">{{ fileName || "Aucun fichier choisi" }}</span>
-          <span class="muted">Export CSV de ta banque. Les relevés PDF arrivent à une prochaine étape.</span>
+          <span class="muted">Relevé PDF ({{ banksText }}) ou export CSV de ta banque.</span>
         </div>
         <button type="button" class="btn btn-secondary" @click="chooseFile">
           {{ path ? "Changer de fichier" : "Choisir un fichier…" }}
@@ -281,7 +308,15 @@ onMounted(load);
             <option v-for="s in accounts" :key="s.account.id" :value="s.account.id">{{ s.account.name }}</option>
           </select>
         </label>
-        <div class="field">
+        <div v-if="isPdf" class="field">
+          Format du relevé
+          <span v-if="busy" class="field-hint">Lecture du relevé…</span>
+          <span v-else-if="detectedBank" class="recognized-bank">Format reconnu : {{ detectedBank.name }}</span>
+          <span v-else class="field-error">
+            Ce PDF n'est pas un relevé reconnu. Banques prises en charge : {{ banksText }}.
+          </span>
+        </div>
+        <div v-else class="field">
           <label for="mapping">Format du fichier</label>
           <div class="mapping-row">
             <select id="mapping" v-model="mappingId">
@@ -319,14 +354,26 @@ onMounted(load);
   <template v-else-if="preview && groups">
     <section class="cards">
       <div class="card file-card">
-        <span class="file-icon csv">CSV</span>
+        <span class="file-icon" :class="preview.bank ? 'pdf' : 'csv'">{{ preview.bank ? "PDF" : "CSV" }}</span>
         <div class="file-info">
           <span class="file-name">{{ preview.fileName }}</span>
-          <span class="muted">Format : {{ mapping?.name }} · {{ periodText(preview) }}</span>
+          <span class="muted">
+            {{ preview.bank ? `Format reconnu : ${preview.bank}` : `Format : ${mapping?.name}` }} ·
+            {{ periodText(preview) }}
+          </span>
           <span class="muted">Compte de destination : <strong>{{ account?.name }}</strong></span>
         </div>
       </div>
-      <div class="card balance-card">
+      <div v-if="preview.startBalanceCents !== null && preview.endBalanceCents !== null" class="card balance-card">
+        <div class="balance-title">Soldes du relevé</div>
+        <div class="balance-grid">
+          <span>Solde initial</span>
+          <strong>{{ formatAmount(preview.startBalanceCents) }}</strong>
+          <span>Solde final</span>
+          <strong>{{ formatAmount(preview.endBalanceCents) }}</strong>
+        </div>
+      </div>
+      <div v-else class="card balance-card">
         <div class="balance-title">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
             <circle cx="12" cy="12" r="9.5" />
@@ -586,6 +633,33 @@ h1 {
   border-radius: 10px;
   font-size: 11px;
   font-weight: 800;
+}
+
+.file-icon.pdf {
+  background: var(--cat-restaurants-bg);
+  color: var(--cat-restaurants-fg);
+}
+
+.recognized-bank {
+  display: flex;
+  align-items: center;
+  height: 42px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--cat-transport-fg);
+}
+
+.balance-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 16px;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.balance-grid strong {
+  text-align: right;
+  white-space: nowrap;
 }
 
 .file-icon.csv {

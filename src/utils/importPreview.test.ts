@@ -32,6 +32,9 @@ function preview(lines: PreviewLine[]): ImportPreview {
     previousImports: [],
     firstDate: "2026-09-01",
     lastDate: "2026-09-30",
+    bank: null,
+    startBalanceCents: null,
+    endBalanceCents: null,
   };
 }
 

@@ -116,3 +116,119 @@ fn detects_the_parser_from_the_content() {
         Err(PdfError::Layout(_))
     ));
 }
+
+fn date(text: &str) -> NaiveDate {
+    text.parse().unwrap()
+}
+
+fn raw(day: &str, value_date: Option<&str>, label: &str, amount_cents: i64) -> RawLine {
+    RawLine {
+        date: date(day),
+        value_date: value_date.map(date),
+        label: label.to_owned(),
+        amount_cents,
+    }
+}
+
+#[test]
+fn parses_the_fortuneo_statement() {
+    let document = fixture("fortuneo.pdf");
+    let parser = detect(&document).expect("Fortuneo recognized");
+    assert_eq!(parser.id(), "fortuneo");
+    let statement = parser.parse(&document).unwrap();
+    assert_eq!(
+        statement.lines,
+        vec![
+            raw(
+                "2026-09-08",
+                Some("2026-09-08"),
+                "CARTE 07/09 MAXICOFFEE SUD SATURNE",
+                -80
+            ),
+            raw(
+                "2026-09-24",
+                Some("2026-09-24"),
+                "VIR INST Captain Hadock Envoye depuis Revolut 1234567891234567891",
+                8_000,
+            ),
+        ]
+    );
+    assert_eq!(statement.start_balance_cents, Some(797));
+    assert_eq!(statement.end_balance_cents, Some(8_717));
+    assert_eq!(
+        statement.period,
+        Some((date("2026-09-01"), date("2026-09-30")))
+    );
+    // The statement balances: start + Σ = end.
+    let total: i64 = statement.lines.iter().map(|l| l.amount_cents).sum();
+    assert_eq!(797 + total, 8_717);
+}
+
+#[test]
+fn parses_the_current_account_of_the_trade_republic_statement() {
+    let document = fixture("trade_republic.pdf");
+    let parser = detect(&document).expect("Trade Republic recognized");
+    assert_eq!(parser.id(), "trade-republic");
+    let statement = parser.parse(&document).unwrap();
+
+    assert_eq!(statement.start_balance_cents, Some(6_984));
+    assert_eq!(statement.end_balance_cents, Some(6_687));
+    assert_eq!(
+        statement.period,
+        Some((date("2026-07-01"), date("2026-10-19")))
+    );
+    // PEA trades (pages 4 and 5) are left out.
+    assert_eq!(statement.lines.len(), 25);
+    assert!(
+        statement
+            .lines
+            .iter()
+            .all(|l| !l.label.contains("Buy trade"))
+    );
+
+    let lines = &statement.lines;
+    assert_eq!(
+        lines[0],
+        raw("2026-07-01", None, "Intérêts Interest payment", 1)
+    );
+    assert_eq!(
+        lines[1],
+        raw("2026-07-03", None, "Virement Versement PEA", -5_920)
+    );
+    assert_eq!(
+        lines[2],
+        raw(
+            "2026-07-27",
+            None,
+            "Virement Incoming transfer from Captain Hadock (FR1234567891234567891234567)",
+            2_000
+        )
+    );
+    // Description written above the type, IBAN wrapped on the year line.
+    assert_eq!(
+        lines[20],
+        raw(
+            "2026-09-27",
+            None,
+            "Virement Outgoing transfer for CAPTAIN HADOCK (FR1234567891234567891234567)",
+            -20_000
+        )
+    );
+    assert_eq!(
+        lines[22],
+        raw("2026-09-29", None, "Avoir PcComponentes", -64_558)
+    );
+    assert_eq!(lines[24].date, date("2026-10-19"));
+
+    let money_in: i64 = lines
+        .iter()
+        .map(|l| l.amount_cents)
+        .filter(|a| *a > 0)
+        .sum();
+    let money_out: i64 = lines
+        .iter()
+        .map(|l| l.amount_cents)
+        .filter(|a| *a < 0)
+        .sum();
+    assert_eq!((money_in, -money_out), (420_058, 420_355));
+}

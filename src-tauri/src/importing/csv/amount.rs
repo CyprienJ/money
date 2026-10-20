@@ -7,7 +7,7 @@ const SPACES: [char; 3] = [' ', '\u{00A0}', '\u{202F}'];
 
 /// Parses an amount such as `-1 234,56`, `1.234,56 €` or `+12.5` into cents.
 /// Returns `Ok(None)` for an empty cell and `Err(())` for anything that is not an amount.
-pub(super) fn parse_cents(text: &str, separator: DecimalSeparator) -> Result<Option<i64>, ()> {
+pub(crate) fn parse_cents(text: &str, separator: DecimalSeparator) -> Result<Option<i64>, ()> {
     let mut text = text.trim();
     if text.is_empty() {
         return Ok(None);

@@ -6,6 +6,7 @@ mod parser;
 #[cfg(test)]
 mod tests;
 
+pub(crate) use amount::parse_cents;
 pub use mapping::{
     CsvMappingError, MappingSuggestion, NewCsvMapping, SavedCsvMapping, create, delete, get, list,
     suggest, update,

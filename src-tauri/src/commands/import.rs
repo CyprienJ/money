@@ -6,8 +6,10 @@ use tauri::{AppHandle, Manager, State};
 use crate::error::{AppError, AppResult};
 use crate::importing::batch::{self, ImportBatch};
 use crate::importing::csv::{self, CsvEncoding};
-use crate::importing::csv_import::{self, CsvFile, ImportPreview, ImportSelection};
 use crate::importing::pdf::{self, SupportedBank};
+use crate::importing::statement_import::{
+    self, ImportFormat, ImportPreview, ImportSelection, StatementFile,
+};
 
 /// Lines shown when defining a CSV mapping.
 const HEAD_LINES: usize = 12;
@@ -37,48 +39,59 @@ pub async fn read_file_head(path: String, encoding: CsvEncoding) -> AppResult<Ve
     Ok(csv::head(&bytes, encoding, HEAD_LINES))
 }
 
-/// Reads the CSV file at `path` with a saved mapping and compares it with the account.
+/// Reads the statement file at `path` (CSV with a saved mapping, or PDF of a supported
+/// bank) and compares it with the account.
 #[tauri::command]
 #[specta::specta]
-pub async fn preview_csv_import(
-    pool: State<'_, SqlitePool>,
-    path: String,
-    account_id: i64,
-    mapping_id: i64,
-) -> AppResult<ImportPreview> {
-    let bytes = std::fs::read(&path)?;
-    let file = csv_file(&path, account_id, mapping_id, &bytes);
-    csv_import::preview(&pool, file).await
-}
-
-/// Imports the selected lines of the CSV file at `path`, with their categories.
-/// `file_hash` comes from the preview and guards against a file changed in between.
-#[tauri::command]
-#[specta::specta]
-pub async fn import_csv(
+pub async fn preview_import(
     app: AppHandle,
     pool: State<'_, SqlitePool>,
     path: String,
     account_id: i64,
-    mapping_id: i64,
+    format: ImportFormat,
+) -> AppResult<ImportPreview> {
+    let bytes = std::fs::read(&path)?;
+    let pdfium_dir = pdfium_dir(&app)?;
+    let file = statement_file(&path, account_id, format, &bytes, &pdfium_dir);
+    statement_import::preview(&pool, file).await
+}
+
+/// Imports the selected lines of the statement file at `path`, with their categories.
+/// `file_hash` comes from the preview and guards against a file changed in between.
+#[tauri::command]
+#[specta::specta]
+pub async fn import_statement(
+    app: AppHandle,
+    pool: State<'_, SqlitePool>,
+    path: String,
+    account_id: i64,
+    format: ImportFormat,
     file_hash: String,
     selections: Vec<ImportSelection>,
 ) -> AppResult<ImportBatch> {
     let bytes = std::fs::read(&path)?;
-    let file = csv_file(&path, account_id, mapping_id, &bytes);
-    csv_import::import(&pool, &backup_dir(&app)?, file, &file_hash, &selections).await
+    let pdfium_dir = pdfium_dir(&app)?;
+    let file = statement_file(&path, account_id, format, &bytes, &pdfium_dir);
+    statement_import::import(&pool, &backup_dir(&app)?, file, &file_hash, &selections).await
 }
 
-fn csv_file<'a>(path: &'a str, account_id: i64, mapping_id: i64, bytes: &'a [u8]) -> CsvFile<'a> {
+fn statement_file<'a>(
+    path: &'a str,
+    account_id: i64,
+    format: ImportFormat,
+    bytes: &'a [u8],
+    pdfium_dir: &'a Path,
+) -> StatementFile<'a> {
     let file_name = Path::new(path)
         .file_name()
         .and_then(|name| name.to_str())
         .unwrap_or(path);
-    CsvFile {
+    StatementFile {
         account_id,
-        mapping_id,
         file_name,
         bytes,
+        format,
+        pdfium_dir,
     }
 }
 
