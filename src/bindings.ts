@@ -16,6 +16,11 @@ export const commands = {
 	setAccountArchived: (id: number, archived: boolean) => typedError<Account, AppError>(__TAURI_INVOKE("set_account_archived", { id, archived })),
 	/**  Balance in cents at the end of `date`, for accounts with operations. */
 	accountBalance: (id: number, date: string) => typedError<number, AppError>(__TAURI_INVOKE("account_balance", { id, date })),
+	/**  Valuations of an investment, asset or liability account, the most recent first. */
+	listValuations: (accountId: number) => typedError<Valuation[], AppError>(__TAURI_INVOKE("list_valuations", { accountId })),
+	createValuation: (accountId: number, valuation: ValuationInput) => typedError<Valuation, AppError>(__TAURI_INVOKE("create_valuation", { accountId, valuation })),
+	updateValuation: (id: number, valuation: ValuationInput) => typedError<Valuation, AppError>(__TAURI_INVOKE("update_valuation", { id, valuation })),
+	deleteValuation: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_valuation", { id })),
 	/**  Operations of an account, most recent first, with the balance after each one. */
 	listOperations: (accountId: number, from: string | null, to: string | null) => typedError<OperationRow[], AppError>(__TAURI_INVOKE("list_operations", { accountId, from, to })),
 	getOperation: (id: number) => typedError<Operation, AppError>(__TAURI_INVOKE("get_operation", { id })),
@@ -88,8 +93,14 @@ export type Account = {
 /**  An account with its balance at a given date. */
 export type AccountSummary = {
 	account: Account,
-	/**  `None` for investments, assets and liabilities, which are tracked by valuations. */
+	/**
+	 *  Balance from the operations; for investments and assets, the last valuation on or
+	 *  before the date; for liabilities, minus the last outstanding capital. `None` for a
+	 *  valued account without valuation yet.
+	 */
 	balanceCents: number | null,
+	/**  Date of the valuation behind the balance of a valued account. */
+	valuedOn: string | null,
 };
 
 export type AccountType = "CHECKING" | "SAVINGS" | 
@@ -411,6 +422,20 @@ export type SourceType = "CSV" | "PDF";
 export type SupportedBank = {
 	id: string,
 	name: string,
+};
+
+export type Valuation = {
+	id: number,
+	accountId: number,
+	date: string,
+	/**  Value, or outstanding capital for a debt: never negative. */
+	valueCents: number,
+};
+
+/**  Date and value of a valuation to record or change. */
+export type ValuationInput = {
+	date: string,
+	valueCents: number,
 };
 
 /* Tauri Specta runtime */

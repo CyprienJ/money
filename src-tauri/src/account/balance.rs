@@ -5,7 +5,7 @@ use serde::Serialize;
 use specta::Type;
 use sqlx::SqlitePool;
 
-use super::{Account, AccountError};
+use super::{Account, AccountError, AccountType};
 use crate::error::AppResult;
 
 /// An account with its balance at a given date.
@@ -13,8 +13,12 @@ use crate::error::AppResult;
 #[serde(rename_all = "camelCase")]
 pub struct AccountSummary {
     pub account: Account,
-    /// `None` for investments, assets and liabilities, which are tracked by valuations.
+    /// Balance from the operations; for investments and assets, the last valuation on or
+    /// before the date; for liabilities, minus the last outstanding capital. `None` for a
+    /// valued account without valuation yet.
     pub balance_cents: Option<i64>,
+    /// Date of the valuation behind the balance of a valued account.
+    pub valued_on: Option<NaiveDate>,
 }
 
 /// Balance of an account at the end of `date`: opening balance plus every operation dated on or
@@ -57,15 +61,42 @@ pub async fn list_summaries(
     .map(|row| (row.account_id, row.total))
     .collect();
 
+    let valuations: HashMap<i64, (NaiveDate, i64)> = sqlx::query!(
+        r#"SELECT v.account_id, v.date AS "date: NaiveDate", v.value_cents
+           FROM valuation v
+           WHERE v.date = (SELECT MAX(w.date) FROM valuation w
+                           WHERE w.account_id = v.account_id AND w.date <= ?1)"#,
+        date
+    )
+    .fetch_all(pool)
+    .await?
+    .into_iter()
+    .map(|row| (row.account_id, (row.date, row.value_cents)))
+    .collect();
+
     Ok(accounts
         .into_iter()
         .map(|account| {
-            let balance_cents = account.account_type.has_operations().then(|| {
-                account.opening_balance_cents + sums.get(&account.id).copied().unwrap_or(0)
-            });
+            let (balance_cents, valued_on) = if account.account_type.has_operations() {
+                let sum = sums.get(&account.id).copied().unwrap_or(0);
+                (Some(account.opening_balance_cents + sum), None)
+            } else {
+                match valuations.get(&account.id) {
+                    Some(&(valued_on, value)) => {
+                        let sign = if account.account_type == AccountType::Liability {
+                            -1
+                        } else {
+                            1
+                        };
+                        (Some(sign * value), Some(valued_on))
+                    }
+                    None => (None, None),
+                }
+            };
             AccountSummary {
                 account,
                 balance_cents,
+                valued_on,
             }
         })
         .collect())

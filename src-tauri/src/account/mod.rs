@@ -2,6 +2,7 @@
 
 mod balance;
 mod repository;
+pub mod valuation;
 
 pub use balance::{AccountSummary, balance_at, list_summaries};
 pub use repository::{create, get, list, set_archived, update};
@@ -81,13 +82,30 @@ pub enum AccountError {
 
     #[error("account name cannot be empty")]
     EmptyName,
+
+    #[error("valuation {0} not found")]
+    ValuationNotFound(i64),
+
+    #[error(
+        "checking, savings and credit card accounts are tracked by their operations, not valuations"
+    )]
+    NotValued,
+
+    #[error("a valuation cannot be negative (a debt is valued by its outstanding capital)")]
+    NegativeValuation,
+
+    #[error("the account already has a valuation on {0}")]
+    DuplicateValuationDate(NaiveDate),
+
+    #[error("a valuation cannot precede the account opening date ({0})")]
+    ValuationBeforeOpening(NaiveDate),
 }
 
 impl AccountError {
     pub fn kind(&self) -> ErrorKind {
         match self {
-            AccountError::NotFound(_) => ErrorKind::NotFound,
-            AccountError::EmptyName => ErrorKind::Validation,
+            AccountError::NotFound(_) | AccountError::ValuationNotFound(_) => ErrorKind::NotFound,
+            _ => ErrorKind::Validation,
         }
     }
 }

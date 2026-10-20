@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT v.account_id, v.date AS \"date: NaiveDate\", v.value_cents\n           FROM valuation v\n           WHERE v.date = (SELECT MAX(w.date) FROM valuation w\n                           WHERE w.account_id = v.account_id AND w.date <= ?1)",
+  "describe": {
+    "columns": [
+      {
+        "name": "account_id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "valuation",
+            "name": "account_id"
+          }
+        }
+      },
+      {
+        "name": "date: NaiveDate",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "valuation",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "name": "value_cents",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "valuation",
+            "name": "value_cents"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "653452f901608a17cc15c4d1faa2c0e0e9974ee4fec7087ede9848641d4cdf70"
+}
