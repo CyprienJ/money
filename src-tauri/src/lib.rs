@@ -2,6 +2,14 @@ mod account;
 mod commands;
 mod db;
 mod error;
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        unused_imports,
+        reason = "called by the import commands of V1-02.5"
+    )
+)]
 mod importing;
 mod labeling;
 mod operation;

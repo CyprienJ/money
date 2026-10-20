@@ -84,10 +84,11 @@ Maquette : `Operations.dc.html`.
 ### Étape 2 — Import CSV
 
 #### V1-02.1 · Parser CSV et mapping des colonnes — M
-- [ ] Crates `csv` + `encoding_rs` : séparateur configurable, encodages UTF-8 / ISO-8859-1 / Windows-1252.
-- [ ] Mapping : format de date, séparateur décimal, colonne montant unique **ou** débit/crédit, lignes à ignorer.
-- [ ] Sortie commune `RawLine { date, value_date?, label, amount_cents }` (réutilisée par le PDF).
-- [ ] Parsing des montants en centimes sans flottant ; tests sur fixtures anonymisées dans `tests/fixtures/`.
+- [x] Crates `csv` + `encoding_rs` : séparateur configurable, encodages UTF-8 / ISO-8859-1 / Windows-1252.
+- [x] Mapping : format de date, séparateur décimal, colonne montant unique **ou** débit/crédit, lignes à ignorer.
+- [x] Sortie commune `RawLine { date, value_date?, label, amount_cents }` (réutilisée par le PDF). Le mapping CSV n'a pas de colonne date de valeur : `value_date` reste vide pour un CSV.
+- [x] Parsing des montants en centimes sans flottant ; tests sur fixtures anonymisées dans `tests/fixtures/`.
+- Fixtures inventées au format bancaire français courant, faute de relevé réel : à valider sur les exports de la banque principale.
 
 #### V1-02.2 · Mémorisation des mappings — S
 - [ ] CRUD `csv_mapping`, nommé par banque ou format.

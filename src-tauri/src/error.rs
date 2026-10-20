@@ -3,6 +3,7 @@ use specta::Type;
 use specta::datatype::DataType;
 
 use crate::account::AccountError;
+use crate::importing::csv::CsvError;
 use crate::operation::OperationError;
 
 /// Error type returned by the domain layer and propagated to the frontend.
@@ -22,6 +23,9 @@ pub enum AppError {
 
     #[error(transparent)]
     Operation(#[from] OperationError),
+
+    #[error(transparent)]
+    Csv(#[from] CsvError),
 }
 
 /// Stable identifier the frontend can match on.
@@ -53,6 +57,7 @@ impl AppError {
             AppError::Io(_) => ErrorKind::Io,
             AppError::Account(error) => error.kind(),
             AppError::Operation(error) => error.kind(),
+            AppError::Csv(error) => error.kind(),
         }
     }
 }
