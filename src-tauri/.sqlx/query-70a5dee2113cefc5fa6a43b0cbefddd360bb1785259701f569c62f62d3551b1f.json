@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE operation\n             SET date = ?2, value_date = ?3, amount_cents = ?4, raw_label = ?5,\n                 normalized_label = ?6, updated_at = ?7\n             WHERE id = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "70a5dee2113cefc5fa6a43b0cbefddd360bb1785259701f569c62f62d3551b1f"
+}

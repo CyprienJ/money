@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT type AS \"account_type: AccountType\", opening_date AS \"opening_date: NaiveDate\"\n           FROM account WHERE id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "account_type: AccountType",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "type"
+          }
+        }
+      },
+      {
+        "name": "opening_date: NaiveDate",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "opening_date"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "f51195da55431dccee242ae4ae76e94083696dcd2eadcad8bb437a92dd2e82b9"
+}

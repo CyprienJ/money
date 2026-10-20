@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO import_batch\n         (account_id, source_type, source_file_name, source_file_hash, imported_at, balance_check_status)\n         VALUES (?1, 'CSV', 'releve.csv', 'hash', '2026-10-19T10:00:00Z', 'OK')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "3face10b278f29152e8398d130e163822d336319a725085f59b79a8f7a1bbb64"
+}

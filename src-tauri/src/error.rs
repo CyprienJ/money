@@ -3,6 +3,7 @@ use specta::Type;
 use specta::datatype::DataType;
 
 use crate::account::AccountError;
+use crate::operation::OperationError;
 
 /// Error type returned by the domain layer and propagated to the frontend.
 #[derive(Debug, thiserror::Error)]
@@ -18,6 +19,9 @@ pub enum AppError {
 
     #[error(transparent)]
     Account(#[from] AccountError),
+
+    #[error(transparent)]
+    Operation(#[from] OperationError),
 }
 
 /// Stable identifier the frontend can match on.
@@ -47,8 +51,8 @@ impl AppError {
             AppError::Database(_) => ErrorKind::Database,
             AppError::Migration(_) => ErrorKind::Migration,
             AppError::Io(_) => ErrorKind::Io,
-            AppError::Account(AccountError::NotFound(_)) => ErrorKind::NotFound,
-            AppError::Account(AccountError::EmptyName) => ErrorKind::Validation,
+            AppError::Account(error) => error.kind(),
+            AppError::Operation(error) => error.kind(),
         }
     }
 }

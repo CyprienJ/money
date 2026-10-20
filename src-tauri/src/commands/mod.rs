@@ -7,6 +7,7 @@ use crate::error::AppError;
 
 mod account;
 mod app;
+mod operation;
 
 /// Path of the generated TypeScript bindings (`src/bindings.ts`).
 const BINDINGS_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../src/bindings.ts");
@@ -23,6 +24,12 @@ pub fn builder() -> Builder<tauri::Wry> {
             account::update_account,
             account::set_account_archived,
             account::account_balance,
+            operation::list_operations,
+            operation::get_operation,
+            operation::create_operation,
+            operation::update_operation,
+            operation::set_operation_category,
+            operation::delete_operation,
         ])
         .typ::<AppError>()
         // Amounts are i64 cents: exact as a JS number up to 2^53 (README, stack).

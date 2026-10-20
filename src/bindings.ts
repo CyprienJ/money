@@ -16,6 +16,13 @@ export const commands = {
 	setAccountArchived: (id: number, archived: boolean) => typedError<Account, AppError>(__TAURI_INVOKE("set_account_archived", { id, archived })),
 	/**  Balance in cents at the end of `date`, for accounts with operations. */
 	accountBalance: (id: number, date: string) => typedError<number, AppError>(__TAURI_INVOKE("account_balance", { id, date })),
+	/**  Operations of an account, most recent first, with the balance after each one. */
+	listOperations: (accountId: number, from: string | null, to: string | null) => typedError<OperationRow[], AppError>(__TAURI_INVOKE("list_operations", { accountId, from, to })),
+	getOperation: (id: number) => typedError<Operation, AppError>(__TAURI_INVOKE("get_operation", { id })),
+	createOperation: (operation: NewOperation) => typedError<Operation, AppError>(__TAURI_INVOKE("create_operation", { operation })),
+	updateOperation: (id: number, changes: OperationUpdate) => typedError<Operation, AppError>(__TAURI_INVOKE("update_operation", { id, changes })),
+	setOperationCategory: (id: number, categoryId: number | null) => typedError<Operation, AppError>(__TAURI_INVOKE("set_operation_category", { id, categoryId })),
+	deleteOperation: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_operation", { id })),
 };
 
 /* Types */
@@ -75,6 +82,53 @@ export type NewAccount = {
 	institution: string | null,
 	openingBalanceCents: number,
 	openingDate: string,
+};
+
+/**  A manual entry. */
+export type NewOperation = {
+	accountId: number,
+	date: string,
+	valueDate: string | null,
+	amountCents: number,
+	label: string,
+	categoryId: number | null,
+};
+
+/**  An operation with its category. V1 has exactly one split per operation. */
+export type Operation = {
+	id: number,
+	accountId: number,
+	date: string,
+	valueDate: string | null,
+	amountCents: number,
+	/**  Original bank label, never modified. */
+	rawLabel: string,
+	/**  Cleaned label used for categorization and payees. */
+	normalizedLabel: string,
+	/**  `None` for manual entries. */
+	importBatchId: number | null,
+	/**  `None` while the operation is still to categorize. */
+	categoryId: number | null,
+	/**  Derived from the category; excluded from income and expense statistics. */
+	isInternalTransfer: boolean,
+};
+
+/**  An operation in an account listing, with the account balance after it. */
+export type OperationRow = {
+	operation: Operation,
+	balanceCents: number,
+};
+
+/**
+ *  New values of an operation. For an imported operation, `date`, `amount_cents` and `label`
+ *  must be left unchanged: only the value date and the category can be edited.
+ */
+export type OperationUpdate = {
+	date: string,
+	valueDate: string | null,
+	amountCents: number,
+	label: string,
+	categoryId: number | null,
 };
 
 /* Tauri Specta runtime */

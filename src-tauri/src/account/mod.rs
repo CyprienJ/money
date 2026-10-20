@@ -10,6 +10,8 @@ use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
+use crate::error::ErrorKind;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type, sqlx::Type)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[sqlx(type_name = "TEXT", rename_all = "SCREAMING_SNAKE_CASE")]
@@ -79,4 +81,13 @@ pub enum AccountError {
 
     #[error("account name cannot be empty")]
     EmptyName,
+}
+
+impl AccountError {
+    pub fn kind(&self) -> ErrorKind {
+        match self {
+            AccountError::NotFound(_) => ErrorKind::NotFound,
+            AccountError::EmptyName => ErrorKind::Validation,
+        }
+    }
 }

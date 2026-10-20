@@ -1,0 +1,141 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!\", account_id AS \"account_id!\", date AS \"date!: NaiveDate\",\n                  value_date AS \"value_date: NaiveDate\", amount_cents AS \"amount_cents!\",\n                  raw_label AS \"raw_label!\", normalized_label AS \"normalized_label!\",\n                  import_batch_id, category_id,\n                  is_internal_transfer AS \"is_internal_transfer!: bool\",\n                  balance_cents AS \"balance_cents!: i64\"\n           FROM (\n               SELECT o.id, o.account_id, o.date, o.value_date, o.amount_cents, o.raw_label,\n                      o.normalized_label, o.import_batch_id, s.category_id, o.is_internal_transfer,\n                      a.opening_balance_cents\n                          + SUM(o.amount_cents) OVER (ORDER BY o.date, o.id) AS balance_cents\n               FROM operation o\n               JOIN account a ON a.id = o.account_id\n               LEFT JOIN operation_split s ON s.operation_id = o.id\n               WHERE o.account_id = ?1\n           )\n           WHERE (?2 IS NULL OR date >= ?2) AND (?3 IS NULL OR date <= ?3)\n           ORDER BY date DESC, id DESC",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "account_id!",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "account_id"
+          }
+        }
+      },
+      {
+        "name": "date!: NaiveDate",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "name": "value_date: NaiveDate",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "value_date"
+          }
+        }
+      },
+      {
+        "name": "amount_cents!",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "amount_cents"
+          }
+        }
+      },
+      {
+        "name": "raw_label!",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "raw_label"
+          }
+        }
+      },
+      {
+        "name": "normalized_label!",
+        "ordinal": 6,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "normalized_label"
+          }
+        }
+      },
+      {
+        "name": "import_batch_id",
+        "ordinal": 7,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "import_batch_id"
+          }
+        }
+      },
+      {
+        "name": "category_id",
+        "ordinal": 8,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation_split",
+            "name": "category_id"
+          }
+        }
+      },
+      {
+        "name": "is_internal_transfer!: bool",
+        "ordinal": 9,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "is_internal_transfer"
+          }
+        }
+      },
+      {
+        "name": "balance_cents!: i64",
+        "ordinal": 10,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "c74dc4e4db5b0eaeb9d8f787fca83893c3017faa641314a79693b979009e0d9b"
+}

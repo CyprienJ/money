@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT amount_cents FROM operation_split WHERE operation_id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "amount_cents",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation_split",
+            "name": "amount_cents"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "dab2936fe094c17a4572ca2f3f7ec88871422f2163d186ff42ece25d0ba65e7e"
+}

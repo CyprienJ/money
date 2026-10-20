@@ -67,9 +67,9 @@ Créer toutes les tables V1 du README, y compris les colonnes *(prévu)* : `acco
 - Pas de maquette : présentation alignée sur la carte « Comptes » du Dashboard (validée le 20/10/2026).
 
 #### V1-01.4 · Module `operation` (backend) — M
-- [ ] Création / édition / suppression d'une opération manuelle, avec **une ligne `operation_split`** systématique.
-- [ ] `raw_label` saisi = libellé brut ; `normalized_label` calculé (stub jusqu'à V1-03.3).
-- [ ] Requête de liste paginée par compte et période, avec solde courant par ligne.
+- [x] Création / édition / suppression d'une opération manuelle, avec **une ligne `operation_split`** systématique.
+- [x] `raw_label` saisi = libellé brut ; `normalized_label` calculé (stub jusqu'à V1-03.3).
+- [x] Requête de liste paginée par compte et période, avec solde courant par ligne.
 
 #### V1-01.5 · Écran Opérations — L
 Maquette : `Operations.dc.html`.

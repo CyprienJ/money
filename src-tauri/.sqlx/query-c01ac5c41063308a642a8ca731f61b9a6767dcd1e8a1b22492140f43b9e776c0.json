@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO operation\n         (account_id, date, amount_cents, raw_label, normalized_label, import_batch_id,\n          created_at, updated_at)\n         VALUES (?1, '2026-10-19', -6428, 'CB CARREFOUR MKT 18/10', 'CARREFOUR MKT', ?2,\n                 '2026-10-19T10:00:00Z', '2026-10-19T10:00:00Z')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "c01ac5c41063308a642a8ca731f61b9a6767dcd1e8a1b22492140f43b9e776c0"
+}

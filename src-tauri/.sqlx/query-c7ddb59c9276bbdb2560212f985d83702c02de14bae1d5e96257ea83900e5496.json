@@ -1,0 +1,134 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT o.id, o.account_id, o.date AS \"date: NaiveDate\",\n                  o.value_date AS \"value_date: NaiveDate\", o.amount_cents, o.raw_label,\n                  o.normalized_label, o.import_batch_id, s.category_id,\n                  o.is_internal_transfer AS \"is_internal_transfer: bool\"\n           FROM operation o\n           LEFT JOIN operation_split s ON s.operation_id = o.id\n           WHERE o.id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "account_id",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "account_id"
+          }
+        }
+      },
+      {
+        "name": "date: NaiveDate",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "name": "value_date: NaiveDate",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "value_date"
+          }
+        }
+      },
+      {
+        "name": "amount_cents",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "amount_cents"
+          }
+        }
+      },
+      {
+        "name": "raw_label",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "raw_label"
+          }
+        }
+      },
+      {
+        "name": "normalized_label",
+        "ordinal": 6,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "normalized_label"
+          }
+        }
+      },
+      {
+        "name": "import_batch_id",
+        "ordinal": 7,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "import_batch_id"
+          }
+        }
+      },
+      {
+        "name": "category_id",
+        "ordinal": 8,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation_split",
+            "name": "category_id"
+          }
+        }
+      },
+      {
+        "name": "is_internal_transfer: bool",
+        "ordinal": 9,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "is_internal_transfer"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "c7ddb59c9276bbdb2560212f985d83702c02de14bae1d5e96257ea83900e5496"
+}
