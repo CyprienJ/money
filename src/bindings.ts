@@ -92,6 +92,10 @@ export const commands = {
 	netWorthHistory: (from: string, to: string, step: BalanceStep) => typedError<NetWorth[], AppError>(__TAURI_INVOKE("net_worth_history", { from, to, step })),
 	/**  Net expenses by category of `current` and `previous`, internal transfers excluded. */
 	compareExpensesByCategory: (current: DateRange, previous: DateRange, accounts: number[] | null, level: CategoryLevel) => typedError<CategoryComparison[], AppError>(__TAURI_INVOKE("compare_expenses_by_category", { current, previous, accounts, level })),
+	/**  The `limit` payees with the largest net expenses between `from` and `to`. */
+	topPayees: (from: string, to: string, accounts: number[] | null, limit: number) => typedError<PayeeExpense[], AppError>(__TAURI_INVOKE("top_payees", { from, to, accounts, limit })),
+	/**  The `limit` largest single expenses between `from` and `to`. */
+	largestExpenses: (from: string, to: string, accounts: number[] | null, limit: number) => typedError<LargestExpense[], AppError>(__TAURI_INVOKE("largest_expenses", { from, to, accounts, limit })),
 };
 
 /* Types */
@@ -336,6 +340,15 @@ export type ImportSelection = {
 	categoryId: number | null,
 };
 
+export type LargestExpense = {
+	operationId: number,
+	date: string,
+	normalizedLabel: string,
+	/**  Amount spent, positive. */
+	expenseCents: number,
+	categoryId: number | null,
+};
+
 /**  A saved mapping that reads a file without error. */
 export type MappingSuggestion = {
 	mapping: SavedCsvMapping,
@@ -414,6 +427,15 @@ export type OperationUpdate = {
 	valueDate: string | null,
 	amountCents: number,
 	label: string,
+	categoryId: number | null,
+};
+
+export type PayeeExpense = {
+	normalizedLabel: string,
+	/**  Net amount spent with this payee, positive. */
+	expenseCents: number,
+	operationCount: number,
+	/**  Category holding most of the amount; `None` when mostly uncategorized. */
 	categoryId: number | null,
 };
 

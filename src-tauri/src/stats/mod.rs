@@ -19,9 +19,11 @@ use crate::error::{AppResult, ErrorKind};
 
 mod comparison;
 mod net_worth;
+mod payees;
 
 pub use comparison::{CategoryComparison, DateRange, compare_expenses_by_category};
 pub use net_worth::{NetWorth, net_worth_at, net_worth_history};
+pub use payees::{LargestExpense, PayeeExpense, largest_expenses, top_payees};
 
 /// How expenses are grouped by category.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Type)]

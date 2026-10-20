@@ -5,7 +5,7 @@ use tauri::State;
 use crate::error::AppResult;
 use crate::stats::{
     self, BalancePoint, BalanceStep, CategoryComparison, CategoryExpense, CategoryLevel, DateRange,
-    Granularity, NetWorth, PeriodIncomeExpenses,
+    Granularity, LargestExpense, NetWorth, PayeeExpense, PeriodIncomeExpenses,
 };
 
 /// Net expenses by category between `from` and `to` (included), internal transfers excluded.
@@ -78,4 +78,30 @@ pub async fn compare_expenses_by_category(
     level: CategoryLevel,
 ) -> AppResult<Vec<CategoryComparison>> {
     stats::compare_expenses_by_category(&pool, current, previous, accounts.as_deref(), level).await
+}
+
+/// The `limit` payees with the largest net expenses between `from` and `to`.
+#[tauri::command]
+#[specta::specta]
+pub async fn top_payees(
+    pool: State<'_, SqlitePool>,
+    from: NaiveDate,
+    to: NaiveDate,
+    accounts: Option<Vec<i64>>,
+    limit: u32,
+) -> AppResult<Vec<PayeeExpense>> {
+    stats::top_payees(&pool, from, to, accounts.as_deref(), limit).await
+}
+
+/// The `limit` largest single expenses between `from` and `to`.
+#[tauri::command]
+#[specta::specta]
+pub async fn largest_expenses(
+    pool: State<'_, SqlitePool>,
+    from: NaiveDate,
+    to: NaiveDate,
+    accounts: Option<Vec<i64>>,
+    limit: u32,
+) -> AppResult<Vec<LargestExpense>> {
+    stats::largest_expenses(&pool, from, to, accounts.as_deref(), limit).await
 }
