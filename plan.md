@@ -179,9 +179,10 @@ Maquette : `Analyses.dc.html`.
 - [ ] Trait `StatementParser` : détection du format, extraction des `RawLine` + soldes initial et final + période.
 - [ ] Détection automatique du parser à partir du contenu (« Format reconnu : … »).
 
-#### V1-05.2 · Parser de la banque principale — L
-- [ ] Implémentation pour la banque principale ; fixtures anonymisées + résultats attendus.
-- 🟡 Banque et format à supporter en premier (question ouverte du README) ; il faut des relevés d'exemple anonymisés.
+#### V1-05.2 · Parsers Fortuneo et Trade Republic — L
+- [ ] Un parser par banque : Fortuneo (compte courant), Trade Republic (compte courant) ; fixtures anonymisées dans `tests/fixtures/` + résultats attendus.
+- [ ] Liste des banques prises en charge, exposée au front et affichée à l'étape 1 de l'import.
+- Les autres banques françaises s'ajoutent ensuite, un ticket par banque, dès qu'un relevé anonymisé est fourni (outil : `tools/anonymize_pdf.py`).
 
 #### V1-05.3 · Contrôle des soldes — S
 - [ ] `start + Σ opérations = end` → `balance_check_status` `OK | MISMATCH | NOT_AVAILABLE`.
@@ -323,7 +324,6 @@ Ordre indicatif : catégorisation et tiers d'abord (gain quotidien), puis opéra
 | V1-02.3 | Critères d'un doublon « ambigu » |
 | V1-03.1 | Arborescence de catégories par défaut ; stockage des couleurs de catégorie |
 | V1-03.3 | Affichage lisible des libellés normalisés en V1 |
-| V1-05.2 | Banque principale et relevés d'exemple |
 | V1-05.4 | Sens de « corriger » un import suspect |
 | V1-06.2 | Traitement des cartes à débit différé dans le patrimoine et le disponible |
 | V1-07.3 | Sens de « hors crédit » dans le top tiers |
