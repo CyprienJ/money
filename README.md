@@ -256,6 +256,7 @@ L'application est une **application de bureau Tauri**. L'interface est écrite e
 - **Dépendances Linux** : WebKitGTK est déclaré en dépendance du `.deb` / `.rpm` et embarqué dans l'AppImage.
 - **Permissions Tauri 2** : chaque commande et chaque accès fichier doit être autorisé explicitement dans `src-tauri/capabilities/`.
 - **Emplacement des données** : `app_data_dir()` de Tauri, c'est-à-dire `%APPDATA%\<app>` sous Windows et `~/.local/share/<app>` sous Linux. Les sauvegardes automatiques sont rangées dans un sous-dossier `backups/`.
+- **Fichier de données** : `money.sqlite` (identifiant d'application `fr.cyprien.money`). SQLite reste dans son mode de journal par défaut, pas en WAL : le fichier est ainsi autonome et une simple copie suffit pour la sauvegarde avant import.
 - **Chiffrement (V2)** : passer à SQLCipher (sqlx / libsqlite3-sys avec la fonctionnalité correspondante) sans impact sur le reste du code.
 
 ### Structure du projet
