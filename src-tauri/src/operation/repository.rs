@@ -4,7 +4,7 @@ use sqlx::{SqliteConnection, SqlitePool};
 use super::{NewOperation, Operation, OperationError, OperationRow, OperationUpdate};
 use crate::account::{AccountError, AccountType};
 use crate::error::AppResult;
-use crate::labeling::normalize_label;
+use crate::labeling::{memory, normalize_label};
 
 pub async fn get(pool: &SqlitePool, id: i64) -> AppResult<Operation> {
     let mut conn = pool.acquire().await?;
@@ -104,6 +104,7 @@ pub async fn create(pool: &SqlitePool, new: NewOperation) -> AppResult<Operation
     )
     .execute(&mut *tx)
     .await?;
+    memory::remember(&mut tx, &normalized_label, new.category_id, &now).await?;
 
     let operation = fetch(&mut tx, id).await?;
     tx.commit().await?;
@@ -210,7 +211,8 @@ async fn fetch(conn: &mut SqliteConnection, id: i64) -> AppResult<Operation> {
     Ok(operation.ok_or(OperationError::NotFound(id))?)
 }
 
-/// Writes the category on the split and the derived internal transfer flag on the operation.
+/// Writes the category on the split and the derived internal transfer flag on the operation,
+/// and remembers it for the operation label: this is a categorization by the user.
 async fn write_category(
     conn: &mut SqliteConnection,
     id: i64,
@@ -233,6 +235,11 @@ async fn write_category(
     )
     .execute(&mut *conn)
     .await?;
+    let normalized_label =
+        sqlx::query_scalar!("SELECT normalized_label FROM operation WHERE id = ?1", id)
+            .fetch_one(&mut *conn)
+            .await?;
+    memory::remember(conn, &normalized_label, category_id, now).await?;
     Ok(())
 }
 
@@ -261,7 +268,7 @@ pub(crate) async fn check_account(
 }
 
 /// Whether the category is the internal transfer one (`false` when uncategorized).
-async fn internal_transfer_flag(
+pub(crate) async fn internal_transfer_flag(
     conn: &mut SqliteConnection,
     category_id: Option<i64>,
 ) -> AppResult<bool> {

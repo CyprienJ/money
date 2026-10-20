@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT normalized_label FROM operation WHERE id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "normalized_label",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "normalized_label"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "0cf44299be359f37dc351d09d42c9341f6ab101ecd5a7d1c99c51e28f513d361"
+}

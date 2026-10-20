@@ -228,3 +228,56 @@ fn refuses_invalid_selections() {
         );
     });
 }
+
+#[test]
+fn proposes_and_applies_remembered_categories() {
+    run(|setup| async move {
+        let categories = crate::operation::category::list(&setup.pool).await.unwrap();
+        let income = categories.iter().find(|c| c.name == "Salaire").unwrap().id;
+        // A salary categorized by hand earlier, with another date in its raw label.
+        let earlier = enter(
+            &setup.pool,
+            setup.account_id,
+            "2026-09-01",
+            245_000,
+            "VIR SALAIRE 01/09",
+        )
+        .await;
+        crate::operation::set_category(&setup.pool, earlier, Some(income))
+            .await
+            .unwrap();
+
+        let preview = preview(&setup.pool, setup.file()).await.unwrap();
+        let categories: Vec<Option<i64>> = preview.lines.iter().map(|l| l.category_id).collect();
+        assert_eq!(categories, vec![None, None, None, Some(income)]);
+
+        let hash = batch::file_hash(FILE.as_bytes());
+        import(&setup.pool, &setup.backups, setup.file(), &hash, &[2, 3])
+            .await
+            .unwrap();
+        let rows = crate::operation::list(
+            &setup.pool,
+            setup.account_id,
+            Some(date("2026-09-02")),
+            None,
+        )
+        .await
+        .unwrap();
+        let imported: Vec<(String, Option<i64>)> = rows
+            .iter()
+            .map(|r| {
+                (
+                    r.operation.normalized_label.clone(),
+                    r.operation.category_id,
+                )
+            })
+            .collect();
+        assert_eq!(
+            imported,
+            vec![
+                ("SALAIRE".to_owned(), Some(income)),
+                ("RESTAURANT".to_owned(), None)
+            ]
+        );
+    });
+}

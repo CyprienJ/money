@@ -1,5 +1,7 @@
 //! Import batches: backup, transactional insertion, cancellation.
 
+use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Local, Utc};
@@ -11,7 +13,7 @@ use sqlx::SqlitePool;
 use super::RawLine;
 use crate::error::{AppResult, ErrorKind};
 use crate::labeling::normalize_label;
-use crate::operation::{check_account, timestamp};
+use crate::operation::{check_account, internal_transfer_flag, timestamp};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Type, sqlx::Type)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -116,27 +118,41 @@ pub async fn backup(pool: &SqlitePool, dir: &Path) -> AppResult<PathBuf> {
     Ok(path)
 }
 
+/// A statement line to import, with the category it receives (`None`: to categorize).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportLine {
+    pub line: RawLine,
+    pub category_id: Option<i64>,
+}
+
 /// Backs up the data file into `backup_dir`, then inserts the batch and one operation per
-/// line, uncategorized, in a single transaction. Duplicates and lines dated before the
+/// line, with its category, in a single transaction. Duplicates and lines dated before the
 /// account opening must have been excluded beforehand: such a line fails the whole import.
 pub async fn import(
     pool: &SqlitePool,
     backup_dir: &Path,
     batch: NewImportBatch,
-    lines: &[RawLine],
+    lines: &[ImportLine],
 ) -> AppResult<ImportBatch> {
-    let Some(first_date) = lines.iter().map(|line| line.date).min() else {
+    let Some(first_date) = lines.iter().map(|l| l.line.date).min() else {
         return Err(ImportError::NoLine.into());
     };
     if lines
         .iter()
-        .any(|line| line.label.trim().is_empty() || line.amount_cents == 0)
+        .any(|l| l.line.label.trim().is_empty() || l.line.amount_cents == 0)
     {
         return Err(ImportError::InvalidLine.into());
     }
+    // Internal transfer flag of each category, which also checks that it exists.
+    let mut internal_transfer = HashMap::new();
     {
         let mut conn = pool.acquire().await?;
         check_account(&mut conn, batch.account_id, first_date).await?;
+        for category_id in lines.iter().map(|l| l.category_id) {
+            if let Entry::Vacant(entry) = internal_transfer.entry(category_id) {
+                entry.insert(internal_transfer_flag(&mut conn, category_id).await?);
+            }
+        }
     }
 
     backup(pool, backup_dir).await?;
@@ -161,14 +177,15 @@ pub async fn import(
     .await?
     .last_insert_rowid();
 
-    for line in lines {
+    for ImportLine { line, category_id } in lines {
         let label = line.label.trim();
         let normalized_label = normalize_label(label);
+        let is_internal_transfer = internal_transfer[category_id];
         let operation_id = sqlx::query!(
             "INSERT INTO operation
              (account_id, date, value_date, amount_cents, raw_label, normalized_label,
-              import_batch_id, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?8)",
+              import_batch_id, is_internal_transfer, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)",
             batch.account_id,
             line.date,
             line.value_date,
@@ -176,6 +193,7 @@ pub async fn import(
             label,
             normalized_label,
             batch_id,
+            is_internal_transfer,
             now
         )
         .execute(&mut *tx)
@@ -183,8 +201,9 @@ pub async fn import(
         .last_insert_rowid();
         sqlx::query!(
             "INSERT INTO operation_split (operation_id, category_id, amount_cents)
-             VALUES (?1, NULL, ?2)",
+             VALUES (?1, ?2, ?3)",
             operation_id,
+            category_id,
             line.amount_cents
         )
         .execute(&mut *tx)

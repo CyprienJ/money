@@ -13,12 +13,16 @@ fn date(text: &str) -> NaiveDate {
     text.parse().unwrap()
 }
 
-fn line(day: &str, amount_cents: i64, label: &str) -> RawLine {
-    RawLine {
-        date: date(day),
-        value_date: None,
-        label: label.to_owned(),
-        amount_cents,
+/// An uncategorized line to import.
+fn line(day: &str, amount_cents: i64, label: &str) -> ImportLine {
+    ImportLine {
+        line: RawLine {
+            date: date(day),
+            value_date: None,
+            label: label.to_owned(),
+            amount_cents,
+        },
+        category_id: None,
     }
 }
 
@@ -120,9 +124,12 @@ fn imports_lines_as_uncategorized_operations() {
         let account_id = new_account(&pool, AccountType::Checking).await;
         let lines = [
             line("2026-09-02", -420, "  CB  Boulangerie "),
-            RawLine {
-                value_date: Some(date("2026-09-04")),
-                ..line("2026-09-03", 245_000, "VIR SALAIRE")
+            ImportLine {
+                line: RawLine {
+                    value_date: Some(date("2026-09-04")),
+                    ..line("2026-09-03", 245_000, "VIR SALAIRE").line
+                },
+                category_id: None,
             },
         ];
         let batch = import(&pool, &backups.0, csv_batch(account_id, "h1"), &lines)
@@ -321,5 +328,65 @@ fn lists_batches_and_finds_them_by_hash() {
             get(&pool, 999).await,
             Err(AppError::Import(ImportError::NotFound(999)))
         ));
+    });
+}
+
+#[test]
+fn imports_lines_with_their_category() {
+    run(|pool, backups| async move {
+        let account_id = new_account(&pool, AccountType::Checking).await;
+        let categories = crate::operation::category::list(&pool).await.unwrap();
+        let transfer = categories
+            .iter()
+            .find(|c| c.is_internal_transfer)
+            .unwrap()
+            .id;
+        let groceries = categories.iter().find(|c| c.name == "Courses").unwrap().id;
+        let lines = [
+            ImportLine {
+                category_id: Some(groceries),
+                ..line("2026-09-02", -420, "CB CARREFOUR")
+            },
+            ImportLine {
+                category_id: Some(transfer),
+                ..line("2026-09-03", -10_000, "VIR VERS LIVRET A")
+            },
+            line("2026-09-04", -100, "CB INCONNU"),
+        ];
+        import(&pool, &backups.0, csv_batch(account_id, "h1"), &lines)
+            .await
+            .unwrap();
+
+        let rows = operation::list(&pool, account_id, None, None)
+            .await
+            .unwrap();
+        let found: Vec<(Option<i64>, bool)> = rows
+            .iter()
+            .rev()
+            .map(|row| {
+                (
+                    row.operation.category_id,
+                    row.operation.is_internal_transfer,
+                )
+            })
+            .collect();
+        assert_eq!(
+            found,
+            vec![
+                (Some(groceries), false),
+                (Some(transfer), true),
+                (None, false)
+            ]
+        );
+
+        let unknown = [ImportLine {
+            category_id: Some(999),
+            ..line("2026-09-05", -1, "X")
+        }];
+        assert!(matches!(
+            import(&pool, &backups.0, csv_batch(account_id, "h2"), &unknown).await,
+            Err(AppError::Operation(OperationError::CategoryNotFound(999)))
+        ));
+        assert_eq!(list(&pool, account_id).await.unwrap().len(), 1);
     });
 }

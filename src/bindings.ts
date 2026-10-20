@@ -297,6 +297,8 @@ export type PreviewLine = {
 	beforeOpening: boolean,
 	/**  Checked in the preview unless the user unchecks it: new lines only. */
 	includedByDefault: boolean,
+	/**  Category remembered for this label, given at import; `None`: unknown label. */
+	categoryId: number | null,
 };
 
 /**

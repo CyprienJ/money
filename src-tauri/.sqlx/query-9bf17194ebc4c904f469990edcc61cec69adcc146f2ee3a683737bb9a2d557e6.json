@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO label_category_memory (normalized_label, category_id, last_used_at)\n         VALUES (?1, ?2, ?3)\n         ON CONFLICT (normalized_label)\n         DO UPDATE SET category_id = excluded.category_id, last_used_at = excluded.last_used_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "9bf17194ebc4c904f469990edcc61cec69adcc146f2ee3a683737bb9a2d557e6"
+}

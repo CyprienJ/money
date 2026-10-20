@@ -10,13 +10,13 @@ use sqlx::SqlitePool;
 
 use super::RawLine;
 use super::batch::{
-    self, BalanceCheckStatus, ImportBatch, ImportError, NewImportBatch, SourceType,
+    self, BalanceCheckStatus, ImportBatch, ImportError, ImportLine, NewImportBatch, SourceType,
 };
 use super::csv;
 use super::duplicates::{self, DuplicateStatus, ExistingOperation};
 use crate::account;
 use crate::error::AppResult;
-use crate::labeling::normalize_label;
+use crate::labeling::{memory, normalize_label};
 
 /// A statement line in the import preview.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Type)]
@@ -30,6 +30,8 @@ pub struct PreviewLine {
     pub before_opening: bool,
     /// Checked in the preview unless the user unchecks it: new lines only.
     pub included_by_default: bool,
+    /// Category remembered for this label, given at import; `None`: unknown label.
+    pub category_id: Option<i64>,
 }
 
 /// A CSV file to import into an account with a saved mapping.
@@ -76,13 +78,24 @@ pub async fn preview(pool: &SqlitePool, file: CsvFile<'_>) -> AppResult<ImportPr
 
     let file_hash = batch::file_hash(file.bytes);
     let previous_imports = batch::find_by_hash(pool, &file_hash).await?;
+    let normalized: Vec<String> = raw_lines
+        .iter()
+        .map(|l| normalize_label(&l.label))
+        .collect();
+    let remembered = {
+        let labels: Vec<&str> = normalized.iter().map(String::as_str).collect();
+        let mut conn = pool.acquire().await?;
+        memory::recall(&mut conn, &labels).await?
+    };
     let lines = raw_lines
         .into_iter()
         .zip(statuses)
-        .map(|(line, duplicate)| {
+        .zip(normalized)
+        .map(|((line, duplicate), normalized_label)| {
             let before_opening = line.date < account.opening_date;
             PreviewLine {
-                normalized_label: normalize_label(&line.label),
+                category_id: remembered.get(&normalized_label).copied(),
+                normalized_label,
                 before_opening,
                 included_by_default: !before_opening && duplicate.included_by_default(),
                 duplicate,
@@ -134,7 +147,10 @@ pub async fn import(
         if matches!(line.duplicate, DuplicateStatus::Duplicate { .. }) {
             return Err(ImportError::DuplicateLine(index).into());
         }
-        lines.push(line.line.clone());
+        lines.push(ImportLine {
+            line: line.line.clone(),
+            category_id: line.category_id,
+        });
     }
 
     batch::import(
