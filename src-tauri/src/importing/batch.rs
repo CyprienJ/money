@@ -12,7 +12,7 @@ use sqlx::SqlitePool;
 
 use super::RawLine;
 use crate::error::{AppResult, ErrorKind};
-use crate::labeling::normalize_label;
+use crate::labeling::{memory, normalize_label};
 use crate::operation::{check_account, internal_transfer_flag, timestamp};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Type, sqlx::Type)]
@@ -123,6 +123,8 @@ pub async fn backup(pool: &SqlitePool, dir: &Path) -> AppResult<PathBuf> {
 pub struct ImportLine {
     pub line: RawLine,
     pub category_id: Option<i64>,
+    /// The user chose this category: remember it for the label (category memory).
+    pub chosen: bool,
 }
 
 /// Backs up the data file into `backup_dir`, then inserts the batch and one operation per
@@ -177,7 +179,12 @@ pub async fn import(
     .await?
     .last_insert_rowid();
 
-    for ImportLine { line, category_id } in lines {
+    for ImportLine {
+        line,
+        category_id,
+        chosen,
+    } in lines
+    {
         let label = line.label.trim();
         let normalized_label = normalize_label(label);
         let is_internal_transfer = internal_transfer[category_id];
@@ -208,6 +215,9 @@ pub async fn import(
         )
         .execute(&mut *tx)
         .await?;
+        if *chosen {
+            memory::remember(&mut tx, &normalized_label, *category_id, &now).await?;
+        }
     }
     tx.commit().await?;
     get(pool, batch_id).await

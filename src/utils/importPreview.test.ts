@@ -5,6 +5,7 @@ import { operationCount } from "./format";
 import {
   ambiguityText,
   categoryCounts,
+  lineCategory,
   defaultSelection,
   groupPreview,
   periodText,
@@ -107,5 +108,20 @@ describe("categoryCounts", () => {
   it("counts checked lines with and without a remembered category", () => {
     const lines = [line({ categoryId: 3 }), line(), line({ categoryId: 4 }), line()];
     expect(categoryCounts(preview(lines), new Set([0, 1, 3]))).toEqual({ automatic: 1, toCategorize: 2 });
+  });
+});
+
+describe("categoryCounts with choices", () => {
+  it("counts a chosen category as neither automatic nor to categorize", () => {
+    const lines = [line({ categoryId: 3 }), line(), line({ categoryId: 4 })];
+    const chosen = new Map<number, number | null>([
+      [0, 5],
+      [1, 6],
+      [2, null],
+    ]);
+    expect(categoryCounts(preview(lines), new Set([0, 1, 2]), chosen)).toEqual({ automatic: 0, toCategorize: 1 });
+    expect(lineCategory(lines[0], 0, chosen)).toBe(5);
+    expect(lineCategory(lines[2], 2, chosen)).toBe(null);
+    expect(lineCategory(lines[2], 2, new Map())).toBe(4);
   });
 });

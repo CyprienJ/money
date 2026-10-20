@@ -86,6 +86,21 @@ fn run<F: Future<Output = ()>>(test: impl FnOnce(Setup) -> F) {
     });
 }
 
+/// Selections keeping the category proposed by the preview.
+async fn proposed(setup: &Setup, indexes: &[u32]) -> Vec<ImportSelection> {
+    let preview = preview(&setup.pool, setup.file()).await.unwrap();
+    indexes
+        .iter()
+        .map(|&index| ImportSelection {
+            index,
+            category_id: preview
+                .lines
+                .get(index as usize)
+                .and_then(|l| l.category_id),
+        })
+        .collect()
+}
+
 async fn enter(pool: &SqlitePool, account_id: i64, day: &str, cents: i64, label: &str) -> i64 {
     operation::create(
         pool,
@@ -162,9 +177,16 @@ fn previews_lines_with_their_status() {
 fn imports_the_chosen_lines_once() {
     run(|setup| async move {
         let hash = batch::file_hash(FILE.as_bytes());
-        let batch = import(&setup.pool, &setup.backups, setup.file(), &hash, &[2, 3, 3])
-            .await
-            .unwrap();
+        let selections = proposed(&setup, &[2, 3, 3]).await;
+        let batch = import(
+            &setup.pool,
+            &setup.backups,
+            setup.file(),
+            &hash,
+            &selections,
+        )
+        .await
+        .unwrap();
         assert_eq!(batch.operation_count, 2);
         assert_eq!(batch.source_file_name, "releve.csv");
         assert_eq!(batch.balance_check_status, BalanceCheckStatus::NotAvailable);
@@ -197,7 +219,17 @@ fn refuses_invalid_selections() {
         .await;
         let import_lines = |included: Vec<u32>, hash: String| {
             let setup = &setup;
-            async move { import(&setup.pool, &setup.backups, setup.file(), &hash, &included).await }
+            async move {
+                let selections = proposed(setup, &included).await;
+                import(
+                    &setup.pool,
+                    &setup.backups,
+                    setup.file(),
+                    &hash,
+                    &selections,
+                )
+                .await
+            }
         };
 
         assert!(matches!(
@@ -252,9 +284,16 @@ fn proposes_and_applies_remembered_categories() {
         assert_eq!(categories, vec![None, None, None, Some(income)]);
 
         let hash = batch::file_hash(FILE.as_bytes());
-        import(&setup.pool, &setup.backups, setup.file(), &hash, &[2, 3])
-            .await
-            .unwrap();
+        let selections = proposed(&setup, &[2, 3]).await;
+        import(
+            &setup.pool,
+            &setup.backups,
+            setup.file(),
+            &hash,
+            &selections,
+        )
+        .await
+        .unwrap();
         let rows = crate::operation::list(
             &setup.pool,
             setup.account_id,
@@ -279,5 +318,65 @@ fn proposes_and_applies_remembered_categories() {
                 ("RESTAURANT".to_owned(), None)
             ]
         );
+    });
+}
+
+#[test]
+fn remembers_categories_chosen_in_the_preview() {
+    run(|setup| async move {
+        let categories = crate::operation::category::list(&setup.pool).await.unwrap();
+        let restaurants = categories
+            .iter()
+            .find(|c| c.name == "Restaurants" && c.parent_id.is_none())
+            .unwrap()
+            .id;
+        let salary = categories.iter().find(|c| c.name == "Salaire").unwrap().id;
+        let earlier = enter(
+            &setup.pool,
+            setup.account_id,
+            "2026-09-01",
+            245_000,
+            "VIR SALAIRE 01/09",
+        )
+        .await;
+        crate::operation::set_category(&setup.pool, earlier, Some(salary))
+            .await
+            .unwrap();
+
+        let hash = batch::file_hash(FILE.as_bytes());
+        let selections = [
+            // Unknown label: chosen by the user.
+            ImportSelection {
+                index: 2,
+                category_id: Some(restaurants),
+            },
+            // Proposed category kept.
+            ImportSelection {
+                index: 3,
+                category_id: Some(salary),
+            },
+            // Left to categorize.
+            ImportSelection {
+                index: 1,
+                category_id: None,
+            },
+        ];
+        import(
+            &setup.pool,
+            &setup.backups,
+            setup.file(),
+            &hash,
+            &selections,
+        )
+        .await
+        .unwrap();
+
+        let mut conn = setup.pool.acquire().await.unwrap();
+        let remembered = memory::recall(&mut conn, &["RESTAURANT", "SALAIRE", "BOULANGERIE"])
+            .await
+            .unwrap();
+        assert_eq!(remembered.get("RESTAURANT"), Some(&restaurants));
+        assert_eq!(remembered.get("SALAIRE"), Some(&salary));
+        assert_eq!(remembered.get("BOULANGERIE"), None);
     });
 }

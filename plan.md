@@ -148,8 +148,8 @@ Module `labeling/`.
 - [x] Tests unitaires.
 
 #### V1-03.5 · Catégorisation dans l'UI — S
-- [ ] Sélecteur de catégorie dans l'aperçu d'import et dans l'écran Opérations.
-- [ ] Mention « Exclu des statistiques » sur les virements internes ; montant en gris.
+- [x] Sélecteur de catégorie (pastille cliquable) dans l'aperçu d'import et dans l'écran Opérations ; une catégorie choisie dans l'aperçu, différente de la proposition, est retenue pour le libellé.
+- [x] Mention « Exclu des statistiques » sur les virements internes ; montant en gris.
 
 ---
 

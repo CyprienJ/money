@@ -48,10 +48,10 @@ export const commands = {
 	/**  Reads the CSV file at `path` with a saved mapping and compares it with the account. */
 	previewCsvImport: (path: string, accountId: number, mappingId: number) => typedError<ImportPreview, AppError>(__TAURI_INVOKE("preview_csv_import", { path, accountId, mappingId })),
 	/**
-	 *  Imports the lines at `included` (preview indexes) of the CSV file at `path`.
+	 *  Imports the selected lines of the CSV file at `path`, with their categories.
 	 *  `file_hash` comes from the preview and guards against a file changed in between.
 	 */
-	importCsv: (path: string, accountId: number, mappingId: number, fileHash: string, included: number[]) => typedError<ImportBatch, AppError>(__TAURI_INVOKE("import_csv", { path, accountId, mappingId, fileHash, included })),
+	importCsv: (path: string, accountId: number, mappingId: number, fileHash: string, selections: ImportSelection[]) => typedError<ImportBatch, AppError>(__TAURI_INVOKE("import_csv", { path, accountId, mappingId, fileHash, selections })),
 };
 
 /* Types */
@@ -214,6 +214,14 @@ export type ImportPreview = {
 	previousImports: ImportBatch[],
 	firstDate: string | null,
 	lastDate: string | null,
+};
+
+/**  A preview line to import, with the category the user kept or chose. */
+export type ImportSelection = {
+	/**  Index of the line in the preview. */
+	index: number,
+	/**  `None`: to categorize. */
+	categoryId: number | null,
 };
 
 /**  A saved mapping that reads a file without error. */

@@ -9,7 +9,7 @@ import {
   type Operation,
   type OperationRow,
 } from "../bindings";
-import CategoryPill from "../components/CategoryPill.vue";
+import CategoryPicker from "../components/CategoryPicker.vue";
 import OperationFormModal from "../components/OperationFormModal.vue";
 import { ACCOUNT_TYPES } from "../utils/accounts";
 import { categoryTree } from "../utils/categories";
@@ -44,7 +44,6 @@ const selected = computed(() => {
   return accounts.value.find((s) => s.account.id === id) ?? accounts.value[0] ?? null;
 });
 
-const categoriesById = computed(() => new Map(categories.value.map((c) => [c.id, c])));
 const tree = computed(() => categoryTree(categories.value));
 
 /** Ids matched by the category filter: a parent includes its children. */
@@ -132,6 +131,17 @@ function label(operation: Operation): string {
 function amountClass(operation: Operation): string {
   if (operation.isInternalTransfer) return "internal";
   return operation.amountCents > 0 ? "positive" : "";
+}
+
+/** Categorizes an operation from the table; the choice is remembered for its label. */
+async function setCategory(operation: Operation, categoryId: number | null) {
+  error.value = "";
+  try {
+    await unwrap(commands.setOperationCategory(operation.id, categoryId));
+  } catch (e) {
+    error.value = errorMessage(e);
+  }
+  await reload();
 }
 
 function openCreate() {
@@ -281,14 +291,13 @@ watch([() => selected.value?.account.id, periodId], () => reload());
               <span v-if="operation.importBatchId !== null" class="raw">{{ operation.rawLabel }}</span>
             </td>
             <td>
-              <CategoryPill v-if="operation.categoryId === null" label="À catégoriser" pending />
-              <template v-else>
-                <CategoryPill
-                  :label="categoriesById.get(operation.categoryId)?.name ?? '?'"
-                  :color="categoriesById.get(operation.categoryId)?.color"
-                />
-                <span v-if="operation.isInternalTransfer" class="excluded">Exclu des statistiques</span>
-              </template>
+              <CategoryPicker
+                :model-value="operation.categoryId"
+                :categories="categories"
+                :label="`Catégorie de ${label(operation)}`"
+                @update:model-value="setCategory(operation, $event)"
+              />
+              <span v-if="operation.isInternalTransfer" class="excluded">Exclu des statistiques</span>
             </td>
             <td class="col-amount" :class="amountClass(operation)">
               {{ formatAmount(operation.amountCents, { signed: true }) }}

@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::path::Path;
 
 use chrono::NaiveDate;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use specta::Type;
 use sqlx::SqlitePool;
 
@@ -118,15 +118,26 @@ pub async fn preview(pool: &SqlitePool, file: CsvFile<'_>) -> AppResult<ImportPr
     })
 }
 
-/// Imports the lines at `included` (indexes in the preview) as a new batch, after a backup
-/// into `backup_dir`. The file is read again and must not have changed since the preview;
-/// exact duplicates and lines dated before the account opening are refused.
+/// A preview line to import, with the category the user kept or chose.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportSelection {
+    /// Index of the line in the preview.
+    pub index: u32,
+    /// `None`: to categorize.
+    pub category_id: Option<i64>,
+}
+
+/// Imports the selected lines as a new batch, after a backup into `backup_dir`. The file is
+/// read again and must not have changed since the preview; exact duplicates and lines dated
+/// before the account opening are refused. A category that differs from the proposed one is
+/// a choice of the user, remembered for the label.
 pub async fn import(
     pool: &SqlitePool,
     backup_dir: &Path,
     file: CsvFile<'_>,
     expected_hash: &str,
-    included: &[u32],
+    selections: &[ImportSelection],
 ) -> AppResult<ImportBatch> {
     let file_hash = batch::file_hash(file.bytes);
     if file_hash != expected_hash {
@@ -136,7 +147,7 @@ pub async fn import(
 
     let mut seen = HashSet::new();
     let mut lines = Vec::new();
-    for &index in included {
+    for &ImportSelection { index, category_id } in selections {
         if !seen.insert(index) {
             continue;
         }
@@ -149,7 +160,8 @@ pub async fn import(
         }
         lines.push(ImportLine {
             line: line.line.clone(),
-            category_id: line.category_id,
+            category_id,
+            chosen: category_id.is_some() && category_id != line.category_id,
         });
     }
 

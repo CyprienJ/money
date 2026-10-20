@@ -10,7 +10,7 @@ import {
   type MappingSuggestion,
   type SavedCsvMapping,
 } from "../bindings";
-import CategoryPill from "../components/CategoryPill.vue";
+import CategoryPicker from "../components/CategoryPicker.vue";
 import CsvMappingModal from "../components/CsvMappingModal.vue";
 import { ACCOUNT_TYPES } from "../utils/accounts";
 import { errorMessage, unwrap } from "../utils/commands";
@@ -21,6 +21,7 @@ import {
   defaultSelection,
   groupPreview,
   lineAmount,
+  lineCategory,
   periodText,
 } from "../utils/importPreview";
 
@@ -39,6 +40,8 @@ const accountId = ref<number | null>(null);
 const mappingId = ref<number | null>(null);
 const preview = ref<ImportPreview | null>(null);
 const selected = ref(new Set<number>());
+/** Categories chosen by the user in the preview, by line index. */
+const chosen = ref(new Map<number, number | null>());
 const busy = ref(false);
 const error = ref("");
 
@@ -68,7 +71,9 @@ const ambiguousCount = computed(
 );
 const categoriesById = computed(() => new Map(categories.value.map((c) => [c.id, c])));
 const counts = computed(() =>
-  preview.value ? categoryCounts(preview.value, selected.value) : { automatic: 0, toCategorize: 0 },
+  preview.value
+    ? categoryCounts(preview.value, selected.value, chosen.value)
+    : { automatic: 0, toCategorize: 0 },
 );
 const accountNames = computed(() => new Map(accounts.value.map((s) => [s.account.id, s.account.name])));
 
@@ -150,12 +155,37 @@ async function showPreview() {
       commands.previewCsvImport(path.value, accountId.value, mappingId.value),
     );
     selected.value = defaultSelection(preview.value);
+    chosen.value = new Map();
     step.value = "preview";
   } catch (e) {
     error.value = errorMessage(e);
   } finally {
     busy.value = false;
   }
+}
+
+function categoryOf(index: number): number | null {
+  const current = preview.value;
+  return current ? lineCategory(current.lines[index], index, chosen.value) : null;
+}
+
+function choose(index: number, categoryId: number | null) {
+  chosen.value = new Map(chosen.value).set(index, categoryId);
+}
+
+/** Hint under the category: where it comes from. */
+function categoryHint(index: number): string {
+  const line = preview.value?.lines[index];
+  if (!line) return "";
+  const category = categoryOf(index);
+  if (category === null) return line.categoryId === null ? "Libellé inconnu" : "";
+  if (category !== line.categoryId) return "Choisie à la main, retenue pour ce libellé";
+  return `Reprise de « ${displayLabel(line.normalizedLabel)} »`;
+}
+
+function isInternalTransfer(index: number): boolean {
+  const category = categoryOf(index);
+  return category !== null && categoriesById.value.get(category)?.isInternalTransfer === true;
 }
 
 function toggle(index: number) {
@@ -176,9 +206,16 @@ async function runImport() {
   error.value = "";
   try {
     await unwrap(
-      commands.importCsv(path.value, accountId.value, mappingId.value, current.fileHash, [
-        ...selected.value,
-      ]),
+      commands.importCsv(
+        path.value,
+        accountId.value,
+        mappingId.value,
+        current.fileHash,
+        [...selected.value].map((index) => ({
+          index,
+          categoryId: lineCategory(current.lines[index], index, chosen.value),
+        })),
+      ),
     );
     await router.push({ name: "operations", query: { account: String(accountId.value) } });
   } catch (e) {
@@ -339,7 +376,7 @@ onMounted(load);
             v-for="{ index, line } in groups.candidates"
             :key="index"
             :class="{
-              todo: line.duplicate.status === 'ambiguous' || line.categoryId === null,
+              todo: line.duplicate.status === 'ambiguous' || categoryOf(index) === null,
               excluded: !selected.has(index),
             }"
           >
@@ -360,19 +397,19 @@ onMounted(load);
               </span>
             </td>
             <td>
-              <template v-if="line.categoryId !== null && categoriesById.has(line.categoryId)">
-                <CategoryPill
-                  :label="categoriesById.get(line.categoryId)!.name"
-                  :color="categoriesById.get(line.categoryId)!.color"
-                />
-                <span class="category-hint">Reprise de « {{ displayLabel(line.normalizedLabel) }} »</span>
-              </template>
-              <template v-else>
-                <CategoryPill label="À catégoriser" pending />
-                <span class="category-hint">Libellé inconnu</span>
-              </template>
+              <CategoryPicker
+                :model-value="categoryOf(index)"
+                :categories="categories"
+                :label="`Catégorie de ${displayLabel(line.normalizedLabel)}`"
+                @update:model-value="choose(index, $event)"
+              />
+              <span v-if="isInternalTransfer(index)" class="category-hint">Exclu des statistiques</span>
+              <span v-else-if="categoryHint(index)" class="category-hint">{{ categoryHint(index) }}</span>
             </td>
-            <td class="col-amount" :class="{ positive: line.line.amountCents > 0 }">
+            <td
+              class="col-amount"
+              :class="{ positive: line.line.amountCents > 0, internal: isInternalTransfer(index) }"
+            >
               {{ formatAmount(line.line.amountCents, { signed: true }) }}
             </td>
           </tr>
@@ -770,6 +807,10 @@ td.col-amount {
 
 td.col-amount.positive {
   color: var(--color-positive);
+}
+
+td.col-amount.internal {
+  color: var(--color-text-muted);
 }
 
 tr.todo {

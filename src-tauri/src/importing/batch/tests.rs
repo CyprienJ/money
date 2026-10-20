@@ -23,6 +23,7 @@ fn line(day: &str, amount_cents: i64, label: &str) -> ImportLine {
             amount_cents,
         },
         category_id: None,
+        chosen: false,
     }
 }
 
@@ -130,6 +131,7 @@ fn imports_lines_as_uncategorized_operations() {
                     ..line("2026-09-03", 245_000, "VIR SALAIRE").line
                 },
                 category_id: None,
+                chosen: false,
             },
         ];
         let batch = import(&pool, &backups.0, csv_batch(account_id, "h1"), &lines)

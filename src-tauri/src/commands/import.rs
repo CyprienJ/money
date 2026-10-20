@@ -6,7 +6,7 @@ use tauri::{AppHandle, Manager, State};
 use crate::error::{AppError, AppResult};
 use crate::importing::batch::{self, ImportBatch};
 use crate::importing::csv::{self, CsvEncoding};
-use crate::importing::csv_import::{self, CsvFile, ImportPreview};
+use crate::importing::csv_import::{self, CsvFile, ImportPreview, ImportSelection};
 
 /// Lines shown when defining a CSV mapping.
 const HEAD_LINES: usize = 12;
@@ -50,7 +50,7 @@ pub async fn preview_csv_import(
     csv_import::preview(&pool, file).await
 }
 
-/// Imports the lines at `included` (preview indexes) of the CSV file at `path`.
+/// Imports the selected lines of the CSV file at `path`, with their categories.
 /// `file_hash` comes from the preview and guards against a file changed in between.
 #[tauri::command]
 #[specta::specta]
@@ -61,11 +61,11 @@ pub async fn import_csv(
     account_id: i64,
     mapping_id: i64,
     file_hash: String,
-    included: Vec<u32>,
+    selections: Vec<ImportSelection>,
 ) -> AppResult<ImportBatch> {
     let bytes = std::fs::read(&path)?;
     let file = csv_file(&path, account_id, mapping_id, &bytes);
-    csv_import::import(&pool, &backup_dir(&app)?, file, &file_hash, &included).await
+    csv_import::import(&pool, &backup_dir(&app)?, file, &file_hash, &selections).await
 }
 
 fn csv_file<'a>(path: &'a str, account_id: i64, mapping_id: i64, bytes: &'a [u8]) -> CsvFile<'a> {

@@ -76,16 +76,30 @@ export function lineAmount(line: PreviewLine): string {
   return formatAmount(line.line.amountCents, { signed: true });
 }
 
-/** Checked lines that receive a remembered category, and those left to categorize. */
+/** Category of a line: the one chosen by the user, or else the remembered one. */
+export function lineCategory(
+  line: PreviewLine,
+  index: number,
+  chosen: Map<number, number | null>,
+): number | null {
+  return chosen.has(index) ? (chosen.get(index) ?? null) : line.categoryId;
+}
+
+/**
+ * Checked lines categorized automatically (remembered category kept), and those left to
+ * categorize.
+ */
 export function categoryCounts(
   preview: ImportPreview,
   selected: Set<number>,
+  chosen: Map<number, number | null> = new Map(),
 ): { automatic: number; toCategorize: number } {
   const counts = { automatic: 0, toCategorize: 0 };
   preview.lines.forEach((line, index) => {
     if (!selected.has(index)) return;
-    if (line.categoryId === null) counts.toCategorize++;
-    else counts.automatic++;
+    const category = lineCategory(line, index, chosen);
+    if (category === null) counts.toCategorize++;
+    else if (category === line.categoryId) counts.automatic++;
   });
   return counts;
 }
