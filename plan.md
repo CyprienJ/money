@@ -1,0 +1,327 @@
+# Plan de développement
+
+Découpage en tickets de la V1 et de la V2 décrites dans `README.md`. Le README reste la spécification de référence : en cas de divergence, c'est lui qui fait foi.
+
+- Les tickets V1 suivent l'**ordre de développement V1** du README (étapes 1 à 7), précédées d'une étape 0 d'amorçage.
+- Chaque ticket est terminé quand ses critères d'acceptation sont remplis et que `cargo check`, `cargo test`, `cargo clippy` (dans `src-tauri/`) et `npm run build` passent.
+- Un ticket ≈ un ou quelques commits cohérents.
+- Les maquettes de référence sont dans `docs/design/` (Dashboard, Operations, Import, Analyses).
+- 🟡 **Décision requise** : point non couvert par le README, à trancher avant d'implémenter le ticket.
+
+Légende des tailles : **S** (≤ ½ jour), **M** (1–2 jours), **L** (3 jours et plus).
+
+---
+
+## V1 — Importer, consulter, visualiser
+
+### Étape 0 — Amorçage du projet
+
+#### V1-00.1 · Squelette Tauri 2 + Vue 3 — M
+Remplacer le projet Cargo actuel (`Cargo.toml` et `src/main.rs` à la racine) par la structure du README : `src/` pour le front Vue 3 + TypeScript + Vite, `src-tauri/` pour le backend Rust.
+- [ ] `npm run tauri dev` ouvre une fenêtre vide sous Linux (WebKitGTK).
+- [ ] Arborescence Rust créée : `commands/`, `db/`, `account/`, `operation/`, `importing/{csv,pdf}/`, `labeling/`, `stats/`.
+- [ ] `.gitignore` couvre `target/`, `node_modules/`, `dist/`, `.idea/`.
+
+#### V1-00.2 · Base SQLite et migrations — S
+- [ ] Pool `sqlx` (SQLite) ouvert sur un fichier dans `app_data_dir()`.
+- [ ] `sqlx migrate` appliqué au démarrage, dossier `src-tauri/migrations/`.
+- [ ] Type d'erreur de domaine (`thiserror`) sérialisable vers le front.
+
+#### V1-00.3 · Pont tauri-specta — S
+- [ ] Une commande de démonstration (`app_version`) exposée et typée.
+- [ ] `src/bindings.ts` généré automatiquement en mode dev ; aucun appel `invoke` en dehors.
+- [ ] Capabilities Tauri 2 minimales dans `src-tauri/capabilities/`.
+
+#### V1-00.4 · Design system et coque applicative — M
+- [ ] `src/styles/tokens.css` : couleurs, rayons, police, couleurs de catégories (tables de `CLAUDE.md`).
+- [ ] Plus Jakarta Sans (400–800) embarquée en `.woff2`, chiffres tabulaires.
+- [ ] Layout commun aux maquettes : barre latérale `#2A1E3F` (Tableau de bord, Opérations, Importer un relevé, Analyses ; section Patrimoine : Comptes, Échéancier, Catégories, Paramètres) + zone de contenu.
+- [ ] Vue Router avec une vue vide par entrée de menu.
+- [ ] Utilitaires front : formatage des montants en centimes → `1 234,56 €` (signe `−` typographique), des dates `fr-FR`.
+- [ ] Composant `CategoryPill` (pastille fond clair / texte foncé, variante pointillée « À catégoriser »).
+
+#### V1-00.5 · Outillage qualité et CI — S
+- [ ] Vitest configuré côté front.
+- [ ] GitHub Actions : `cargo check/test/clippy` + `npm run build` sur `ubuntu-latest` et `windows-latest`.
+- [ ] Workflow `tauri-action` pour les artefacts (`.msi`/NSIS, `.deb`, `.rpm`, AppImage).
+- [ ] Vérification précoce du rendu d'ECharts sous WebView2 et WebKitGTK (point d'attention du README).
+
+---
+
+### Étape 1 — Socle : modèle de données, comptes, saisie manuelle
+
+#### V1-01.1 · Migration initiale du modèle de données — M
+Créer toutes les tables V1 du README, y compris les colonnes *(prévu)* : `account`, `operation`, `operation_split`, `category`, `import_batch`, `csv_mapping`, `label_category_memory`, `valuation`, `scheduled_operation`.
+- [ ] Montants en `INTEGER` (centimes), clés étrangères et index (compte + date, `normalized_label`).
+- [ ] `currency` par défaut `'EUR'` ; `payee_id`, `transfer_pair_id`, `note` créés mais inutilisés.
+- [ ] Suppression en cascade : `import_batch` → `operation` → `operation_split`.
+
+#### V1-01.2 · Module `account` (backend) — S
+- [ ] CRUD des comptes (types `CHECKING | SAVINGS | CREDIT_CARD | INVESTMENT | ASSET | LIABILITY`), archivage.
+- [ ] Calcul du solde d'un compte à une date : `opening_balance_cents + Σ amount_cents`.
+- [ ] Tests unitaires du calcul de solde.
+
+#### V1-01.3 · Écran Comptes — M
+- [ ] Liste des comptes par type avec solde (pastille d'initiales comme dans le Dashboard).
+- [ ] Création / édition / archivage d'un compte (nom, type, établissement, solde et date d'ouverture).
+- 🟡 Pas de maquette pour cet écran : s'aligner sur la carte « Comptes » du Dashboard.
+
+#### V1-01.4 · Module `operation` (backend) — M
+- [ ] Création / édition / suppression d'une opération manuelle, avec **une ligne `operation_split`** systématique.
+- [ ] `raw_label` saisi = libellé brut ; `normalized_label` calculé (stub jusqu'à V1-03.3).
+- [ ] Requête de liste paginée par compte et période, avec solde courant par ligne.
+
+#### V1-01.5 · Écran Opérations — L
+Maquette : `Operations.dc.html`.
+- [ ] Sélecteur de compte (onglets), en-tête « solde au JJ/MM ».
+- [ ] Tableau : date, libellé normalisé + libellé brut en secondaire, pastille de catégorie, montant, solde.
+- [ ] Filtres : recherche texte, période, catégorie (dont « À catégoriser »).
+- [ ] Pied de tableau : nombre d'opérations, entrées, sorties, virements internes, opérations à catégoriser.
+- [ ] Modale « Nouvelle opération » et édition d'une opération.
+
+---
+
+### Étape 2 — Import CSV
+
+#### V1-02.1 · Parser CSV et mapping des colonnes — M
+- [ ] Crates `csv` + `encoding_rs` : séparateur configurable, encodages UTF-8 / ISO-8859-1 / Windows-1252.
+- [ ] Mapping : format de date, séparateur décimal, colonne montant unique **ou** débit/crédit, lignes à ignorer.
+- [ ] Sortie commune `RawLine { date, value_date?, label, amount_cents }` (réutilisée par le PDF).
+- [ ] Parsing des montants en centimes sans flottant ; tests sur fixtures anonymisées dans `tests/fixtures/`.
+
+#### V1-02.2 · Mémorisation des mappings — S
+- [ ] CRUD `csv_mapping`, nommé par banque ou format.
+- [ ] Proposition automatique du mapping déjà utilisé pour un compte / un format.
+
+#### V1-02.3 · Détection des doublons — M
+- [ ] Doublon certain : même compte, même date, même montant, même libellé brut → exclu.
+- [ ] Cas ambigus (ex. même date et montant, libellé différent ; plusieurs occurrences identiques dans le même fichier) → présentés à l'utilisateur.
+- [ ] Tests unitaires couvrant les cas limites.
+- 🟡 Définir précisément les critères d'un cas « ambigu ».
+
+#### V1-02.4 · Lots d'import, sauvegarde et annulation — M
+- [ ] Hash du fichier source (`source_file_hash`) ; alerte si le même fichier a déjà été importé.
+- [ ] Copie horodatée du fichier SQLite dans `app_data_dir()/backups/` avant chaque insertion.
+- [ ] Insertion transactionnelle d'un `import_batch` et de ses opérations.
+- [ ] Commande « annuler un import » : suppression du lot entier.
+
+#### V1-02.5 · Écran Import (assistant) — L
+Maquette : `Import.dc.html` (étape 2 « Vérification et aperçu »).
+- [ ] Étape 1 « Fichier » : sélection via `tauri-plugin-dialog`, choix du compte de destination, choix / création du mapping CSV.
+- [ ] Étape 2 : compteurs (lues, doublons ignorés, nouvelles, catégorisées, à catégoriser), tableau des nouvelles opérations avec case « Inclure », bloc repliable des doublons ignorés, mention de la sauvegarde.
+- [ ] Étape 3 : import, puis retour à l'écran Opérations.
+- [ ] Bandeau « Dernier import … · Annuler cet import » sur l'écran Opérations.
+- 🟡 Pas de maquette pour l'étape 1 ni pour l'édition du mapping CSV.
+
+---
+
+### Étape 3 — Catégorisation
+
+#### V1-03.1 · Catégories (backend) — M
+- [ ] CRUD sur deux niveaux (`parent_id`), indicateur `is_income`.
+- [ ] Catégorie système « Virement interne » (`is_internal_transfer`), non supprimable.
+- [ ] Arborescence par défaut créée au premier lancement, avec les couleurs du design.
+- [ ] `operation.is_internal_transfer` dérivé de la catégorie à chaque modification.
+- 🟡 Arborescence par défaut (question ouverte du README) et stockage de la couleur d'une catégorie (pas de colonne prévue dans le modèle).
+
+#### V1-03.2 · Écran Catégories — M
+- [ ] Liste arborescente, création, renommage, déplacement, suppression (avec réaffectation des opérations).
+- 🟡 Pas de maquette pour cet écran.
+
+#### V1-03.3 · Normalisation des libellés — M
+Module `labeling/`.
+- [ ] Regex : préfixes bancaires (`CB`, `PRLV SEPA`, `VIR`, `VIR SEPA`…), dates, numéros de carte, références d'échéance.
+- [ ] Ex. `CB CARREFOUR MKT 18/10 CARTE 4417` → `CARREFOUR MKT`.
+- [ ] `raw_label` jamais modifié ; recalcul possible de tous les `normalized_label`.
+- [ ] Tests unitaires sur un jeu de libellés réels anonymisés.
+- 🟡 Affichage : la maquette montre « Carrefour Market » (casse et nom lisibles) alors que le libellé normalisé est brut ; à décider en V1 (mise en forme simple ?) ou à laisser à la gestion des tiers V2.
+
+#### V1-03.4 · Reprise automatique de catégorie — S
+- [ ] Mise à jour de `label_category_memory` à chaque catégorisation manuelle.
+- [ ] À l'import, catégorie proposée depuis la mémoire, avec indice « Reprise de « … » » ou « Libellé inconnu ».
+- [ ] Tests unitaires.
+
+#### V1-03.5 · Catégorisation dans l'UI — S
+- [ ] Sélecteur de catégorie dans l'aperçu d'import et dans l'écran Opérations.
+- [ ] Mention « Exclu des statistiques » sur les virements internes ; montant en gris.
+
+---
+
+### Étape 4 — Premiers graphiques
+
+#### V1-04.1 · Requêtes de statistiques — M
+Module `stats/`, signatures claires (futurs outils de l'assistant IA). Toutes passent par `operation_split` et excluent les virements internes.
+- [ ] `expenses_by_category(period, accounts?)`
+- [ ] `balance_history(accounts?, from, to, step)` — virements internes inclus.
+- [ ] `income_vs_expenses(from, to, granularity: month | year)`
+- [ ] Tests unitaires des agrégations (dont l'exclusion des virements internes).
+
+#### V1-04.2 · Intégration ECharts — S
+- [ ] `vue-echarts` installé, thème ECharts basé sur les tokens CSS.
+- [ ] Builders d'options dans `src/charts/`.
+
+#### V1-04.3 · Écran Analyses (première version) — L
+Maquette : `Analyses.dc.html`.
+- [ ] Sélecteur de période Mois / Trimestre / Année.
+- [ ] « Revenus et dépenses » : barres groupées sur 12 mois + totaux revenus, dépenses, épargné (montant et %).
+- [ ] Dépenses par catégorie (barres et camembert / anneau).
+- [ ] Évolution du solde, par compte et tous comptes confondus, avec zoom sur la période.
+
+---
+
+### Étape 5 — Import PDF
+
+#### V1-05.1 · Infrastructure PDF — M
+- [ ] `pdfium-render` avec la bibliothèque PDFium embarquée dans le bundle (Linux et Windows).
+- [ ] Trait `StatementParser` : détection du format, extraction des `RawLine` + soldes initial et final + période.
+- [ ] Détection automatique du parser à partir du contenu (« Format reconnu : … »).
+
+#### V1-05.2 · Parser de la banque principale — L
+- [ ] Implémentation pour la banque principale ; fixtures anonymisées + résultats attendus.
+- 🟡 Banque et format à supporter en premier (question ouverte du README) ; il faut des relevés d'exemple anonymisés.
+
+#### V1-05.3 · Contrôle des soldes — S
+- [ ] `start + Σ opérations = end` → `balance_check_status` `OK | MISMATCH | NOT_AVAILABLE`.
+- [ ] Tests unitaires.
+
+#### V1-05.4 · UI du contrôle des soldes — S
+- [ ] Bloc « Soldes vérifiés » de la maquette Import (solde initial, somme, solde calculé, verdict).
+- [ ] En cas d'écart : import signalé comme suspect, choix annuler / corriger.
+- [ ] « soldes vérifiés » dans le bandeau du dernier import (écran Opérations).
+- 🟡 Ce que recouvre « corriger » (éditer les lignes lues ? ajouter une ligne d'ajustement ?).
+
+---
+
+### Étape 6 — Patrimoine
+
+#### V1-06.1 · Valorisations — M
+- [ ] CRUD `valuation` pour les comptes `INVESTMENT`, `ASSET` et `LIABILITY` (valeur ou capital restant dû, à une date).
+- [ ] Historique des valorisations dans l'écran Comptes ; mentions « Valorisé au … », « estimé en … », « capital restant dû ».
+
+#### V1-06.2 · Calcul du patrimoine net — M
+- [ ] `net_worth_at(date)` : Σ soldes courants et épargne + dernière valorisation ≤ D (placements, actifs) − dernier capital restant dû ≤ D (dettes).
+- [ ] `net_worth_history(from, to, step)`.
+- [ ] Tests unitaires.
+- 🟡 Place des comptes `CREDIT_CARD` (carte à débit différé) dans le patrimoine et dans le « Disponible ».
+
+#### V1-06.3 · Graphique du patrimoine net — S
+- [ ] Carte « Patrimoine net » de l'écran Analyses : valeur actuelle, variation sur 12 mois, courbe.
+
+---
+
+### Étape 7 — Finitions
+
+#### V1-07.1 · Échéancier (affichage seulement) — M
+- [ ] CRUD `scheduled_operation` (libellé, compte, montant, catégorie, périodicité, jour, début, fin).
+- [ ] Calcul des prochaines occurrences sur N jours, **sans créer d'opérations**.
+- [ ] Écran Échéancier.
+- 🟡 Pas de maquette ; liste exacte des périodicités au-delà de mensuelle / trimestrielle / annuelle.
+
+#### V1-07.2 · Comparaison de périodes — M
+- [ ] Requête de comparaison : période vs précédente, ou vs même période l'an dernier.
+- [ ] Analyses : « Par catégorie » avec barre fine de la période comparée et badge de variation en %.
+- [ ] Sélecteur « Comparer à … ».
+
+#### V1-07.3 · Top tiers et plus grosses dépenses — S
+- [ ] `top_payees(period, limit)` et `largest_expenses(period, limit)` sur les libellés normalisés, virements internes exclus.
+- [ ] Cartes correspondantes dans Analyses.
+- 🟡 Sens de « hors crédit » dans la maquette (« Top tiers sur 12 mois hors crédit ») alors que le Dashboard affiche le crédit immobilier dans le top.
+
+#### V1-07.4 · Tableau de bord — L
+Maquette : `Dashboard.dc.html`.
+- [ ] Navigation par mois (‹ Octobre 2026 ›), bouton « Importer un relevé ».
+- [ ] Indicateurs : patrimoine net (+ variation), disponible (courants + épargne), dépenses du mois (vs mois précédent), revenus du mois (+ reste).
+- [ ] Dépenses par catégorie (anneau + légende), évolution du disponible sur 12 mois.
+- [ ] Carte Comptes (soldes, dernier import / dernière valorisation, « + Ajouter »).
+- [ ] Prochaines échéances (15 jours) et top tiers du mois.
+
+#### V1-07.5 · Paramètres et finitions — S
+- [ ] Écran Paramètres : emplacement des données, dossier des sauvegardes, mappings CSV enregistrés.
+- [ ] États vides (aucun compte, aucune opération) et messages d'erreur métier lisibles.
+- [ ] Recette complète sur Windows et Linux, packaging de la V1.
+
+---
+
+## V2 — Automatiser et enrichir
+
+Ordre indicatif : catégorisation et tiers d'abord (gain quotidien), puis opérations, suivi, placements, technique. À re-prioriser à la fin de la V1.
+
+### Catégorisation et tiers
+
+#### V2-01 · Règles de catégorisation — L
+- [ ] Table `categorization_rule` : conditions « libellé contient X », « montant entre A et B », compte ; priorité.
+- [ ] Application à l'import avant la mémoire de libellés ; écran de gestion et test d'une règle sur l'historique.
+
+#### V2-02 · Gestion des tiers — L
+- [ ] Tables `payee` et `payee_alias` ; exploitation de `operation.payee_id`.
+- [ ] Fusion de plusieurs libellés normalisés en un tiers, renommage.
+- [ ] Top tiers et analyses basés sur les tiers.
+
+#### V2-03 · Appariement des virements internes — M
+- [ ] Liaison automatique débit compte A ↔ crédit compte B (montant opposé, dates proches) via `transfer_pair_id`.
+- [ ] `is_internal_transfer` explicite ; validation manuelle des appariements incertains.
+
+### Opérations
+
+#### V2-04 · Tags et notes — M
+- [ ] Tables `tag` et `operation_tag` ; exploitation de `operation.note`.
+
+#### V2-05 · Pièces jointes — M
+- [ ] Table `attachment` ; fichiers copiés à côté du fichier de données ; ouverture depuis l'opération.
+
+#### V2-06 · Recherche et filtres avancés — M
+- [ ] Filtres combinés : montant, période, tiers, catégorie, tag, compte.
+
+### Suivi
+
+#### V2-07 · Rapprochement échéancier ↔ import — M
+- [ ] Association d'une opération importée à une échéance (montant à une tolérance près, date à ± N jours) ; statut « réalisée ».
+
+#### V2-08 · Détection automatique des abonnements — M
+- [ ] Repérage des opérations récurrentes absentes de l'échéancier, proposition d'ajout.
+
+#### V2-09 · Prévision de trésorerie — M
+- [ ] Solde projeté à partir du solde actuel et de l'échéancier.
+
+#### V2-10 · Alertes — M
+- [ ] Solde projeté négatif, dépense inhabituelle pour une catégorie, échéance manquante.
+
+### Placements
+
+#### V2-11 · Portefeuille détaillé — L
+- [ ] Tables `security` et `investment_transaction` : titres, quantités, prix de revient, achats, ventes, dividendes.
+
+#### V2-12 · Cours de bourse automatiques — M
+- [ ] Table `security_price` ; récupération des cours.
+- 🟡 Seule exception au « tout local » : source des cours et consentement à valider.
+
+#### V2-13 · Performance et plus-values — M
+- [ ] Plus-values latentes et réalisées, performance ; patrimoine net basé sur la valorisation du portefeuille.
+
+### Technique
+
+#### V2-14 · Multi-devises — L
+- [ ] Exploitation des colonnes `currency` ; conversion vers la devise de référence dans toutes les statistiques.
+
+#### V2-15 · Chiffrement du fichier de données — M
+- [ ] Passage à SQLCipher, mot de passe à l'ouverture, migration d'un fichier existant.
+
+#### V2-16 · Sauvegarde complète — M
+- [ ] Sauvegardes planifiées, rotation, restauration depuis l'interface.
+
+---
+
+## Décisions à prendre (récapitulatif)
+
+| Ticket | Question |
+|---|---|
+| V1-01.3, V1-03.2, V1-07.1, V1-07.5 | Design des écrans sans maquette : Comptes, Catégories, Échéancier, Paramètres |
+| V1-02.5 | Design de l'étape 1 de l'import et de l'édition du mapping CSV |
+| V1-02.3 | Critères d'un doublon « ambigu » |
+| V1-03.1 | Arborescence de catégories par défaut ; stockage des couleurs de catégorie |
+| V1-03.3 | Affichage lisible des libellés normalisés en V1 |
+| V1-05.2 | Banque principale et relevés d'exemple |
+| V1-05.4 | Sens de « corriger » un import suspect |
+| V1-06.2 | Traitement des cartes à débit différé dans le patrimoine et le disponible |
+| V1-07.3 | Sens de « hors crédit » dans le top tiers |
+| V2-12 | Source des cours de bourse (accès réseau) |
