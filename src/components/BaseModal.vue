@@ -4,6 +4,8 @@ import { onMounted, ref, watch } from "vue";
 const props = defineProps<{
   open: boolean;
   title: string;
+  /** Wider dialog, for forms showing a table. */
+  wide?: boolean;
 }>();
 
 const emit = defineEmits<{ close: [] }>();
@@ -23,7 +25,7 @@ watch(() => props.open, sync);
 
 <template>
   <!-- Escape triggers "cancel": the parent decides whether to close. -->
-  <dialog ref="dialog" class="modal" @cancel.prevent="emit('close')">
+  <dialog ref="dialog" class="modal" :class="{ wide }" @cancel.prevent="emit('close')">
     <header class="modal-header">
       <h2>{{ title }}</h2>
       <button type="button" class="close" aria-label="Fermer" @click="emit('close')">×</button>
@@ -41,6 +43,10 @@ watch(() => props.open, sync);
   background: var(--color-card);
   color: var(--color-text);
   box-shadow: 0 24px 60px rgba(30, 24, 48, 0.2);
+}
+
+.modal.wide {
+  width: min(760px, calc(100vw - 32px));
 }
 
 .modal::backdrop {

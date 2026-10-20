@@ -1,8 +1,836 @@
 <script setup lang="ts">
-import PageHeader from "../components/PageHeader.vue";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { computed, onMounted, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import {
+  commands,
+  type AccountSummary,
+  type ImportPreview,
+  type MappingSuggestion,
+  type SavedCsvMapping,
+} from "../bindings";
+import CategoryPill from "../components/CategoryPill.vue";
+import CsvMappingModal from "../components/CsvMappingModal.vue";
+import { ACCOUNT_TYPES } from "../utils/accounts";
+import { errorMessage, unwrap } from "../utils/commands";
+import { formatAmount, formatDate, localDateOf } from "../utils/format";
+import {
+  ambiguityText,
+  defaultSelection,
+  groupPreview,
+  lineAmount,
+  operationCount,
+  periodText,
+} from "../utils/importPreview";
+
+type Step = "file" | "preview" | "importing";
+
+const route = useRoute();
+const router = useRouter();
+
+const step = ref<Step>("file");
+const accounts = ref<AccountSummary[]>([]);
+const mappings = ref<SavedCsvMapping[]>([]);
+const suggestions = ref<MappingSuggestion[]>([]);
+const path = ref<string | null>(null);
+const accountId = ref<number | null>(null);
+const mappingId = ref<number | null>(null);
+const preview = ref<ImportPreview | null>(null);
+const selected = ref(new Set<number>());
+const busy = ref(false);
+const error = ref("");
+
+const mappingModalOpen = ref(false);
+const editedMapping = ref<SavedCsvMapping | null>(null);
+
+const steps: { id: Step; label: string }[] = [
+  { id: "file", label: "Fichier" },
+  { id: "preview", label: "Vérification et aperçu" },
+  { id: "importing", label: "Import" },
+];
+const stepIndex = computed(() => steps.findIndex((s) => s.id === step.value));
+
+const fileName = computed(() => path.value?.split(/[\\/]/).pop() ?? "");
+const account = computed(() => accounts.value.find((s) => s.account.id === accountId.value)?.account);
+const mapping = computed(() => mappings.value.find((m) => m.id === mappingId.value));
+const suggestedLines = computed(
+  () => new Map(suggestions.value.map((s) => [s.mapping.id, s.lineCount])),
+);
+const canPreview = computed(
+  () => path.value !== null && accountId.value !== null && mappingId.value !== null && !busy.value,
+);
+
+const groups = computed(() => (preview.value ? groupPreview(preview.value) : null));
+const ambiguousCount = computed(
+  () => groups.value?.candidates.filter((c) => c.line.duplicate.status === "ambiguous").length ?? 0,
+);
+const accountNames = computed(() => new Map(accounts.value.map((s) => [s.account.id, s.account.name])));
+
+async function load() {
+  try {
+    const summaries = await unwrap(commands.listAccountSummaries(false));
+    accounts.value = summaries.filter((s) => ACCOUNT_TYPES[s.account.type].hasOperations);
+    mappings.value = await unwrap(commands.listCsvMappings());
+    const requested = Number(route.query.account);
+    accountId.value =
+      accounts.value.find((s) => s.account.id === requested)?.account.id ??
+      accounts.value[0]?.account.id ??
+      null;
+  } catch (e) {
+    error.value = errorMessage(e);
+  }
+}
+
+async function chooseFile() {
+  error.value = "";
+  const chosen = await openDialog({
+    multiple: false,
+    directory: false,
+    filters: [{ name: "Relevé CSV", extensions: ["csv", "CSV", "txt"] }],
+  });
+  if (typeof chosen !== "string") return;
+  path.value = chosen;
+  await suggest();
+}
+
+/** Picks the saved format reading the most lines of the file. */
+async function suggest() {
+  if (!path.value) return;
+  try {
+    suggestions.value = await unwrap(commands.suggestCsvMappings(path.value));
+    if (suggestions.value.length > 0 && !suggestedLines.value.has(mappingId.value ?? -1)) {
+      mappingId.value = suggestions.value[0].mapping.id;
+    }
+  } catch (e) {
+    error.value = errorMessage(e);
+  }
+}
+
+function mappingLabel(saved: SavedCsvMapping): string {
+  return suggestedLines.value.has(saved.id) ? `${saved.name} ✓` : saved.name;
+}
+
+/** Lines of the file read by the selected format, `undefined` when it cannot read it. */
+const selectedLines = computed(() =>
+  mappingId.value === null ? undefined : suggestedLines.value.get(mappingId.value),
+);
+
+function openMapping(edited: SavedCsvMapping | null) {
+  editedMapping.value = edited;
+  mappingModalOpen.value = true;
+}
+
+async function onMappingSaved(saved: SavedCsvMapping) {
+  mappingModalOpen.value = false;
+  mappings.value = await unwrap(commands.listCsvMappings());
+  mappingId.value = saved.id;
+  await suggest();
+}
+
+async function onMappingDeleted(id: number) {
+  mappingModalOpen.value = false;
+  mappings.value = mappings.value.filter((m) => m.id !== id);
+  if (mappingId.value === id) mappingId.value = null;
+  await suggest();
+}
+
+async function showPreview() {
+  if (!path.value || accountId.value === null || mappingId.value === null) return;
+  busy.value = true;
+  error.value = "";
+  try {
+    preview.value = await unwrap(
+      commands.previewCsvImport(path.value, accountId.value, mappingId.value),
+    );
+    selected.value = defaultSelection(preview.value);
+    step.value = "preview";
+  } catch (e) {
+    error.value = errorMessage(e);
+  } finally {
+    busy.value = false;
+  }
+}
+
+function toggle(index: number) {
+  const next = new Set(selected.value);
+  if (!next.delete(index)) next.add(index);
+  selected.value = next;
+}
+
+function back() {
+  step.value = "file";
+  error.value = "";
+}
+
+async function runImport() {
+  const current = preview.value;
+  if (!current || !path.value || accountId.value === null || mappingId.value === null) return;
+  step.value = "importing";
+  error.value = "";
+  try {
+    await unwrap(
+      commands.importCsv(path.value, accountId.value, mappingId.value, current.fileHash, [
+        ...selected.value,
+      ]),
+    );
+    await router.push({ name: "operations", query: { account: String(accountId.value) } });
+  } catch (e) {
+    error.value = errorMessage(e);
+    step.value = "preview";
+  }
+}
+
+onMounted(load);
 </script>
 
 <template>
-  <PageHeader title="Importer un relevé" />
-  <p class="placeholder">Assistant d'import (V1-02.5).</p>
+  <header class="header">
+    <h1>Importer un relevé</h1>
+    <ol aria-label="Étapes de l'import" class="steps">
+      <template v-for="(s, index) in steps" :key="s.id">
+        <li v-if="index > 0" aria-hidden="true" class="step-line" :class="{ done: index <= stepIndex }" />
+        <li
+          class="step"
+          :class="{ done: index < stepIndex, current: index === stepIndex }"
+          :aria-current="index === stepIndex ? 'step' : undefined"
+        >
+          <span class="step-dot">
+            <svg v-if="index < stepIndex" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true">
+              <path d="M5 12l5 5 9-10" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <template v-else>{{ index + 1 }}</template>
+          </span>
+          {{ s.label }}
+        </li>
+      </template>
+    </ol>
+  </header>
+
+  <p v-if="error" class="error-banner">{{ error }}</p>
+
+  <!-- Step 1: file, account and format -->
+  <section v-if="step === 'file'" class="card file-step">
+    <section v-if="accounts.length === 0" class="empty">
+      <h2 class="card-title">Aucun compte</h2>
+      <p class="muted">
+        Un relevé s'importe dans un compte courant, d'épargne ou une carte.
+        <RouterLink to="/accounts">Crée un compte</RouterLink> pour commencer.
+      </p>
+    </section>
+
+    <template v-else>
+      <div class="file-row">
+        <span class="file-icon csv">CSV</span>
+        <div class="file-info">
+          <span class="file-name">{{ fileName || "Aucun fichier choisi" }}</span>
+          <span class="muted">Export CSV de ta banque. Les relevés PDF arrivent à une prochaine étape.</span>
+        </div>
+        <button type="button" class="btn btn-secondary" @click="chooseFile">
+          {{ path ? "Changer de fichier" : "Choisir un fichier…" }}
+        </button>
+      </div>
+
+      <div class="row">
+        <label class="field">
+          Compte de destination
+          <select v-model="accountId">
+            <option v-for="s in accounts" :key="s.account.id" :value="s.account.id">{{ s.account.name }}</option>
+          </select>
+        </label>
+        <div class="field">
+          <label for="mapping">Format du fichier</label>
+          <div class="mapping-row">
+            <select id="mapping" v-model="mappingId">
+              <option :value="null" disabled>Choisir un format…</option>
+              <option v-for="m in mappings" :key="m.id" :value="m.id">{{ mappingLabel(m) }}</option>
+            </select>
+            <button v-if="mapping" type="button" class="btn btn-secondary" @click="openMapping(mapping)">Modifier</button>
+            <button type="button" class="btn btn-secondary" @click="openMapping(null)">Nouveau format</button>
+          </div>
+          <span v-if="path && selectedLines !== undefined" class="field-hint recognized">
+            Format reconnu : il lit {{ operationCount(selectedLines) }} dans ce fichier.
+          </span>
+          <span v-else-if="path && mappings.length > 0 && suggestions.length === 0" class="field-hint">
+            Aucun format enregistré ne lit ce fichier sans erreur : crées-en un ou modifie-en un.
+          </span>
+          <span v-else-if="mappings.length === 0" class="field-hint">
+            Décris une première fois les colonnes de l'export de ta banque ; le format sera reconnu ensuite.
+          </span>
+        </div>
+      </div>
+
+      <footer class="step-footer">
+        <RouterLink to="/operations" class="btn btn-secondary">Annuler</RouterLink>
+        <button type="button" class="btn btn-primary" :disabled="!canPreview" @click="showPreview">
+          Continuer
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+            <path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+      </footer>
+    </template>
+  </section>
+
+  <!-- Step 2: check and preview -->
+  <template v-else-if="preview && groups">
+    <section class="cards">
+      <div class="card file-card">
+        <span class="file-icon csv">CSV</span>
+        <div class="file-info">
+          <span class="file-name">{{ preview.fileName }}</span>
+          <span class="muted">Format : {{ mapping?.name }} · {{ periodText(preview) }}</span>
+          <span class="muted">Compte de destination : <strong>{{ account?.name }}</strong></span>
+        </div>
+      </div>
+      <div class="card balance-card">
+        <div class="balance-title">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
+            <circle cx="12" cy="12" r="9.5" />
+            <path d="M12 7.5v5M12 16v.5" stroke-linecap="round" />
+          </svg>
+          Soldes non vérifiés
+        </div>
+        <span>Un export CSV n'indique pas les soldes du relevé : le contrôle des soldes se fait sur les relevés PDF.</span>
+      </div>
+    </section>
+
+    <p v-for="batch in preview.previousImports" :key="batch.id" class="warning-banner">
+      Ce fichier a déjà été importé le {{ formatDate(localDateOf(batch.importedAt)) }} dans
+      « {{ accountNames.get(batch.accountId) ?? "un autre compte" }} » ({{ operationCount(batch.operationCount) }}).
+      Ses opérations déjà présentes sont reconnues comme doublons.
+    </p>
+
+    <section aria-label="Résumé de l'import" class="chips">
+      <span class="chip"><strong>{{ preview.lines.length }}</strong> lues</span>
+      <span class="chip neutral"><strong>{{ groups.duplicates.length }}</strong> doublons ignorés</span>
+      <span class="chip housing"><strong>{{ groups.candidates.length - ambiguousCount }}</strong> nouvelles</span>
+      <span v-if="ambiguousCount > 0" class="chip groceries"><strong>{{ ambiguousCount }}</strong> à vérifier</span>
+      <span v-if="groups.beforeOpening.length > 0" class="chip neutral">
+        <strong>{{ groups.beforeOpening.length }}</strong> antérieures à l'ouverture
+      </span>
+      <span class="chip groceries"><strong>{{ selected.size }}</strong> à catégoriser</span>
+    </section>
+
+    <section class="table-card">
+      <div class="table-title">
+        <h2>Nouvelles opérations</h2>
+        <span class="muted">Décoche une ligne pour l'exclure</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col" class="col-check"><span class="sr-only">Inclure</span></th>
+            <th scope="col" class="col-date">Date</th>
+            <th scope="col">Libellé</th>
+            <th scope="col" class="col-category">Catégorie</th>
+            <th scope="col" class="col-amount">Montant</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="{ index, line } in groups.candidates"
+            :key="index"
+            :class="{ ambiguous: line.duplicate.status === 'ambiguous', excluded: !selected.has(index) }"
+          >
+            <td class="col-check">
+              <input
+                type="checkbox"
+                :checked="selected.has(index)"
+                :aria-label="`Inclure ${line.normalizedLabel} du ${formatDate(line.line.date, 'day-month')}`"
+                @change="toggle(index)"
+              />
+            </td>
+            <td class="col-date">{{ formatDate(line.line.date, "day-month") }}</td>
+            <td>
+              <span class="label">{{ line.normalizedLabel }}</span>
+              <span class="raw">{{ line.line.label }}</span>
+              <span v-if="line.duplicate.status === 'ambiguous'" class="hint">
+                {{ ambiguityText(line, preview.matchedOperations) }}
+              </span>
+            </td>
+            <td><CategoryPill label="À catégoriser" pending /></td>
+            <td class="col-amount" :class="{ positive: line.line.amountCents > 0 }">
+              {{ formatAmount(line.line.amountCents, { signed: true }) }}
+            </td>
+          </tr>
+          <tr v-if="groups.candidates.length === 0" class="empty-row">
+            <td colspan="5">Aucune nouvelle opération dans ce fichier.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <details v-if="groups.duplicates.length > 0">
+        <summary>{{ groups.duplicates.length }} doublon{{ groups.duplicates.length > 1 ? "s" : "" }} ignoré{{ groups.duplicates.length > 1 ? "s" : "" }} (déjà dans le compte)</summary>
+        <ul>
+          <li v-for="{ index, line } in groups.duplicates" :key="index">
+            <span class="list-date">{{ formatDate(line.line.date, "day-month") }}</span>
+            <span class="list-label">{{ line.normalizedLabel }}</span>
+            <span class="list-amount">{{ lineAmount(line) }}</span>
+          </li>
+        </ul>
+      </details>
+      <details v-if="groups.beforeOpening.length > 0">
+        <summary>
+          {{ groups.beforeOpening.length }} ligne{{ groups.beforeOpening.length > 1 ? "s" : "" }}
+          antérieure{{ groups.beforeOpening.length > 1 ? "s" : "" }} à l'ouverture du compte
+          ({{ account ? formatDate(account.openingDate) : "" }}), déjà comprise{{ groups.beforeOpening.length > 1 ? "s" : "" }}
+          dans le solde d'ouverture
+        </summary>
+        <ul>
+          <li v-for="{ index, line } in groups.beforeOpening" :key="index">
+            <span class="list-date">{{ formatDate(line.line.date, "day-month") }}</span>
+            <span class="list-label">{{ line.normalizedLabel }}</span>
+            <span class="list-amount">{{ lineAmount(line) }}</span>
+          </li>
+        </ul>
+      </details>
+    </section>
+
+    <footer class="step-footer preview-footer">
+      <span class="backup-note">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z" stroke-linejoin="round" />
+        </svg>
+        Une sauvegarde sera faite avant l'import. Tu pourras l'annuler à tout moment.
+      </span>
+      <div class="buttons">
+        <button type="button" class="btn btn-secondary" :disabled="step === 'importing'" @click="back">Retour</button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          :disabled="selected.size === 0 || step === 'importing'"
+          @click="runImport"
+        >
+          {{ step === "importing" ? "Import en cours…" : `Importer ${operationCount(selected.size)}` }}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+            <path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+      </div>
+    </footer>
+  </template>
+
+  <CsvMappingModal
+    :open="mappingModalOpen"
+    :mapping="editedMapping"
+    :path="path"
+    @close="mappingModalOpen = false"
+    @saved="onMappingSaved"
+    @deleted="onMappingDeleted"
+  />
 </template>
+
+<style scoped>
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-muted);
+}
+
+.step.current {
+  color: var(--color-text);
+}
+
+.step.done {
+  color: var(--cat-transport-fg);
+}
+
+.step-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  box-sizing: border-box;
+  border: 1.5px solid #d6d0e2;
+  border-radius: 14px;
+  background: var(--color-card);
+  font-size: 13px;
+}
+
+.step.current .step-dot {
+  border: 0;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.step.done .step-dot {
+  border: 0;
+  background: var(--cat-transport);
+  color: var(--color-on-primary);
+}
+
+.step-line {
+  width: 40px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--color-border);
+}
+
+.step-line.done {
+  background: var(--cat-transport);
+}
+
+.muted {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.file-step {
+  gap: 20px;
+}
+
+.file-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.file-icon {
+  display: flex;
+  flex: none;
+  align-items: flex-end;
+  justify-content: center;
+  width: 48px;
+  height: 56px;
+  box-sizing: border-box;
+  padding-bottom: 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.file-icon.csv {
+  background: var(--cat-transport-bg);
+  color: var(--cat-transport-fg);
+}
+
+.file-info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.file-name {
+  font-size: 15px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) minmax(360px, 3fr);
+  gap: 16px;
+}
+
+.recognized {
+  color: var(--cat-transport-fg);
+}
+
+.mapping-row {
+  display: flex;
+  gap: 8px;
+}
+
+.mapping-row select {
+  flex: 1;
+  min-width: 0;
+}
+
+.mapping-row .btn {
+  height: 42px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.step-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.file-card {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px 22px;
+}
+
+.balance-card {
+  gap: 10px;
+  padding: 20px 22px;
+  background: var(--cat-neutral-bg);
+  color: var(--cat-neutral-fg);
+  font-size: 13px;
+}
+
+.balance-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.warning-banner {
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: var(--cat-groceries-bg);
+  color: var(--cat-groceries-fg);
+  font-size: 14px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.chip {
+  padding: 10px 16px;
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  font-size: 14px;
+}
+
+.chip strong {
+  font-size: 18px;
+}
+
+.chip.neutral {
+  border-color: transparent;
+  background: var(--cat-neutral-bg);
+  color: var(--cat-neutral-fg);
+}
+
+.chip.housing {
+  border-color: transparent;
+  background: var(--cat-housing-bg);
+  color: var(--cat-housing-fg);
+}
+
+.chip.groceries {
+  border-color: transparent;
+  background: var(--cat-groceries-bg);
+  color: var(--cat-groceries-fg);
+}
+
+.table-card {
+  overflow-x: auto;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.table-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 6px;
+}
+
+.table-title h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+th {
+  padding: 12px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-align: left;
+}
+
+td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.col-check {
+  width: 40px;
+  padding-left: 20px;
+}
+
+.col-check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-primary);
+}
+
+.col-date {
+  width: 64px;
+}
+
+td.col-date {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.col-category {
+  width: 200px;
+}
+
+.col-amount {
+  width: 120px;
+  padding-right: 20px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+td.col-amount {
+  font-weight: 800;
+}
+
+td.col-amount.positive {
+  color: var(--color-positive);
+}
+
+tr.ambiguous {
+  background: var(--color-pending-row);
+}
+
+tr.excluded td:not(.col-check) {
+  opacity: 0.5;
+}
+
+.label {
+  display: block;
+  font-weight: 700;
+}
+
+.raw {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cat-groceries-fg);
+}
+
+.empty-row td {
+  padding: 28px 20px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+details {
+  padding: 14px 20px;
+  border-top: 1px solid var(--color-border);
+  font-size: 14px;
+}
+
+summary {
+  font-weight: 700;
+  color: var(--cat-neutral-fg);
+  cursor: pointer;
+}
+
+details ul {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--color-text-muted);
+}
+
+details li {
+  display: flex;
+  gap: 16px;
+}
+
+.list-date {
+  width: 52px;
+}
+
+.list-label {
+  flex: 1;
+}
+
+.list-amount {
+  white-space: nowrap;
+}
+
+.preview-footer {
+  justify-content: space-between;
+}
+
+.backup-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+</style>

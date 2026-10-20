@@ -5,6 +5,7 @@ import {
   commands,
   type AccountSummary,
   type Category,
+  type ImportBatch,
   type Operation,
   type OperationRow,
 } from "../bindings";
@@ -13,7 +14,8 @@ import OperationFormModal from "../components/OperationFormModal.vue";
 import { ACCOUNT_TYPES } from "../utils/accounts";
 import { categoryTree } from "../utils/categories";
 import { errorMessage, unwrap } from "../utils/commands";
-import { formatAmount, formatDate, todayIso } from "../utils/format";
+import { formatAmount, formatDate, localDateOf, todayIso } from "../utils/format";
+import { operationCount } from "../utils/importPreview";
 import { matchesSearch, summarize } from "../utils/operations";
 import { periodOptions } from "../utils/periods";
 
@@ -23,6 +25,9 @@ const router = useRouter();
 const accounts = ref<AccountSummary[]>([]);
 const categories = ref<Category[]>([]);
 const rows = ref<OperationRow[]>([]);
+/** Most recent import of the selected account, which can be cancelled. */
+const lastImport = ref<ImportBatch | null>(null);
+const confirmingCancel = ref(false);
 const loaded = ref(false);
 const error = ref("");
 
@@ -70,12 +75,38 @@ async function loadAccounts() {
 
 async function loadOperations() {
   const account = selected.value;
+  confirmingCancel.value = false;
   if (!account) {
     rows.value = [];
+    lastImport.value = null;
     return;
   }
   const period = periods.find((p) => p.id === periodId.value) ?? periods[0];
   rows.value = await unwrap(commands.listOperations(account.account.id, period.from, period.to));
+  const batches = await unwrap(commands.listImportBatches(account.account.id));
+  lastImport.value = batches[0] ?? null;
+}
+
+const BALANCE_CHECK_TEXT: Record<ImportBatch["balanceCheckStatus"], string> = {
+  OK: "soldes vérifiés",
+  MISMATCH: "écart de solde",
+  NOT_AVAILABLE: "soldes non vérifiés",
+};
+
+async function cancelLastImport() {
+  const batch = lastImport.value;
+  if (!batch) return;
+  if (!confirmingCancel.value) {
+    confirmingCancel.value = true;
+    return;
+  }
+  error.value = "";
+  try {
+    await unwrap(commands.cancelImport(batch.id));
+  } catch (e) {
+    error.value = errorMessage(e);
+  }
+  await reload(true);
 }
 
 async function reload(withAccounts = false) {
@@ -142,7 +173,12 @@ watch([() => selected.value?.account.id, periodId], () => reload());
       </h1>
     </div>
     <div class="actions">
-      <RouterLink to="/import" class="btn btn-secondary">Importer un relevé</RouterLink>
+      <RouterLink
+        :to="{ name: 'import', query: selected ? { account: String(selected.account.id) } : {} }"
+        class="btn btn-secondary"
+      >
+        Importer un relevé
+      </RouterLink>
       <button type="button" class="btn btn-primary" :disabled="!selected" @click="openCreate">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
           <path d="M12 5v14M5 12h14" stroke-linecap="round" />
@@ -174,6 +210,21 @@ watch([() => selected.value?.account.id, periodId], () => reload());
         @click="selectAccount(account.id)"
       >
         {{ account.name }}
+      </button>
+    </div>
+
+    <div v-if="lastImport" class="import-banner">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z M14 3v5h5" stroke-linejoin="round" />
+      </svg>
+      <span class="import-text">
+        Dernier import : <strong>{{ lastImport.sourceFileName }}</strong>
+        le {{ formatDate(localDateOf(lastImport.importedAt), "day-month") }}
+        · {{ operationCount(lastImport.operationCount) }}
+        · {{ BALANCE_CHECK_TEXT[lastImport.balanceCheckStatus] }}
+      </span>
+      <button type="button" class="import-cancel" @click="cancelLastImport">
+        {{ confirmingCancel ? `Confirmer : supprimer ${operationCount(lastImport.operationCount)}` : "Annuler cet import" }}
       </button>
     </div>
 
@@ -342,6 +393,33 @@ h1 {
   border-color: var(--color-primary);
   background: var(--color-primary);
   color: var(--color-on-primary);
+}
+
+.import-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: var(--cat-groceries-bg);
+  color: var(--cat-groceries-fg);
+  font-size: 14px;
+}
+
+.import-text {
+  flex: 1 1 320px;
+}
+
+.import-cancel {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .filters {

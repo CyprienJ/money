@@ -111,3 +111,13 @@ export function todayIso(): string {
     String(now.getDate()).padStart(2, "0"),
   ].join("-");
 }
+
+/** Local date (`YYYY-MM-DD`) of a UTC timestamp such as `2026-10-20T21:30:00Z`. */
+export function localDateOf(timestamp: string): string {
+  const date = new Date(timestamp);
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}

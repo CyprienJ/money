@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatAmount, formatAmountInput, formatDate, parseAmount } from "./format";
+import { formatAmount, formatAmountInput, formatDate, localDateOf, parseAmount } from "./format";
 
 // Intl groups thousands with a narrow no-break space; normalize to plain spaces for readability.
 const plain = (text: string) => text.replace(/[  ]/g, " ");
@@ -92,5 +92,12 @@ describe("formatAmountInput", () => {
       expect(parseAmount(formatAmountInput(cents))).toBe(cents);
     }
     expect(formatAmountInput(-123456)).toBe("-1234,56");
+  });
+});
+
+describe("localDateOf", () => {
+  it("returns the local date of a UTC timestamp", () => {
+    // Noon UTC is the same day in every time zone between UTC−11 and UTC+11.
+    expect(localDateOf("2026-10-20T12:00:00Z")).toBe("2026-10-20");
   });
 });

@@ -112,12 +112,12 @@ Maquette : `Operations.dc.html`.
 
 #### V1-02.5 · Écran Import (assistant) — L
 Maquette : `Import.dc.html` (étape 2 « Vérification et aperçu »).
-- [ ] Étape 1 « Fichier » : sélection via `tauri-plugin-dialog`, choix du compte de destination, choix / création du mapping CSV.
-- [ ] Étape 2 : compteurs (lues, doublons ignorés, nouvelles, catégorisées, à catégoriser), tableau des nouvelles opérations avec case « Inclure », bloc repliable des doublons ignorés, mention de la sauvegarde. Lignes antérieures à l'ouverture du compte exclues et signalées ; alerte si le fichier a déjà été importé.
-- [ ] Retirer les `allow(dead_code)` temporaires de `importing::batch` et `importing::duplicates`.
-- [ ] Étape 3 : import, puis retour à l'écran Opérations.
-- [ ] Bandeau « Dernier import … · Annuler cet import » sur l'écran Opérations. (masqué depuis V1-01.5 en attendant les lots d'import)
-- 🟡 Pas de maquette pour l'étape 1 ni pour l'édition du mapping CSV.
+- [x] Étape 1 « Fichier » : sélection via `tauri-plugin-dialog`, choix du compte de destination, choix / création du mapping CSV (appelé « format » dans l'interface), avec le début du fichier affiché en colonnes et le format reconnu présélectionné.
+- [x] Étape 2 : compteurs (lues, doublons ignorés, nouvelles, à vérifier, antérieures à l'ouverture, à catégoriser), tableau des nouvelles opérations avec case « Inclure » (lignes ambiguës décochées, avec le motif), blocs repliables des doublons ignorés et des lignes antérieures à l'ouverture, alerte si le fichier a déjà été importé, mention de la sauvegarde. Carte « Soldes non vérifiés » pour un CSV. Le compteur « catégorisées automatiquement » arrivera avec V1-03.4.
+- [x] Retirer les `allow(dead_code)` temporaires de `importing::batch` et `importing::duplicates`.
+- [x] Étape 3 : import, puis retour à l'écran Opérations.
+- [x] Bandeau « Dernier import … · Annuler cet import » sur l'écran Opérations, avec confirmation.
+- Étape 1 et édition du mapping sans maquette : style de `Import.dc.html` (validé le 20/10/2026).
 
 ---
 
@@ -325,7 +325,6 @@ Ordre indicatif : catégorisation et tiers d'abord (gain quotidien), puis opéra
 | Ticket | Question |
 |---|---|
 | V1-01.3, V1-03.2, V1-07.1, V1-07.5 | Design des écrans sans maquette : Comptes, Catégories, Échéancier, Paramètres |
-| V1-02.5 | Design de l'étape 1 de l'import et de l'édition du mapping CSV |
 | V1-03.1 | Arborescence de catégories par défaut ; stockage des couleurs de catégorie |
 | V1-03.3 | Affichage lisible des libellés normalisés en V1 |
 | V1-05.4 | Sens de « corriger » un import suspect |
