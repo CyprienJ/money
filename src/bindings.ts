@@ -52,6 +52,15 @@ export const commands = {
 	 *  `file_hash` comes from the preview and guards against a file changed in between.
 	 */
 	importCsv: (path: string, accountId: number, mappingId: number, fileHash: string, selections: ImportSelection[]) => typedError<ImportBatch, AppError>(__TAURI_INVOKE("import_csv", { path, accountId, mappingId, fileHash, selections })),
+	/**
+	 *  Net expenses by category between `from` and `to` (included), internal transfers excluded.
+	 *  `accounts`: `null` for every account with operations.
+	 */
+	expensesByCategory: (from: string, to: string, accounts: number[] | null, level: CategoryLevel) => typedError<CategoryExpense[], AppError>(__TAURI_INVOKE("expenses_by_category", { from, to, accounts, level })),
+	/**  Income and expenses by month or year, internal transfers excluded. */
+	incomeVsExpenses: (from: string, to: string, accounts: number[] | null, granularity: Granularity) => typedError<PeriodIncomeExpenses[], AppError>(__TAURI_INVOKE("income_vs_expenses", { from, to, accounts, granularity })),
+	/**  Total balance of the accounts at the end of each day, week or month. */
+	balanceHistory: (from: string, to: string, accounts: number[] | null, step: BalanceStep) => typedError<BalancePoint[], AppError>(__TAURI_INVOKE("balance_history", { from, to, accounts, step })),
 };
 
 /* Types */
@@ -117,6 +126,15 @@ export type BalanceCheckStatus = "OK" | "MISMATCH" |
 /**  The statement gives no balances (CSV files). */
 "NOT_AVAILABLE";
 
+export type BalancePoint = {
+	date: string,
+	/**  Total balance of the accounts at the end of `date`. */
+	balanceCents: number,
+};
+
+/**  Interval between two points of `balance_history`. */
+export type BalanceStep = "day" | "week" | "month";
+
 export type Category = {
 	id: number,
 	name: string,
@@ -137,6 +155,13 @@ export type CategoryColor = "housing" | "groceries" | "restaurants" |
 /**  Internal transfer and other. */
 "neutral";
 
+export type CategoryExpense = {
+	/**  `None` for uncategorized expenses. */
+	categoryId: number | null,
+	/**  Net amount spent: positive, or negative when refunds exceed spending. */
+	expenseCents: number,
+};
+
 /**
  *  Fields of a category to create or update. For a subcategory, `color` and `is_income` are
  *  ignored: they come from the parent.
@@ -147,6 +172,13 @@ export type CategoryInput = {
 	color: CategoryColor,
 	isIncome: boolean,
 };
+
+/**  How expenses are grouped by category. */
+export type CategoryLevel = 
+/**  Subcategories added to their top-level category. */
+"topLevel" | 
+/**  Each category as assigned. */
+"detailed";
 
 /**  Text encoding of a CSV file. */
 export type CsvEncoding = "UTF-8" | "ISO-8859-1" | "WINDOWS-1252";
@@ -187,6 +219,9 @@ export type ExistingOperation = {
 	rawLabel: string,
 	isManual: boolean,
 };
+
+/**  Length of the periods of `income_vs_expenses`. */
+export type Granularity = "month" | "year";
 
 export type ImportBatch = {
 	id: number,
@@ -291,6 +326,14 @@ export type OperationUpdate = {
 	amountCents: number,
 	label: string,
 	categoryId: number | null,
+};
+
+export type PeriodIncomeExpenses = {
+	/**  First day of the month or year. */
+	periodStart: string,
+	incomeCents: number,
+	/**  Positive amount spent, net of refunds. */
+	expenseCents: number,
 };
 
 /**  A statement line in the import preview. */

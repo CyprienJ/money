@@ -10,6 +10,7 @@ mod app;
 mod csv_mapping;
 mod import;
 mod operation;
+mod stats;
 
 /// Path of the generated TypeScript bindings (`src/bindings.ts`).
 const BINDINGS_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../src/bindings.ts");
@@ -47,6 +48,9 @@ pub fn builder() -> Builder<tauri::Wry> {
             import::read_file_head,
             import::preview_csv_import,
             import::import_csv,
+            stats::expenses_by_category,
+            stats::income_vs_expenses,
+            stats::balance_history,
         ])
         .typ::<AppError>()
         // Amounts are i64 cents: exact as a JS number up to 2^53 (README, stack).

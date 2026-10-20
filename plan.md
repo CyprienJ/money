@@ -157,10 +157,11 @@ Module `labeling/`.
 
 #### V1-04.1 · Requêtes de statistiques — M
 Module `stats/`, signatures claires (futurs outils de l'assistant IA). Toutes passent par `operation_split` et excluent les virements internes.
-- [ ] `expenses_by_category(period, accounts?)`
-- [ ] `balance_history(accounts?, from, to, step)` — virements internes inclus.
-- [ ] `income_vs_expenses(from, to, granularity: month | year)`
-- [ ] Tests unitaires des agrégations (dont l'exclusion des virements internes).
+- [x] `expenses_by_category(from, to, accounts?, level: topLevel | detailed)` — dépenses nettes des remboursements.
+- [x] `balance_history(from, to, accounts?, step: day | week | month)` — virements internes inclus, chaque compte à partir de sa date d'ouverture.
+- [x] `income_vs_expenses(from, to, accounts?, granularity: month | year)` — périodes vides incluses.
+- [x] Tests unitaires des agrégations (dont l'exclusion des virements internes).
+- Revenu ou dépense selon la catégorie (`is_income`), non catégorisé selon le signe (décision du 20/10/2026, inscrite au README). Par défaut, comptes non archivés ayant des opérations.
 
 #### V1-04.2 · Intégration ECharts — S
 - [ ] `vue-echarts` installé, thème ECharts basé sur les tokens CSS.

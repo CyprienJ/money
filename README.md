@@ -115,6 +115,7 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 ## Règles de calcul
 
 - **Les virements internes sont exclus** de tous les indicateurs de revenus, de dépenses, des tops et des comparaisons. Ils restent pris en compte dans les soldes.
+- **Revenu ou dépense** : une opération est un revenu si sa catégorie est une catégorie de revenus, une dépense sinon, en net : un remboursement classé en Courses diminue les dépenses de Courses. Une opération non catégorisée est classée selon son signe.
 - **Le patrimoine net** à une date D se calcule ainsi :
   - Σ soldes des comptes courants et d'épargne à D
   - \+ dernière valorisation connue ≤ D de chaque compte de placement et de chaque actif
