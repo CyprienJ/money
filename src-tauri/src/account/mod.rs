@@ -3,7 +3,7 @@
 mod balance;
 mod repository;
 
-pub use balance::balance_at;
+pub use balance::{AccountSummary, balance_at, list_summaries};
 pub use repository::{create, get, list, set_archived, update};
 
 use chrono::NaiveDate;
@@ -24,6 +24,16 @@ pub enum AccountType {
     Asset,
     /// Loan, tracked by its outstanding capital.
     Liability,
+}
+
+impl AccountType {
+    /// Accounts whose balance comes from their operations. The others are tracked by valuations.
+    pub fn has_operations(self) -> bool {
+        matches!(
+            self,
+            AccountType::Checking | AccountType::Savings | AccountType::CreditCard
+        )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Type)]

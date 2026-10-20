@@ -1,0 +1,33 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT account_id, SUM(amount_cents) AS \"total!: i64\"\n           FROM operation\n           WHERE date <= ?1\n           GROUP BY account_id",
+  "describe": {
+    "columns": [
+      {
+        "name": "account_id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "account_id"
+          }
+        }
+      },
+      {
+        "name": "total!: i64",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "06c58bccfe979fa1487edce5be90e36e0d547ceabc571aef11e0589de0bb26e3"
+}

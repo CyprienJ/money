@@ -2,7 +2,7 @@ use chrono::NaiveDate;
 use sqlx::SqlitePool;
 use tauri::State;
 
-use crate::account::{self, Account, AccountUpdate, NewAccount};
+use crate::account::{self, Account, AccountSummary, AccountUpdate, NewAccount};
 use crate::error::AppResult;
 
 #[tauri::command]
@@ -12,6 +12,17 @@ pub async fn list_accounts(
     include_archived: bool,
 ) -> AppResult<Vec<Account>> {
     account::list(&pool, include_archived).await
+}
+
+/// Accounts with their balance as of today (local date).
+#[tauri::command]
+#[specta::specta]
+pub async fn list_account_summaries(
+    pool: State<'_, SqlitePool>,
+    include_archived: bool,
+) -> AppResult<Vec<AccountSummary>> {
+    let today = chrono::Local::now().date_naive();
+    account::list_summaries(&pool, include_archived, today).await
 }
 
 #[tauri::command]

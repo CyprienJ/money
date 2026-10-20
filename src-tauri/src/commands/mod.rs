@@ -17,6 +17,7 @@ pub fn builder() -> Builder<tauri::Wry> {
         .commands(collect_commands![
             app::app_version,
             account::list_accounts,
+            account::list_account_summaries,
             account::get_account,
             account::create_account,
             account::update_account,
@@ -43,10 +44,15 @@ pub fn export_bindings(builder: &Builder<tauri::Wry>) {
 mod tests {
     use super::*;
 
-    /// Fails when a command or type changed without regenerating `src/bindings.ts`
-    /// (run `npm run tauri dev` once to regenerate it).
+    /// Fails when a command or type changed without regenerating `src/bindings.ts`.
+    /// Regenerate with `UPDATE_BINDINGS=1 cargo test bindings` (or by running the app in dev mode).
     #[test]
     fn bindings_are_up_to_date() {
+        if std::env::var_os("UPDATE_BINDINGS").is_some() {
+            export_bindings(&builder());
+            return;
+        }
+
         let path = std::env::temp_dir().join(format!("money-bindings-{}.ts", std::process::id()));
         builder().export(typescript(), &path).unwrap();
         let expected = std::fs::read_to_string(&path).unwrap();
@@ -55,7 +61,7 @@ mod tests {
         let actual = std::fs::read_to_string(BINDINGS_PATH).unwrap_or_default();
         assert!(
             actual == expected,
-            "src/bindings.ts is outdated, run the app in dev mode to regenerate it"
+            "src/bindings.ts is outdated, run `UPDATE_BINDINGS=1 cargo test bindings` to regenerate it"
         );
     }
 }

@@ -1,8 +1,21 @@
+use std::collections::HashMap;
+
 use chrono::NaiveDate;
+use serde::Serialize;
+use specta::Type;
 use sqlx::SqlitePool;
 
-use super::AccountError;
+use super::{Account, AccountError};
 use crate::error::AppResult;
+
+/// An account with its balance at a given date.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountSummary {
+    pub account: Account,
+    /// `None` for investments, assets and liabilities, which are tracked by valuations.
+    pub balance_cents: Option<i64>,
+}
 
 /// Balance of an account at the end of `date`: opening balance plus every operation dated on or
 /// before `date`, internal transfers included.
@@ -22,6 +35,40 @@ pub async fn balance_at(pool: &SqlitePool, account_id: i64, date: NaiveDate) -> 
     .fetch_optional(pool)
     .await?;
     Ok(balance.ok_or(AccountError::NotFound(account_id))?)
+}
+
+/// Accounts (same order as [`super::list`]) with their balance at the end of `date`.
+pub async fn list_summaries(
+    pool: &SqlitePool,
+    include_archived: bool,
+    date: NaiveDate,
+) -> AppResult<Vec<AccountSummary>> {
+    let accounts = super::list(pool, include_archived).await?;
+    let sums: HashMap<i64, i64> = sqlx::query!(
+        r#"SELECT account_id, SUM(amount_cents) AS "total!: i64"
+           FROM operation
+           WHERE date <= ?1
+           GROUP BY account_id"#,
+        date
+    )
+    .fetch_all(pool)
+    .await?
+    .into_iter()
+    .map(|row| (row.account_id, row.total))
+    .collect();
+
+    Ok(accounts
+        .into_iter()
+        .map(|account| {
+            let balance_cents = account.account_type.has_operations().then(|| {
+                account.opening_balance_cents + sums.get(&account.id).copied().unwrap_or(0)
+            });
+            AccountSummary {
+                account,
+                balance_cents,
+            }
+        })
+        .collect())
 }
 
 #[cfg(test)]
@@ -117,6 +164,37 @@ mod tests {
                 balance_at(&pool, id, date("2026-10-31")).await.unwrap(),
                 1000
             );
+        });
+    }
+
+    #[test]
+    fn summaries_give_balances_of_accounts_with_operations_only() {
+        tauri::async_runtime::block_on(async {
+            let pool = memory_pool().await;
+            let id = checking_account(&pool, 1000).await;
+            add_operation(&pool, id, "2026-10-02", -500).await;
+            add_operation(&pool, id, "2026-11-02", -200).await;
+            account::create(
+                &pool,
+                NewAccount {
+                    name: "PEA".to_owned(),
+                    account_type: AccountType::Investment,
+                    institution: None,
+                    opening_balance_cents: 0,
+                    opening_date: date("2026-01-01"),
+                },
+            )
+            .await
+            .unwrap();
+
+            let summaries = list_summaries(&pool, false, date("2026-10-31"))
+                .await
+                .unwrap();
+            let balances: Vec<(&str, Option<i64>)> = summaries
+                .iter()
+                .map(|s| (s.account.name.as_str(), s.balance_cents))
+                .collect();
+            assert_eq!(balances, [("Compte courant", Some(500)), ("PEA", None)]);
         });
     }
 

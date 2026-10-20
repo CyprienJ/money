@@ -8,6 +8,8 @@ export const commands = {
 	/**  Version of the application, as declared in `tauri.conf.json`. */
 	appVersion: () => __TAURI_INVOKE<string>("app_version"),
 	listAccounts: (includeArchived: boolean) => typedError<Account[], AppError>(__TAURI_INVOKE("list_accounts", { includeArchived })),
+	/**  Accounts with their balance as of today (local date). */
+	listAccountSummaries: (includeArchived: boolean) => typedError<AccountSummary[], AppError>(__TAURI_INVOKE("list_account_summaries", { includeArchived })),
 	getAccount: (id: number) => typedError<Account, AppError>(__TAURI_INVOKE("get_account", { id })),
 	createAccount: (account: NewAccount) => typedError<Account, AppError>(__TAURI_INVOKE("create_account", { account })),
 	updateAccount: (id: number, changes: AccountUpdate) => typedError<Account, AppError>(__TAURI_INVOKE("update_account", { id, changes })),
@@ -26,6 +28,13 @@ export type Account = {
 	openingBalanceCents: number,
 	openingDate: string,
 	archived: boolean,
+};
+
+/**  An account with its balance at a given date. */
+export type AccountSummary = {
+	account: Account,
+	/**  `None` for investments, assets and liabilities, which are tracked by valuations. */
+	balanceCents: number | null,
 };
 
 export type AccountType = "CHECKING" | "SAVINGS" | 
