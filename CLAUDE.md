@@ -73,5 +73,6 @@ La police doit être **embarquée dans l'application** (fichiers `.woff2` dans l
 - Avance **étape par étape** en suivant « Ordre de développement V1 » du README. Termine et vérifie une étape avant de passer à la suivante.
 - Pour chaque étape, propose d'abord un plan court, puis implémente.
 - Après chaque modification : `cargo check`, `cargo test` et `cargo clippy` dans `src-tauri/`, puis `npm test` et `npm run build` pour le front.
+- Après l'ajout ou la modification d'une requête `sqlx::query!` ou d'une migration : `cargo sqlx migrate run` puis `cargo sqlx prepare -- --all-targets` dans `src-tauri/`, et commiter `.sqlx/`. La base de développement est `src-tauri/dev.sqlite` (voir `src-tauri/.env`).
 - Fais des commits petits et cohérents, un par sous-tâche.
 - Si une décision n'est pas couverte par le README, pose-moi la question au lieu de deviner. Quand une décision est prise, propose de l'ajouter au README.

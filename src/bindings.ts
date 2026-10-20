@@ -7,9 +7,45 @@ import { invoke as __TAURI_INVOKE } from "@tauri-apps/api/core";
 export const commands = {
 	/**  Version of the application, as declared in `tauri.conf.json`. */
 	appVersion: () => __TAURI_INVOKE<string>("app_version"),
+	listAccounts: (includeArchived: boolean) => typedError<Account[], AppError>(__TAURI_INVOKE("list_accounts", { includeArchived })),
+	getAccount: (id: number) => typedError<Account, AppError>(__TAURI_INVOKE("get_account", { id })),
+	createAccount: (account: NewAccount) => typedError<Account, AppError>(__TAURI_INVOKE("create_account", { account })),
+	updateAccount: (id: number, changes: AccountUpdate) => typedError<Account, AppError>(__TAURI_INVOKE("update_account", { id, changes })),
+	setAccountArchived: (id: number, archived: boolean) => typedError<Account, AppError>(__TAURI_INVOKE("set_account_archived", { id, archived })),
+	/**  Balance in cents at the end of `date`, for accounts with operations. */
+	accountBalance: (id: number, date: string) => typedError<number, AppError>(__TAURI_INVOKE("account_balance", { id, date })),
 };
 
 /* Types */
+export type Account = {
+	id: number,
+	name: string,
+	type: AccountType,
+	currency: string,
+	institution: string | null,
+	openingBalanceCents: number,
+	openingDate: string,
+	archived: boolean,
+};
+
+export type AccountType = "CHECKING" | "SAVINGS" | 
+/**  Deferred debit card. */
+"CREDIT_CARD" | 
+/**  PEA, CTO, life insurance: only the total value is tracked in V1. */
+"INVESTMENT" | 
+/**  Real estate, vehicle… valued manually. */
+"ASSET" | 
+/**  Loan, tracked by its outstanding capital. */
+"LIABILITY";
+
+/**  Editable fields of an existing account. The type is fixed at creation. */
+export type AccountUpdate = {
+	name: string,
+	institution: string | null,
+	openingBalanceCents: number,
+	openingDate: string,
+};
+
 /**  Error returned by commands to the frontend: `{ kind, message }`. */
 export type AppError = {
 	kind: ErrorKind,
@@ -17,5 +53,28 @@ export type AppError = {
 };
 
 /**  Stable identifier the frontend can match on. */
-export type ErrorKind = "database" | "migration" | "io";
+export type ErrorKind = "database" | "migration" | "io" | 
+/**  The requested entity does not exist. */
+"not_found" | 
+/**  The input breaks a business rule; the message says which. */
+"validation";
+
+/**  Fields chosen when creating an account. */
+export type NewAccount = {
+	name: string,
+	type: AccountType,
+	institution: string | null,
+	openingBalanceCents: number,
+	openingDate: string,
+};
+
+/* Tauri Specta runtime */
+async function typedError<T, E>(result: Promise<T>): Promise<{ status: "ok"; data: T } | { status: "error"; error: E }> {
+    try {
+        return { status: "ok", data: await result };
+    } catch (e) {
+        if (e instanceof Error) throw e;
+        return { status: "error", error: e as any };
+    }
+}
 

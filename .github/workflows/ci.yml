@@ -9,6 +9,10 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Compile sqlx queries against the committed .sqlx/ cache instead of a live database.
+env:
+  SQLX_OFFLINE: "true"
+
 jobs:
   check:
     strategy:

@@ -13,3 +13,6 @@ node_modules/
 
 # OS
 .DS_Store
+
+# sqlx development database (see src-tauri/.env)
+/src-tauri/dev.sqlite*

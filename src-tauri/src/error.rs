@@ -2,6 +2,8 @@ use serde::{Serialize, Serializer};
 use specta::Type;
 use specta::datatype::DataType;
 
+use crate::account::AccountError;
+
 /// Error type returned by the domain layer and propagated to the frontend.
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {
@@ -13,6 +15,9 @@ pub enum AppError {
 
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
+
+    #[error(transparent)]
+    Account(#[from] AccountError),
 }
 
 /// Stable identifier the frontend can match on.
@@ -22,6 +27,10 @@ pub enum ErrorKind {
     Database,
     Migration,
     Io,
+    /// The requested entity does not exist.
+    NotFound,
+    /// The input breaks a business rule; the message says which.
+    Validation,
 }
 
 /// Error returned by commands to the frontend: `{ kind, message }`.
@@ -38,6 +47,8 @@ impl AppError {
             AppError::Database(_) => ErrorKind::Database,
             AppError::Migration(_) => ErrorKind::Migration,
             AppError::Io(_) => ErrorKind::Io,
+            AppError::Account(AccountError::NotFound(_)) => ErrorKind::NotFound,
+            AppError::Account(AccountError::EmptyName) => ErrorKind::Validation,
         }
     }
 }
@@ -70,5 +81,21 @@ mod tests {
         let json = serde_json::to_value(&error).unwrap();
         assert_eq!(json["kind"], "io");
         assert_eq!(json["message"], "I/O error: disk full");
+    }
+
+    #[test]
+    fn maps_domain_errors_to_generic_kinds() {
+        assert_eq!(
+            AppError::from(AccountError::NotFound(3)).kind(),
+            ErrorKind::NotFound
+        );
+        assert_eq!(
+            AppError::from(AccountError::EmptyName).kind(),
+            ErrorKind::Validation
+        );
+        assert_eq!(
+            AppError::from(AccountError::NotFound(3)).to_string(),
+            "account 3 not found"
+        );
     }
 }

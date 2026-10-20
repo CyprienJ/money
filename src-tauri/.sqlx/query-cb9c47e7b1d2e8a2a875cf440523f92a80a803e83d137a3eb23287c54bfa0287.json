@@ -1,0 +1,21 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT a.opening_balance_cents + COALESCE(\n                      (SELECT SUM(o.amount_cents) FROM operation o\n                       WHERE o.account_id = a.id AND o.date <= ?2), 0) AS \"balance!: i64\"\n           FROM account a\n           WHERE a.id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "balance!: i64",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "cb9c47e7b1d2e8a2a875cf440523f92a80a803e83d137a3eb23287c54bfa0287"
+}

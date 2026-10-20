@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO account (name, type, institution, opening_balance_cents, opening_date)\n         VALUES (?1, ?2, ?3, ?4, ?5)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "d98b4da24a2554ff8478fb5c492457117c0d95e0cf047a2bc42b7d1e93ac53dc"
+}

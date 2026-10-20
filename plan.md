@@ -57,9 +57,9 @@ Créer toutes les tables V1 du README, y compris les colonnes *(prévu)* : `acco
 - [x] Suppression en cascade : `import_batch` → `operation` → `operation_split`.
 
 #### V1-01.2 · Module `account` (backend) — S
-- [ ] CRUD des comptes (types `CHECKING | SAVINGS | CREDIT_CARD | INVESTMENT | ASSET | LIABILITY`), archivage.
-- [ ] Calcul du solde d'un compte à une date : `opening_balance_cents + Σ amount_cents`.
-- [ ] Tests unitaires du calcul de solde.
+- [x] CRUD des comptes (types `CHECKING | SAVINGS | CREDIT_CARD | INVESTMENT | ASSET | LIABILITY`), archivage.
+- [x] Calcul du solde d'un compte à une date : `opening_balance_cents + Σ amount_cents`.
+- [x] Tests unitaires du calcul de solde.
 
 #### V1-01.3 · Écran Comptes — M
 - [ ] Liste des comptes par type avec solde (pastille d'initiales comme dans le Dashboard).

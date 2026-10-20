@@ -5,6 +5,10 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
+# Compile sqlx queries against the committed .sqlx/ cache instead of a live database.
+env:
+  SQLX_OFFLINE: "true"
+
 jobs:
   bundle:
     permissions:

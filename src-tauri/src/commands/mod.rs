@@ -5,6 +5,7 @@ use tauri_specta::{Builder, collect_commands};
 
 use crate::error::AppError;
 
+mod account;
 mod app;
 
 /// Path of the generated TypeScript bindings (`src/bindings.ts`).
@@ -13,7 +14,15 @@ const BINDINGS_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../src/binding
 /// Registers every command and exported type exposed to the frontend.
 pub fn builder() -> Builder<tauri::Wry> {
     Builder::new()
-        .commands(collect_commands![app::app_version])
+        .commands(collect_commands![
+            app::app_version,
+            account::list_accounts,
+            account::get_account,
+            account::create_account,
+            account::update_account,
+            account::set_account_archived,
+            account::account_balance,
+        ])
         .typ::<AppError>()
         // Amounts are i64 cents: exact as a JS number up to 2^53 (README, stack).
         .dangerously_cast_bigints_to_number()

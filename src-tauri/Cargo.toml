@@ -12,10 +12,11 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+chrono = { version = "0.4.45", default-features = false, features = ["std", "clock", "serde"] }
 serde = { version = "1", features = ["derive"] }
-specta = { version = "=2.0.0-rc.25", features = ["derive"] }
+specta = { version = "=2.0.0-rc.25", features = ["derive", "chrono"] }
 specta-typescript = "=0.0.12"
-sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "sqlite-bundled", "migrate", "macros"] }
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "sqlite-bundled", "migrate", "macros", "chrono"] }
 tauri = { version = "2", features = [] }
 tauri-specta = { version = "=2.0.0-rc.25", features = ["typescript"] }
 thiserror = "2"
