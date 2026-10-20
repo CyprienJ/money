@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Import de relevé</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F5F3F9}
+a{color:#3341B8}a:hover{color:#1E1830}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 100vh; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #1E1830; background: #F5F3F9; font-variant-numeric: tabular-nums">
+
+<nav aria-label="Navigation principale" style="flex: 1 1 232px; background: #2A1E3F; color: #F3EEFA; padding: 24px 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 4px 10px 24px">
+<svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="{{accent}}"></circle><circle cx="16" cy="16" r="9" fill="none" stroke="#2A1E3F" stroke-width="2.5"></circle><path d="M16 11v10M13 14h6" stroke="#2A1E3F" stroke-width="2.5" stroke-linecap="round"></path></svg>
+<span style="font-size: 17px; font-weight: 800; letter-spacing: -0.01em">Finances perso</span>
+</div>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 10px; color: #CFC4E3; text-decoration: none; font-size: 14px; font-weight: 500"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>Tableau de bord</a>
+<a href="Operations.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 10px; color: #CFC4E3; text-decoration: none; font-size: 14px; font-weight: 500"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" stroke-linecap="round"></path></svg>Opérations</a>
+<a href="Import.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 10px; background: rgba(255,255,255,0.12); color: #FFFFFF; text-decoration: none; font-size: 14px; font-weight: 600"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" stroke-linecap="round" stroke-linejoin="round"></path></svg>Importer un relevé<span style="margin-left: auto; width: 6px; height: 6px; border-radius: 3px; background: {{accent}}"></span></a>
+<a href="Analyses.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 10px; color: #CFC4E3; text-decoration: none; font-size: 14px; font-weight: 500"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" stroke-linecap="round"></path></svg>Analyses</a>
+<div style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: #9E8FBD; padding: 20px 12px 6px">PATRIMOINE</div>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 10px; color: #CFC4E3; text-decoration: none; font-size: 14px; font-weight: 500"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="6" width="20" height="14" rx="2"></rect><path d="M2 10h20M16 15h2" stroke-linecap="round"></path></svg>Comptes</a>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 10px; color: #CFC4E3; text-decoration: none; font-size: 14px; font-weight: 500"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4" stroke-linecap="round"></path></svg>Échéancier</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 10px; color: #CFC4E3; text-decoration: none; font-size: 14px; font-weight: 500"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9-9-9z" stroke-linejoin="round"></path><circle cx="8" cy="8" r="1.5"></circle></svg>Catégories</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 10px; color: #CFC4E3; text-decoration: none; font-size: 14px; font-weight: 500; margin-top: auto"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" stroke-linecap="round"></path></svg>Paramètres</a>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0; padding: 32px 40px 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 22px">
+
+<header style="display: flex; flex-direction: column; gap: 18px">
+<h1 style="margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -0.02em">Importer un relevé</h1>
+<ol aria-label="Étapes de l'import" style="list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 14px; font-weight: 700">
+<li style="display: flex; align-items: center; gap: 8px; color: #0F5E52"><span style="width: 28px; height: 28px; border-radius: 14px; background: #1F9E89; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M5 12l5 5 9-10" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>Fichier</li>
+<li aria-hidden="true" style="width: 40px; height: 2px; background: #1F9E89; border-radius: 1px"></li>
+<li aria-current="step" style="display: flex; align-items: center; gap: 8px"><span style="width: 28px; height: 28px; border-radius: 14px; background: #2A1E3F; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 13px">2</span>Vérification et aperçu</li>
+<li aria-hidden="true" style="width: 40px; height: 2px; background: #E7E3EF; border-radius: 1px"></li>
+<li style="display: flex; align-items: center; gap: 8px; color: #6B6480"><span style="width: 28px; height: 28px; border-radius: 14px; background: #FFFFFF; border: 1.5px solid #D6D0E2; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 13px">3</span>Import</li>
+</ol>
+</header>
+
+<section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px">
+<div style="background: #FFFFFF; border: 1px solid #E7E3EF; border-radius: 18px; padding: 20px 22px; display: flex; gap: 16px; align-items: flex-start">
+<span style="width: 48px; height: 56px; flex: none; border-radius: 10px; background: #FDE7DE; color: #9A3412; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8px; box-sizing: border-box; font-size: 11px; font-weight: 800">PDF</span>
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+<span style="font-weight: 800; font-size: 15px; overflow-wrap: anywhere">Releve_2026-10.pdf</span>
+<span style="font-size: 13px; color: #6B6480">Format reconnu : [Ma banque] · relevé du 01/10 au 19/10</span>
+<label style="display: flex; flex-direction: column; gap: 6px; margin-top: 10px; font-size: 12px; font-weight: 700; color: #6B6480">Compte de destination
+<select style="height: 42px; padding: 0 12px; border-radius: 10px; border: 1px solid #E7E3EF; background: #FFFFFF; font: inherit; font-size: 14px; color: #1E1830"><option>Compte courant</option><option>Livret A</option><option>LDDS</option></select></label>
+</div>
+</div>
+
+<div style="background: #DDF3EF; border: 1px solid #A9DFD4; border-radius: 18px; padding: 20px 22px; display: flex; flex-direction: column; gap: 12px; color: #0F5E52">
+<div style="display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 800"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="12" cy="12" r="9.5"></circle><path d="M7.5 12l3 3 6-6" stroke-linecap="round" stroke-linejoin="round"></path></svg>Soldes vérifiés</div>
+<div style="display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; font-size: 14px; color: #1E1830">
+<span style="color: #0F5E52">Solde initial du relevé</span><strong style="text-align: right; white-space: nowrap">413,23 €</strong>
+<span style="color: #0F5E52">+ Somme des opérations lues</span><strong style="text-align: right; white-space: nowrap">+1 771,09 €</strong>
+<span style="color: #0F5E52; border-top: 1px solid #A9DFD4; padding-top: 6px">= Solde calculé</span><strong style="text-align: right; white-space: nowrap; border-top: 1px solid #A9DFD4; padding-top: 6px">2 184,32 €</strong>
+</div>
+<span style="font-size: 13px">Identique au solde final indiqué sur le relevé : aucune ligne manquante.</span>
+</div>
+</section>
+
+<section aria-label="Résumé de l'import" style="display: flex; flex-wrap: wrap; gap: 10px">
+<span style="padding: 10px 16px; border-radius: 12px; background: #FFFFFF; border: 1px solid #E7E3EF; font-size: 14px"><strong style="font-size: 18px">11</strong> lues</span>
+<span style="padding: 10px 16px; border-radius: 12px; background: #EEEDF2; color: #4A4657; font-size: 14px"><strong style="font-size: 18px">2</strong> doublons ignorés</span>
+<span style="padding: 10px 16px; border-radius: 12px; background: #E5E8FD; color: #3341B8; font-size: 14px"><strong style="font-size: 18px">9</strong> nouvelles</span>
+<span style="padding: 10px 16px; border-radius: 12px; background: #DDF3EF; color: #0F5E52; font-size: 14px"><strong style="font-size: 18px">8</strong> catégorisées automatiquement</span>
+<span style="padding: 10px 16px; border-radius: 12px; background: #FDF0D9; color: #6B4508; font-size: 14px"><strong style="font-size: 18px">1</strong> à catégoriser</span>
+</section>
+
+<section style="background: #FFFFFF; border: 1px solid #E7E3EF; border-radius: 18px; overflow-x: auto">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 18px 20px 6px"><h2 style="margin: 0; font-size: 17px; font-weight: 800">Nouvelles opérations</h2><span style="font-size: 13px; color: #6B6480">Décoche une ligne pour l'exclure</span></div>
+<table style="width: 100%; min-width: 760px; border-collapse: collapse; font-size: 14px">
+<thead>
+<tr style="text-align: left; font-size: 12px; color: #6B6480">
+<th scope="col" style="padding: 12px 20px; font-weight: 700; border-bottom: 1px solid #E7E3EF; width: 40px"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Inclure</span></th>
+<th scope="col" style="padding: 12px 8px; font-weight: 700; border-bottom: 1px solid #E7E3EF; width: 64px">Date</th>
+<th scope="col" style="padding: 12px; font-weight: 700; border-bottom: 1px solid #E7E3EF">Libellé</th>
+<th scope="col" style="padding: 12px; font-weight: 700; border-bottom: 1px solid #E7E3EF; width: 200px">Catégorie</th>
+<th scope="col" style="padding: 12px 20px; font-weight: 700; border-bottom: 1px solid #E7E3EF; text-align: right; width: 120px">Montant</th>
+</tr>
+</thead>
+<tbody>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="9">
+<tr style="{{r.rowStyle}}">
+<td style="padding: 10px 20px; border-bottom: 1px solid #F0EEF5"><input type="checkbox" checked aria-label="{{r.checkLabel}}" style="width: 18px; height: 18px; accent-color: #2A1E3F"></td>
+<td style="padding: 10px 8px; border-bottom: 1px solid #F0EEF5; color: #6B6480; font-weight: 600">{{r.date}}</td>
+<td style="padding: 10px 12px; border-bottom: 1px solid #F0EEF5"><span style="display: block; font-weight: 700">{{r.label}}</span><span style="display: block; font-size: 12px; color: #6B6480; font-family: ui-monospace, SFMono-Regular, Menlo, monospace">{{r.raw}}</span></td>
+<td style="padding: 10px 12px; border-bottom: 1px solid #F0EEF5"><span style="{{r.pillStyle}}">{{r.cat}}</span><span style="display: block; margin-top: 4px; font-size: 11px; color: #6B6480">{{r.hint}}</span></td>
+<td style="{{r.amountStyle}}">{{r.amount}}</td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+<details style="border-top: 1px solid #E7E3EF; padding: 14px 20px; font-size: 14px">
+<summary style="cursor: pointer; font-weight: 700; color: #4A4657">2 doublons ignorés (déjà importés le 05/10)</summary>
+<ul style="list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; color: #6B6480">
+<li style="display: flex; gap: 16px"><span style="width: 52px">03/10</span><span style="flex: 1">Carrefour Market</span><span style="white-space: nowrap">−97,15 €</span></li>
+<li style="display: flex; gap: 16px"><span style="width: 52px">01/10</span><span style="flex: 1">Salaire</span><span style="white-space: nowrap">+3 280,00 €</span></li>
+</ul>
+</details>
+</section>
+
+<footer style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; justify-content: space-between">
+<span style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #6B6480"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z" stroke-linejoin="round"></path></svg>Une sauvegarde sera faite avant l'import. Tu pourras l'annuler à tout moment.</span>
+<div style="display: flex; gap: 10px">
+<a href="Operations.dc.html" style="display: inline-flex; align-items: center; height: 46px; padding: 0 18px; border-radius: 12px; background: #FFFFFF; border: 1px solid #E7E3EF; color: #1E1830; text-decoration: none; font-size: 14px; font-weight: 700; box-sizing: border-box">Annuler</a>
+<a href="Operations.dc.html" style="display: inline-flex; align-items: center; gap: 8px; height: 46px; padding: 0 20px; border-radius: 12px; background: #2A1E3F; color: #FFFFFF; text-decoration: none; font-size: 14px; font-weight: 700">Importer 9 opérations<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
+</div>
+</footer>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#F26B3A","options":["#F26B3A","#F2A93B","#1F9E89","#E8547A"]},"$preview":{"width":1280,"height":1120}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const cats = {
+      'Courses': ['#FDF0D9', '#8A5A0B'],
+      'Restaurants': ['#FDE7DE', '#9A3412'],
+      'Transport': ['#DDF3EF', '#0F5E52'],
+      'Virement interne': ['#EEEDF2', '#4A4657'],
+      'Loisirs': ['#FCE3EA', '#A61E48'],
+      'Santé': ['#EEE5FA', '#5B2CA3'],
+      'Abonnements': ['#E0F1FA', '#1B6A94'],
+      'Logement': ['#E5E8FD', '#3341B8']
+    };
+    const data = [
+      ['19/10', 'Carrefour Market', 'CB CARREFOUR MKT 18/10 CARTE 4417', 'Courses', '−64,28 €'],
+      ['18/10', 'Le Petit Bistrot', 'CB LE PETIT BISTROT 17/10', 'Restaurants', '−42,50 €'],
+      ['17/10', 'SNCF', 'CB SNCF CONNECT 16/10', 'Transport', '−89,00 €'],
+      ['15/10', 'Virement vers Livret A', 'VIR SEPA VERS LIVRET A', 'Virement interne', '−300,00 €'],
+      ['14/10', 'Fnac', 'CB FNAC.COM 13/10', 'Loisirs', '−34,99 €'],
+      ['12/10', 'Pharmacie du Centre', 'CB PHARMACIE DU CENTRE 11/10', 'Santé', '−18,60 €'],
+      ['10/10', 'Spotify', 'PRLV SEPA SPOTIFY AB', 'Abonnements', '−11,99 €'],
+      ['08/10', 'Boulangerie Martin', 'CB BOULANG MARTIN 07/10', 'Choisir…', '−8,40 €'],
+      ['05/10', 'Crédit immobilier', 'PRLV SEPA CREDIT IMMO ECH 10/26', 'Logement', '−842,00 €']
+    ];
+    const pillBase = 'display: inline-block; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 99px; white-space: nowrap; ';
+    const rows = data.map(([date, label, raw, cat, amount]) => {
+      const todo = !cats[cat];
+      const pillStyle = todo
+        ? pillBase + 'background: #FFFFFF; color: #8A5A0B; border: 1.5px dashed #F2A93B'
+        : pillBase + 'background: ' + cats[cat][0] + '; color: ' + cats[cat][1];
+      return {
+        date, label, raw, cat, amount, pillStyle,
+        hint: todo ? 'Libellé inconnu' : 'Reprise de « ' + label + ' »',
+        checkLabel: 'Inclure ' + label + ' du ' + date,
+        rowStyle: todo ? 'background: #FFFBF3' : '',
+        amountStyle: 'padding: 10px 20px; border-bottom: 1px solid #F0EEF5; text-align: right; font-weight: 800; white-space: nowrap; color: ' + (cat === 'Virement interne' ? '#6B6480' : '#1E1830')
+      };
+    });
+    return { accent: this.props.accent ?? '#F26B3A', rows };
+  }
+}
+</script>
+</body>
+</html>

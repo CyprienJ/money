@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Analyses</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F5F3F9}
+a{color:#3341B8}a:hover{color:#1E1830}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 100vh; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #1E1830; background: #F5F3F9; font-variant-numeric: tabular-nums">
+
+<nav aria-label="Navigation principale" style="flex: 1 1 232px; background: #2A1E3F; color: #F3EEFA; padding: 24px 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 4px 10px 24px">
+<svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="{{accent}}"></circle><circle cx="16" cy="16" r="9" fill="none" stroke="#2A1E3F" stroke-width="2.5"></circle><path d="M16 11v10M13 14h6" stroke="#2A1E3F" stroke-width="2.5" stroke-linecap="round"></path></svg>
+<span style="font-size: 17px; font-weight: 800; letter-spacing: -0.01em">Finances perso</span>
+</div>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 10px; color: #CFC4E3; text-decoration: none; font-size: 14px; font-weight: 500"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>Tableau de bord</a>
+<a href="Operations.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 10px; color: #CFC4E3; text-decoration: none; font-size: 14px; font-weight: 500"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" stroke-linecap="round"></path></svg>Opérations</a>
+<a href="Import.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 10px; color: #CFC4E3; text-decoration: none; font-size: 14px; font-weight: 500"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" stroke-linecap="round" stroke-linejoin="round"></path></svg>Importer un relevé</a>
+<a href="Analyses.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 10px; background: rgba(255,255,255,0.12); color: #FFFFFF; text-decoration: none; font-size: 14px; font-weight: 600"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" stroke-linecap="round"></path></svg>Analyses<span style="margin-left: auto; width: 6px; height: 6px; border-radius: 3px; background: {{accent}}"></span></a>
+<div style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: #9E8FBD; padding: 20px 12px 6px">PATRIMOINE</div>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 10px; color: #CFC4E3; text-decoration: none; font-size: 14px; font-weight: 500"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="6" width="20" height="14" rx="2"></rect><path d="M2 10h20M16 15h2" stroke-linecap="round"></path></svg>Comptes</a>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 10px; color: #CFC4E3; text-decoration: none; font-size: 14px; font-weight: 500"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4" stroke-linecap="round"></path></svg>Échéancier</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 10px; color: #CFC4E3; text-decoration: none; font-size: 14px; font-weight: 500"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9-9-9z" stroke-linejoin="round"></path><circle cx="8" cy="8" r="1.5"></circle></svg>Catégories</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 10px; color: #CFC4E3; text-decoration: none; font-size: 14px; font-weight: 500; margin-top: auto"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" stroke-linecap="round"></path></svg>Paramètres</a>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0; padding: 32px 40px 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 22px">
+
+<header style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; justify-content: space-between">
+<div>
+<div style="font-size: 13px; font-weight: 600; color: #6B6480">Tous comptes · virements internes exclus</div>
+<h1 style="margin: 2px 0 0; font-size: 30px; font-weight: 800; letter-spacing: -0.02em">Analyses</h1>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+<div role="group" aria-label="Granularité" style="display: flex; gap: 4px; background: #FFFFFF; border: 1px solid #E7E3EF; border-radius: 12px; padding: 4px">
+<sc-for list="{{periods}}" as="p" hint-placeholder-count="3">
+<button type="button" aria-pressed="{{p.pressed}}" onClick="{{p.pick}}" style="{{p.style}}">{{p.label}}</button>
+</sc-for>
+</div>
+<label style="display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 14px; border-radius: 12px; background: #FFFFFF; border: 1px solid #E7E3EF; font-size: 14px; font-weight: 600; box-sizing: border-box; cursor: pointer"><input type="checkbox" checked style="width: 18px; height: 18px; accent-color: #2A1E3F">Comparer à octobre 2025</label>
+</div>
+</header>
+
+<section style="background: #FFFFFF; border: 1px solid #E7E3EF; border-radius: 18px; padding: 22px 24px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 12px">
+<h2 style="margin: 0; font-size: 17px; font-weight: 800">Revenus et dépenses</h2>
+<div style="display: flex; gap: 18px; font-size: 13px; color: #6B6480"><span style="display: flex; align-items: center; gap: 6px"><span style="width: 10px; height: 10px; border-radius: 3px; background: #5B6CF0"></span>Revenus</span><span style="display: flex; align-items: center; gap: 6px"><span style="width: 10px; height: 10px; border-radius: 3px; background: {{accent}}"></span>Dépenses</span></div>
+</div>
+<div role="img" aria-label="Revenus et dépenses mensuels de novembre 2025 à octobre 2026 : revenus stables à 3 280 € sauf 4 100 € en décembre ; dépenses entre 1 980 € et 3 150 €, pic en juillet" style="display: flex; align-items: flex-end; gap: 6px; height: 200px; border-bottom: 1px solid #E7E3EF; padding: 0 4px">
+<sc-for list="{{months}}" as="m" hint-placeholder-count="12">
+<div style="flex: 1; min-width: 0; display: flex; align-items: flex-end; justify-content: center; gap: 3px; height: 100%">
+<span style="{{m.revStyle}}"></span>
+<span style="{{m.depStyle}}"></span>
+</div>
+</sc-for>
+</div>
+<div aria-hidden="true" style="display: flex; gap: 6px; padding: 0 4px; margin-top: -8px">
+<sc-for list="{{months}}" as="m" hint-placeholder-count="12">
+<span style="{{m.labelStyle}}">{{m.label}}</span>
+</sc-for>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 10px 32px; font-size: 14px; color: #6B6480">
+<span>Revenus sur 12 mois <strong style="color: #1E1830">40 180 €</strong></span>
+<span>Dépenses sur 12 mois <strong style="color: #1E1830">28 026 €</strong></span>
+<span>Épargné <strong style="color: #0F7A5F">+12 154 €</strong> (30 %)</span>
+</div>
+</section>
+
+<section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px">
+<div style="background: #FFFFFF; border: 1px solid #E7E3EF; border-radius: 18px; padding: 22px 24px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 12px"><h2 style="margin: 0; font-size: 17px; font-weight: 800">Par catégorie</h2><span style="font-size: 13px; color: #6B6480">Oct. 2026 vs oct. 2025 (barre fine)</span></div>
+<ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px">
+<sc-for list="{{cats}}" as="c" hint-placeholder-count="6">
+<li style="display: flex; flex-direction: column; gap: 6px; font-size: 14px">
+<span style="display: flex; align-items: center; gap: 10px"><span style="flex: 1; font-weight: 700">{{c.name}}</span><strong style="white-space: nowrap">{{c.amount}}</strong><span style="{{c.deltaStyle}}">{{c.delta}}</span></span>
+<span style="display: flex; flex-direction: column; gap: 3px">
+<span style="height: 10px; border-radius: 5px; background: #F0EEF5"><span style="{{c.barStyle}}"></span></span>
+<span style="height: 4px; border-radius: 2px; background: transparent"><span style="{{c.prevStyle}}"></span></span>
+</span>
+</li>
+</sc-for>
+</ul>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 16px">
+<div style="background: #2A1E3F; color: #FFFFFF; border-radius: 18px; padding: 22px 24px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 12px"><h2 style="margin: 0; font-size: 17px; font-weight: 800; color: #FFFFFF">Patrimoine net</h2><span style="font-size: 13px; color: #DCD3EC">+9 140 € sur 12 mois</span></div>
+<div style="font-size: 28px; font-weight: 800; letter-spacing: -0.02em">148 240 €</div>
+<svg width="100%" height="120" viewBox="0 0 560 160" preserveAspectRatio="none" role="img" aria-label="Patrimoine net en hausse régulière de 139 100 € à 148 240 € sur 12 mois">
+<polygon points="0,144 51,134 102,122 153,116 204,103 255,92 305,80 356,64 407,71 458,55 509,49 560,12 560,160 0,160" fill="{{accent}}" fill-opacity="0.22"></polygon>
+<polyline points="0,144 51,134 102,122 153,116 204,103 255,92 305,80 356,64 407,71 458,55 509,49 560,12" fill="none" stroke="{{accent}}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"></polyline>
+</svg>
+<div style="display: flex; justify-content: space-between; font-size: 11px; color: #DCD3EC"><span>nov. 2025</span><span>oct. 2026</span></div>
+</div>
+
+<div style="background: #FFFFFF; border: 1px solid #E7E3EF; border-radius: 18px; padding: 22px 24px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px"><h2 style="margin: 0; font-size: 17px; font-weight: 800">Top tiers sur 12 mois</h2><span style="font-size: 13px; color: #6B6480">hors crédit</span></div>
+<ol style="margin: 0; padding: 0 0 0 22px; display: flex; flex-direction: column; gap: 10px; font-size: 14px">
+<li><span style="display: flex; gap: 8px"><span style="flex: 1; font-weight: 700">Carrefour Market</span><span style="font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: #FDF0D9; color: #8A5A0B">Courses</span><strong style="width: 84px; text-align: right">3 912 €</strong></span></li>
+<li><span style="display: flex; gap: 8px"><span style="flex: 1; font-weight: 700">SNCF</span><span style="font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: #DDF3EF; color: #0F5E52">Transport</span><strong style="width: 84px; text-align: right">1 164 €</strong></span></li>
+<li><span style="display: flex; gap: 8px"><span style="flex: 1; font-weight: 700">EDF</span><span style="font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: #E5E8FD; color: #3341B8">Logement</span><strong style="width: 84px; text-align: right">1 104 €</strong></span></li>
+<li><span style="display: flex; gap: 8px"><span style="flex: 1; font-weight: 700">Amazon</span><span style="font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: #FCE3EA; color: #A61E48">Loisirs</span><strong style="width: 84px; text-align: right">986 €</strong></span></li>
+<li><span style="display: flex; gap: 8px"><span style="flex: 1; font-weight: 700">Le Petit Bistrot</span><span style="font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: #FDE7DE; color: #9A3412">Restaurants</span><strong style="width: 84px; text-align: right">612 €</strong></span></li>
+</ol>
+</div>
+</div>
+</section>
+
+<section style="background: #FFFFFF; border: 1px solid #E7E3EF; border-radius: 18px; padding: 22px 24px; display: flex; flex-direction: column; gap: 12px">
+<h2 style="margin: 0; font-size: 17px; font-weight: 800">Plus grosses dépenses d'octobre</h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px">
+<div style="border-radius: 14px; background: #E5E8FD; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700; color: #3341B8">05/10 · Logement</span><span style="font-weight: 700">Crédit immobilier</span><strong style="font-size: 20px">842,00 €</strong></div>
+<div style="border-radius: 14px; background: #FDF0D9; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700; color: #8A5A0B">03/10 · Courses</span><span style="font-weight: 700">Carrefour Market</span><strong style="font-size: 20px">97,15 €</strong></div>
+<div style="border-radius: 14px; background: #DDF3EF; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700; color: #0F5E52">17/10 · Transport</span><span style="font-weight: 700">SNCF</span><strong style="font-size: 20px">89,00 €</strong></div>
+<div style="border-radius: 14px; background: #FDF0D9; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700; color: #8A5A0B">19/10 · Courses</span><span style="font-weight: 700">Carrefour Market</span><strong style="font-size: 20px">64,28 €</strong></div>
+</div>
+</section>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#F26B3A","options":["#F26B3A","#F2A93B","#1F9E89","#E8547A"]},"$preview":{"width":1280,"height":1240}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { period: 'mois' };
+  }
+  renderVals() {
+    const accent = this.props.accent ?? '#F26B3A';
+    const labels = ['nov.', 'déc.', 'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.'];
+    const rev = [3280, 4100, 3280, 3280, 3280, 3280, 3280, 3280, 3280, 3280, 3280, 3280];
+    const dep = [2310, 2890, 2050, 1980, 2240, 2410, 2180, 2120, 3150, 2090, 2260, 2146];
+    const max = 4100;
+    const bar = (v, color, last) => 'display: block; width: 40%; max-width: 18px; border-radius: 5px 5px 0 0; height: ' + Math.round(v / max * 180) + 'px; background: ' + color + (last ? '' : '; opacity: 0.85');
+    const months = labels.map((label, i) => ({
+      label,
+      revStyle: bar(rev[i], '#5B6CF0', i === 11),
+      depStyle: bar(dep[i], accent, i === 11),
+      labelStyle: 'flex: 1; min-width: 0; text-align: center; font-size: 11px; color: ' + (i === 11 ? '#1E1830' : '#6B6480') + '; font-weight: ' + (i === 11 ? '800' : '500')
+    }));
+    const catData = [
+      ['Logement', 938, 921, '#5B6CF0'],
+      ['Courses', 412, 368, '#F2A93B'],
+      ['Restaurants', 214, 251, '#F26B3A'],
+      ['Transport', 186, 140, '#1F9E89'],
+      ['Loisirs', 158, 175, '#E8547A'],
+      ['Abonnements', 96, 71, '#3BA3D9']
+    ];
+    const cats = catData.map(([name, cur, prev, color]) => {
+      const pct = Math.round((cur - prev) / prev * 100);
+      const up = pct > 0;
+      return {
+        name,
+        amount: cur.toLocaleString('fr-FR') + ' €',
+        delta: (up ? '+' : '−') + Math.abs(pct) + ' %',
+        deltaStyle: 'width: 56px; text-align: center; font-size: 12px; font-weight: 800; padding: 2px 0; border-radius: 99px; ' + (up ? 'background: #FDE7DE; color: #9A3412' : 'background: #DDF3EF; color: #0F5E52'),
+        barStyle: 'display: block; height: 10px; border-radius: 5px; background: ' + color + '; width: ' + (cur / 938 * 100).toFixed(1) + '%',
+        prevStyle: 'display: block; height: 4px; border-radius: 2px; background: #B9B4C6; width: ' + (prev / 938 * 100).toFixed(1) + '%'
+      };
+    });
+    const periods = [['mois', 'Mois'], ['trimestre', 'Trimestre'], ['annee', 'Année']].map(([id, label]) => {
+      const on = this.state.period === id;
+      return {
+        label,
+        pressed: on ? 'true' : 'false',
+        pick: () => this.setState({ period: id }),
+        style: 'height: 38px; padding: 0 14px; border: 0; border-radius: 8px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; ' + (on ? 'background: #2A1E3F; color: #FFFFFF' : 'background: transparent; color: #1E1830')
+      };
+    });
+    return { accent, months, cats, periods };
+  }
+}
+</script>
+</body>
+</html>
