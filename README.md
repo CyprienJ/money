@@ -41,7 +41,7 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 
 #### Import et saisie
 - **Import CSV** avec mapping des colonnes. Le mapping est mémorisé par banque ou par format.
-- **Import PDF** des relevés, avec un parser par format de banque. On commence par la banque principale.
+- **Import PDF** des relevés, avec un parser par banque. La liste des banques prises en charge est affichée dans l'application. L'objectif à terme est de couvrir la majorité des banques françaises : un parser est ajouté dès qu'un relevé d'exemple anonymisé est disponible. En V1 : **Fortuneo** et **Trade Republic**.
 - **Contrôle des soldes à l'import** : quand le relevé fournit un solde initial et un solde final, on vérifie que `solde initial + Σ opérations = solde final`. En cas d'écart, l'import est signalé comme suspect et l'utilisateur choisit de l'annuler ou de le corriger.
 - **Détection des doublons** : une opération déjà présente (même compte, même date, même montant, même libellé brut) n'est pas réimportée. Les cas ambigus sont présentés à l'utilisateur.
 - **Annulation d'un import** : chaque import est un **lot**, et on peut supprimer un lot entier en une action.
@@ -214,7 +214,7 @@ Un import peut être annulé à tout moment en supprimant son lot.
 2. **Import CSV** : mapping des colonnes, détection des doublons, lots d'import et annulation, sauvegarde avant import
 3. **Catégorisation** : catégories, virement interne, normalisation des libellés, reprise automatique de catégorie
 4. **Premiers graphiques** : dépenses par catégorie, évolution du solde, revenus vs dépenses
-5. **Import PDF** : parser pour la banque principale et contrôle des soldes
+5. **Import PDF** : parsers Fortuneo et Trade Republic, liste des banques prises en charge, contrôle des soldes
 6. **Patrimoine** : comptes de placement, actifs, dettes, valorisations, patrimoine net
 7. **Finitions** : échéancier (affichage), comparaison de périodes, top tiers, tableau de bord
 
@@ -298,6 +298,7 @@ finances-perso/
 │       ├── labeling/             # label normalization, category memory
 │       └── stats/                # aggregation queries for charts (future AI tools)
 ├── tests/fixtures/               # anonymized real statements + expected results
+├── tools/                        # dev scripts (anonymize_pdf.py: PDF anonymization, PyMuPDF)
 └── .github/workflows/            # tauri-action build matrix
 ```
 
@@ -322,6 +323,5 @@ finances-perso/
 
 ## Questions ouvertes
 
-- Liste des banques et formats de relevés à supporter en premier
 - Profondeur de l'historique à importer au départ
 - Arborescence de catégories par défaut proposée au premier lancement
