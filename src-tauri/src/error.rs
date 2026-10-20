@@ -64,12 +64,29 @@ pub enum ErrorKind {
     Validation,
 }
 
-/// Error returned by commands to the frontend: `{ kind, message }`.
+/// Business error with its code and parameters, for a message in French on the frontend.
+#[derive(Serialize, Type)]
+#[serde(tag = "domain", content = "error", rename_all = "camelCase")]
+enum ErrorDetail {
+    Account(AccountError),
+    Operation(OperationError),
+    Category(CategoryError),
+    Schedule(ScheduleError),
+    Stats(StatsError),
+    Csv(CsvError),
+    CsvMapping(CsvMappingError),
+    Import(ImportError),
+    Pdf(PdfError),
+}
+
+/// Error returned by commands to the frontend: `{ kind, message, detail }`. `message` is the
+/// English description; `detail` is `null` for database, migration and I/O errors.
 #[derive(Serialize, Type)]
 #[serde(rename = "AppError")]
 struct ErrorPayload {
     kind: ErrorKind,
     message: String,
+    detail: Option<ErrorDetail>,
 }
 
 impl AppError {
@@ -91,11 +108,29 @@ impl AppError {
     }
 }
 
+impl AppError {
+    fn detail(&self) -> Option<ErrorDetail> {
+        Some(match self {
+            AppError::Database(_) | AppError::Migration(_) | AppError::Io(_) => return None,
+            AppError::Account(error) => ErrorDetail::Account(error.clone()),
+            AppError::Operation(error) => ErrorDetail::Operation(error.clone()),
+            AppError::Category(error) => ErrorDetail::Category(error.clone()),
+            AppError::Schedule(error) => ErrorDetail::Schedule(error.clone()),
+            AppError::Stats(error) => ErrorDetail::Stats(error.clone()),
+            AppError::Csv(error) => ErrorDetail::Csv(error.clone()),
+            AppError::CsvMapping(error) => ErrorDetail::CsvMapping(error.clone()),
+            AppError::Import(error) => ErrorDetail::Import(error.clone()),
+            AppError::Pdf(error) => ErrorDetail::Pdf(error.clone()),
+        })
+    }
+}
+
 impl Serialize for AppError {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         ErrorPayload {
             kind: self.kind(),
             message: self.to_string(),
+            detail: self.detail(),
         }
         .serialize(serializer)
     }
@@ -119,6 +154,30 @@ mod tests {
         let json = serde_json::to_value(&error).unwrap();
         assert_eq!(json["kind"], "io");
         assert_eq!(json["message"], "I/O error: disk full");
+        assert!(json["detail"].is_null());
+    }
+
+    #[test]
+    fn serializes_business_errors_with_code_and_params() {
+        let json = serde_json::to_value(AppError::from(CsvError::InvalidDate {
+            line: 4,
+            value: "32/09/2026".to_owned(),
+        }))
+        .unwrap();
+        assert_eq!(
+            json["detail"],
+            serde_json::json!({
+                "domain": "csv",
+                "error": { "code": "invalidDate", "params": { "line": 4, "value": "32/09/2026" } }
+            })
+        );
+        let json = serde_json::to_value(AppError::from(AccountError::EmptyName)).unwrap();
+        assert_eq!(
+            json["detail"],
+            serde_json::json!({ "domain": "account", "error": { "code": "emptyName" } })
+        );
+        let json = serde_json::to_value(AppError::from(AccountError::NotFound(3))).unwrap();
+        assert_eq!(json["detail"]["error"]["params"], 3);
     }
 
     #[test]

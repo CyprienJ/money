@@ -86,7 +86,14 @@ fn detect_among(
         .find(|parser| parser.recognizes(document))
 }
 
-#[derive(Debug, thiserror::Error)]
+/// Serialized for the frontend as `{ code, params }`, to show a message in French.
+#[derive(Debug, Clone, thiserror::Error, Serialize, Type)]
+#[serde(
+    tag = "code",
+    content = "params",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum PdfError {
     #[error("the PDFium library cannot be loaded ({0})")]
     LibraryUnavailable(String),

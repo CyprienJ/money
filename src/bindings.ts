@@ -110,6 +110,9 @@ export type Account = {
 	archived: boolean,
 };
 
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type AccountError = { code: "notFound"; params: number } | { code: "emptyName" } | { code: "valuationNotFound"; params: number } | { code: "notValued" } | { code: "negativeValuation" } | { code: "duplicateValuationDate"; params: string } | { code: "valuationBeforeOpening"; params: string };
+
 /**  An account with its balance at a given date. */
 export type AccountSummary = {
 	account: Account,
@@ -156,10 +159,14 @@ export type AmountColumns =
 /**  Separate debit and credit columns; their sign is ignored. */
 { kind: "debitCredit"; debit: number; credit: number };
 
-/**  Error returned by commands to the frontend: `{ kind, message }`. */
+/**
+ *  Error returned by commands to the frontend: `{ kind, message, detail }`. `message` is the
+ *  English description; `detail` is `null` for database, migration and I/O errors.
+ */
 export type AppError = {
 	kind: ErrorKind,
 	message: string,
+	detail: ErrorDetail | null,
 };
 
 export type BalanceCheck = {
@@ -213,6 +220,9 @@ export type CategoryComparison = {
 	previousCents: number,
 };
 
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type CategoryError = { code: "notFound"; params: number } | { code: "emptyName" } | { code: "duplicateName"; params: string } | { code: "systemCategoryLocked" } | { code: "invalidParent" } | { code: "hasSubcategories" } | { code: "reassignToSelf" };
+
 export type CategoryExpense = {
 	/**  `None` for uncategorized expenses. */
 	categoryId: number | null,
@@ -241,6 +251,29 @@ export type CategoryLevel =
 /**  Text encoding of a CSV file. */
 export type CsvEncoding = "UTF-8" | "ISO-8859-1" | "WINDOWS-1252";
 
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type CsvError = { code: "invalidDelimiter"; params: string } | { code: "emptyDateFormat" } | { code: "invalidDateFormat"; params: string } | { code: "invalidEncoding"; params: string } | { code: "malformed"; params: {
+	line: number,
+	message: string,
+} } | { code: "missingColumn"; params: {
+	line: number,
+	column: number,
+} } | { code: "invalidDate"; params: {
+	line: number,
+	value: string,
+} } | { code: "invalidAmount"; params: {
+	line: number,
+	value: string,
+} } | { code: "missingAmount"; params: {
+	line: number,
+} } | { code: "zeroAmount"; params: {
+	line: number,
+} } | { code: "bothDebitAndCredit"; params: {
+	line: number,
+} } | { code: "emptyLabel"; params: {
+	line: number,
+} };
+
 /**  How to read the CSV export of a bank. Column indexes are zero-based. */
 export type CsvMapping = {
 	delimiter: string,
@@ -255,6 +288,9 @@ export type CsvMapping = {
 	skipLines: number,
 };
 
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type CsvMappingError = { code: "notFound"; params: number } | { code: "emptyName" } | { code: "duplicateName"; params: string } | { code: "corrupt"; params: number };
+
 /**  First and last days of a period, both included. */
 export type DateRange = {
 	from: string,
@@ -267,6 +303,9 @@ export type DecimalSeparator = "," | ".";
 export type DuplicateStatus = { status: "new" } | { status: "duplicate"; operationId: number } | { status: "ambiguous"; reason: AmbiguityReason; 
 /**  Existing operations the line may duplicate. */
 candidateIds: number[] };
+
+/**  Business error with its code and parameters, for a message in French on the frontend. */
+export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError };
 
 /**  Stable identifier the frontend can match on. */
 export type ErrorKind = "database" | "migration" | "io" | 
@@ -302,6 +341,9 @@ export type ImportBatch = {
 	balanceCheckStatus: BalanceCheckStatus,
 	operationCount: number,
 };
+
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type ImportError = { code: "notFound"; params: number } | { code: "noLine" } | { code: "invalidLine" } | { code: "fileChanged" } | { code: "lineOutOfRange"; params: number } | { code: "duplicateLine"; params: number };
 
 /**  How to read a statement file. */
 export type ImportFormat = 
@@ -412,6 +454,9 @@ export type Operation = {
 	isInternalTransfer: boolean,
 };
 
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type OperationError = { code: "notFound"; params: number } | { code: "categoryNotFound"; params: number } | { code: "emptyLabel" } | { code: "zeroAmount" } | { code: "accountWithoutOperations" } | { code: "dateBeforeOpening"; params: string } | { code: "importedFieldsLocked" } | { code: "importedOperationNotDeletable" };
+
 /**  An operation in an account listing, with the account balance after it. */
 export type OperationRow = {
 	operation: Operation,
@@ -438,6 +483,9 @@ export type PayeeExpense = {
 	/**  Category holding most of the amount; `None` when mostly uncategorized. */
 	categoryId: number | null,
 };
+
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type PdfError = { code: "libraryUnavailable"; params: string } | { code: "invalidPdf"; params: string } | { code: "unknownFormat" } | { code: "layout"; params: string };
 
 export type PeriodIncomeExpenses = {
 	/**  First day of the month or year. */
@@ -483,6 +531,9 @@ export type SavedCsvMapping = {
 	mapping: CsvMapping,
 };
 
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type ScheduleError = { code: "notFound"; params: number } | { code: "emptyLabel" } | { code: "zeroAmount" } | { code: "invalidDay" } | { code: "endBeforeStart" } | { code: "accountWithoutOperations" } | { code: "categoryNotFound"; params: number };
+
 export type ScheduledOperation = {
 	id: number,
 	accountId: number,
@@ -509,6 +560,12 @@ export type ScheduledOperationInput = {
 };
 
 export type SourceType = "CSV" | "PDF";
+
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type StatsError = { code: "invalidPeriod"; params: {
+	from: string,
+	to: string,
+} };
 
 /**  A bank whose PDF statements can be imported. */
 export type SupportedBank = {

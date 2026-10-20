@@ -79,7 +79,14 @@ pub struct BalancePoint {
     pub balance_cents: i64,
 }
 
-#[derive(Debug, thiserror::Error)]
+/// Serialized for the frontend as `{ code, params }`, to show a message in French.
+#[derive(Debug, Clone, thiserror::Error, Serialize, Type)]
+#[serde(
+    tag = "code",
+    content = "params",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum StatsError {
     #[error("the period ends ({to}) before it starts ({from})")]
     InvalidPeriod { from: NaiveDate, to: NaiveDate },

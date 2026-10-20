@@ -1,4 +1,5 @@
 import type { AppError } from "../bindings";
+import { businessMessage } from "./errorMessages";
 
 type CommandResult<T> = { status: "ok"; data: T } | { status: "error"; error: AppError };
 
@@ -22,13 +23,15 @@ export async function unwrap<T>(result: Promise<CommandResult<T>>): Promise<T> {
 /** User-facing (French) message for an error thrown while calling the backend. */
 export function errorMessage(error: unknown): string {
   if (error instanceof CommandError) {
-    switch (error.appError.kind) {
+    const { kind, message, detail } = error.appError;
+    if (detail) return businessMessage(detail);
+    switch (kind) {
+      case "io":
+        return `Fichier inaccessible : ${message}.`;
       case "not_found":
         return "Cet élément n'existe plus. Recharge l'écran.";
-      case "validation":
-        return `Saisie refusée : ${error.appError.message}.`;
       default:
-        return `Erreur inattendue : ${error.appError.message}.`;
+        return `Erreur inattendue : ${message}.`;
     }
   }
   return `Erreur inattendue : ${String(error)}.`;

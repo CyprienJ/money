@@ -1,0 +1,213 @@
+import type {
+  AccountError,
+  CategoryError,
+  CsvError,
+  CsvMappingError,
+  ErrorDetail,
+  ImportError,
+  OperationError,
+  PdfError,
+  ScheduleError,
+  StatsError,
+} from "../bindings";
+import { formatDate } from "./format";
+
+/**
+ * French messages of the business errors. Each switch covers every code: a code added on the
+ * backend without its message fails the type check (see `unreachable`).
+ */
+
+function unreachable(value: never): never {
+  throw new Error(`unknown error ${JSON.stringify(value)}`);
+}
+
+function account(error: AccountError): string {
+  switch (error.code) {
+    case "notFound":
+      return "Ce compte n'existe plus.";
+    case "emptyName":
+      return "Le nom du compte est obligatoire.";
+    case "valuationNotFound":
+      return "Cette valorisation n'existe plus.";
+    case "notValued":
+      return "Les comptes courants, d'épargne et les cartes se suivent par leurs opérations, pas par des valorisations.";
+    case "negativeValuation":
+      return "Une valorisation ne peut pas être négative : pour une dette, saisis le capital restant dû.";
+    case "duplicateValuationDate":
+      return `Ce compte a déjà une valorisation au ${formatDate(error.params)}.`;
+    case "valuationBeforeOpening":
+      return `Une valorisation ne peut pas précéder l'ouverture du compte (${formatDate(error.params)}).`;
+  }
+  return unreachable(error);
+}
+
+function operation(error: OperationError): string {
+  switch (error.code) {
+    case "notFound":
+      return "Cette opération n'existe plus.";
+    case "categoryNotFound":
+      return "Cette catégorie n'existe plus.";
+    case "emptyLabel":
+      return "Le libellé est obligatoire.";
+    case "zeroAmount":
+      return "Le montant ne peut pas être nul.";
+    case "accountWithoutOperations":
+      return "Les placements, actifs et dettes n'ont pas d'opérations : ils se suivent par des valorisations.";
+    case "dateBeforeOpening":
+      return `La date ne peut pas précéder l'ouverture du compte (${formatDate(error.params)}) : ces opérations sont déjà comprises dans le solde d'ouverture.`;
+    case "importedFieldsLocked":
+      return "La date, le montant et le libellé d'une opération importée ne sont pas modifiables.";
+    case "importedOperationNotDeletable":
+      return "Une opération importée ne se supprime pas seule : annule son import.";
+  }
+  return unreachable(error);
+}
+
+function category(error: CategoryError): string {
+  switch (error.code) {
+    case "notFound":
+      return "Cette catégorie n'existe plus.";
+    case "emptyName":
+      return "Le nom de la catégorie est obligatoire.";
+    case "duplicateName":
+      return `Une catégorie « ${error.params} » existe déjà à cet endroit.`;
+    case "systemCategoryLocked":
+      return "La catégorie « Virement interne » ne peut être ni modifiée ni supprimée.";
+    case "invalidParent":
+      return "Une sous-catégorie se place sous une catégorie principale, autre que « Virement interne ».";
+    case "hasSubcategories":
+      return "Cette catégorie a des sous-catégories : déplace-les ou supprime-les d'abord.";
+    case "reassignToSelf":
+      return "Choisis une autre catégorie pour reprendre les opérations.";
+  }
+  return unreachable(error);
+}
+
+function schedule(error: ScheduleError): string {
+  switch (error.code) {
+    case "notFound":
+      return "Cette échéance n'existe plus.";
+    case "emptyLabel":
+      return "Le libellé est obligatoire.";
+    case "zeroAmount":
+      return "Le montant ne peut pas être nul.";
+    case "invalidDay":
+      return "Le jour doit être un jour de la semaine pour une échéance hebdomadaire, un jour de 1 à 31 sinon.";
+    case "endBeforeStart":
+      return "La date de fin ne peut pas précéder la date de début.";
+    case "accountWithoutOperations":
+      return "Une échéance se rattache à un compte courant, d'épargne ou à une carte.";
+    case "categoryNotFound":
+      return "Cette catégorie n'existe plus.";
+  }
+  return unreachable(error);
+}
+
+function stats(error: StatsError): string {
+  switch (error.code) {
+    case "invalidPeriod":
+      return `La période se termine (${formatDate(error.params.to)}) avant de commencer (${formatDate(error.params.from)}).`;
+  }
+  return unreachable(error.code);
+}
+
+function csv(error: CsvError): string {
+  switch (error.code) {
+    case "invalidDelimiter":
+      return "Le séparateur de colonnes doit être un caractère simple (; , | ou tabulation).";
+    case "emptyDateFormat":
+      return "Le format des dates est obligatoire.";
+    case "invalidDateFormat":
+      return `Le format de date « ${error.params} » n'est pas valide.`;
+    case "invalidEncoding":
+      return `Le fichier n'est pas encodé en ${error.params} : choisis un autre encodage dans le format.`;
+    case "malformed":
+      return `Ligne ${error.params.line} : ligne CSV mal formée.`;
+    case "missingColumn":
+      return `Ligne ${error.params.line} : la colonne ${error.params.column + 1} manque.`;
+    case "invalidDate":
+      return `Ligne ${error.params.line} : date « ${error.params.value} » illisible avec ce format.`;
+    case "invalidAmount":
+      return `Ligne ${error.params.line} : montant « ${error.params.value} » illisible.`;
+    case "missingAmount":
+      return `Ligne ${error.params.line} : aucun montant.`;
+    case "zeroAmount":
+      return `Ligne ${error.params.line} : montant nul.`;
+    case "bothDebitAndCredit":
+      return `Ligne ${error.params.line} : un débit et un crédit à la fois.`;
+    case "emptyLabel":
+      return `Ligne ${error.params.line} : libellé vide.`;
+  }
+  return unreachable(error);
+}
+
+function csvMapping(error: CsvMappingError): string {
+  switch (error.code) {
+    case "notFound":
+      return "Ce format n'existe plus.";
+    case "emptyName":
+      return "Le nom du format est obligatoire.";
+    case "duplicateName":
+      return `Un format « ${error.params} » existe déjà.`;
+    case "corrupt":
+      return "Ce format enregistré est illisible : supprime-le et recrée-le.";
+  }
+  return unreachable(error);
+}
+
+function importing(error: ImportError): string {
+  switch (error.code) {
+    case "notFound":
+      return "Cet import n'existe plus.";
+    case "noLine":
+      return "Aucune opération à importer : coche au moins une ligne.";
+    case "invalidLine":
+      return "Une ligne du relevé a un libellé vide ou un montant nul.";
+    case "fileChanged":
+      return "Le fichier a changé depuis l'aperçu : recommence l'import.";
+    case "lineOutOfRange":
+      return `La ligne ${error.params + 1} de l'aperçu n'existe pas : recommence l'import.`;
+    case "duplicateLine":
+      return `La ligne ${error.params + 1} est déjà dans le compte et ne peut pas être réimportée.`;
+  }
+  return unreachable(error);
+}
+
+function pdf(error: PdfError): string {
+  switch (error.code) {
+    case "libraryUnavailable":
+      return "La bibliothèque de lecture des PDF (PDFium) est introuvable : réinstalle l'application.";
+    case "invalidPdf":
+      return "Ce fichier n'est pas un PDF lisible.";
+    case "unknownFormat":
+      return "Ce PDF n'est pas un relevé d'une banque prise en charge.";
+    case "layout":
+      return `La mise en page de ce relevé n'est pas celle attendue (${error.params}).`;
+  }
+  return unreachable(error);
+}
+
+/** French message of a business error. */
+export function businessMessage(detail: ErrorDetail): string {
+  switch (detail.domain) {
+    case "account":
+      return account(detail.error);
+    case "operation":
+      return operation(detail.error);
+    case "category":
+      return category(detail.error);
+    case "schedule":
+      return schedule(detail.error);
+    case "stats":
+      return stats(detail.error);
+    case "csv":
+      return csv(detail.error);
+    case "csvMapping":
+      return csvMapping(detail.error);
+    case "import":
+      return importing(detail.error);
+    case "pdf":
+      return pdf(detail.error);
+  }
+  return unreachable(detail);
+}

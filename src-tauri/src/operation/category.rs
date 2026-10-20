@@ -51,7 +51,14 @@ pub struct CategoryInput {
     pub is_income: bool,
 }
 
-#[derive(Debug, thiserror::Error)]
+/// Serialized for the frontend as `{ code, params }`, to show a message in French.
+#[derive(Debug, Clone, thiserror::Error, Serialize, Type)]
+#[serde(
+    tag = "code",
+    content = "params",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum CategoryError {
     #[error("category {0} not found")]
     NotFound(i64),
