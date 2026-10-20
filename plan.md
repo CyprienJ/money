@@ -42,9 +42,9 @@ Remplacer le projet Cargo actuel (`Cargo.toml` et `src/main.rs` à la racine) pa
 
 #### V1-00.5 · Outillage qualité et CI — S
 - [x] Vitest configuré côté front (fait avec V1-00.4).
-- [ ] GitHub Actions : `cargo check/test/clippy` + `npm run build` sur `ubuntu-latest` et `windows-latest`.
-- [ ] Workflow `tauri-action` pour les artefacts (`.msi`/NSIS, `.deb`, `.rpm`, AppImage).
-- [ ] Vérification précoce du rendu d'ECharts sous WebView2 et WebKitGTK (point d'attention du README).
+- [x] GitHub Actions : `cargo check/test/clippy` + `npm run build` sur `ubuntu-latest` et `windows-latest`.
+- [x] Workflow `tauri-action` pour les artefacts (`.msi`/NSIS, `.deb`, `.rpm`, AppImage).
+- Vérification du rendu d'ECharts sous WebView2 et WebKitGTK : reportée à V1-04.2, à l'installation de vue-echarts.
 
 ---
 
@@ -158,6 +158,7 @@ Module `stats/`, signatures claires (futurs outils de l'assistant IA). Toutes pa
 
 #### V1-04.2 · Intégration ECharts — S
 - [ ] `vue-echarts` installé, thème ECharts basé sur les tokens CSS.
+- [ ] Rendu et performances d'ECharts vérifiés sous WebKitGTK (Linux) et WebView2 (Windows).
 - [ ] Builders d'options dans `src/charts/`.
 
 #### V1-04.3 · Écran Analyses (première version) — L
