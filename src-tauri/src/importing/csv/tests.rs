@@ -294,3 +294,36 @@ fn recurring_payees_keep_their_normalized_label_from_one_month_to_the_next() {
         );
     }
 }
+
+#[test]
+fn ignores_a_time_after_the_date() {
+    // Revolut export: comma separated, ISO date and time, one signed amount column.
+    let mapping = CsvMapping {
+        delimiter: ',',
+        encoding: CsvEncoding::Utf8,
+        date_format: "%Y-%m-%d".to_owned(),
+        decimal_separator: DecimalSeparator::Dot,
+        column_date: 2,
+        column_label: 4,
+        amount_columns: AmountColumns::Signed { amount: 5 },
+        skip_lines: 1,
+    };
+    let text = "Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance\n\
+                CARD_PAYMENT,Current,2025-04-01 13:58:02,2025-04-02 09:12:44,Boulangerie,-4.20,0.00,EUR,COMPLETED,120.30\n\
+                TOPUP,Current,2025-04-03T08:00:00,2025-04-03 08:00:01,Top-up,50.00,0.00,EUR,COMPLETED,170.30\n";
+    let lines = parse_text(text, &mapping).unwrap();
+    assert_eq!(
+        lines,
+        vec![
+            line("2025-04-01", "Boulangerie", -420),
+            line("2025-04-03", "Top-up", 5_000),
+        ]
+    );
+
+    // Anything else after the date is still refused.
+    let error = parse_text("x\nA,B,2025-04-01 garbage,C,D,-1.00\n", &mapping).unwrap_err();
+    assert!(
+        matches!(error, CsvError::InvalidDate { line: 2, .. }),
+        "{error:?}"
+    );
+}

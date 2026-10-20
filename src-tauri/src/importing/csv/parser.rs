@@ -62,6 +62,19 @@ fn file_line(data: &str, skipped: u32, position: Option<&csv::Position>) -> u64 
     u64::from(skipped) + newlines as u64 + 1
 }
 
+/// Date at the start of `text` in `format`, ignoring a time after it: some banks export
+/// `2025-04-01 13:58:02` or `2025-04-01T13:58:02`.
+fn parse_date(text: &str, format: &str) -> Option<NaiveDate> {
+    let (date, rest) = NaiveDate::parse_and_remainder(text, format).ok()?;
+    let time = rest.trim_start_matches([' ', 'T']);
+    let is_time = rest.is_empty()
+        || (rest.len() > time.len()
+            && time
+                .chars()
+                .all(|c| c.is_ascii_digit() || matches!(c, ':' | '.' | 'Z' | '+' | '-')));
+    is_time.then_some(date)
+}
+
 fn skip_lines(text: &str, count: usize) -> &str {
     if count == 0 {
         return text;
@@ -91,12 +104,11 @@ fn read_line(
     };
 
     let date_text = field(mapping.column_date)?;
-    let date = NaiveDate::parse_from_str(date_text, &mapping.date_format).map_err(|_| {
-        CsvError::InvalidDate {
+    let date =
+        parse_date(date_text, &mapping.date_format).ok_or_else(|| CsvError::InvalidDate {
             line,
             value: date_text.to_owned(),
-        }
-    })?;
+        })?;
 
     let label = field(mapping.column_label)?;
     if label.is_empty() {
