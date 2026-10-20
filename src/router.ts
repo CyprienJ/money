@@ -1,7 +1,6 @@
 import { createRouter, createWebHashHistory } from "vue-router";
 import AccountsView from "./views/AccountsView.vue";
 import CategoriesView from "./views/CategoriesView.vue";
-import DashboardView from "./views/DashboardView.vue";
 import ImportView from "./views/ImportView.vue";
 import OperationsView from "./views/OperationsView.vue";
 import ScheduleView from "./views/ScheduleView.vue";
@@ -11,10 +10,10 @@ import SettingsView from "./views/SettingsView.vue";
 export const router = createRouter({
   history: createWebHashHistory(),
   routes: [
-    { path: "/", name: "dashboard", component: DashboardView },
+    // Dashboard and Analyses are loaded on demand: they bring ECharts, the largest dependency.
+    { path: "/", name: "dashboard", component: () => import("./views/DashboardView.vue") },
     { path: "/operations", name: "operations", component: OperationsView },
     { path: "/import", name: "import", component: ImportView },
-    // Loaded on demand: it brings ECharts, the largest dependency.
     { path: "/analyses", name: "analyses", component: () => import("./views/AnalysesView.vue") },
     { path: "/accounts", name: "accounts", component: AccountsView },
     { path: "/schedule", name: "schedule", component: ScheduleView },

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Category } from "../bindings";
-import { categorySlices, comparisonSlices, trendTotals, variationPercent } from "./analyses";
+import { categorySlices, comparisonSlices, legendSlices, trendTotals, variationPercent } from "./analyses";
 
 describe("trendTotals", () => {
   it("sums income and expenses and computes the savings rate", () => {
@@ -71,5 +71,23 @@ describe("comparisons", () => {
     expect(variationPercent(93800, 92100)).toBe(2);
     expect(variationPercent(21400, 25100)).toBe(-15);
     expect(variationPercent(500, 0)).toBe(null);
+  });
+});
+
+describe("legendSlices", () => {
+  const slice = (name: string, amountCents: number) => ({ name, color: "housing" as const, amountCents });
+
+  it("keeps up to seven categories as they are", () => {
+    const slices = [slice("A", 1), slice("B", 3), slice("C", 2)];
+    expect(legendSlices(slices).map((s) => s.name)).toEqual(["B", "C", "A"]);
+  });
+
+  it("groups the smallest ones beyond six", () => {
+    const slices = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => slice(`C${n}`, n * 100));
+    const legend = legendSlices(slices);
+    expect(legend).toHaveLength(7);
+    expect(legend[6]).toEqual({ name: "C3, autres", color: "neutral", amountCents: 600 });
+    // Two left: both named.
+    expect(legendSlices(slices.slice(1)).at(-1)?.name).toBe("C3, C2");
   });
 });

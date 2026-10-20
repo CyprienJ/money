@@ -242,11 +242,12 @@ Maquette : `Analyses.dc.html`.
 
 #### V1-07.4 · Tableau de bord — L
 Maquette : `Dashboard.dc.html`.
-- [ ] Navigation par mois (‹ Octobre 2026 ›), bouton « Importer un relevé ».
-- [ ] Indicateurs : patrimoine net (+ variation), disponible (courants + épargne), dépenses du mois (vs mois précédent), revenus du mois (+ reste).
-- [ ] Dépenses par catégorie (anneau + légende), évolution du disponible sur 12 mois.
-- [ ] Carte Comptes (soldes, dernier import / dernière valorisation, « + Ajouter »).
-- [ ] Prochaines échéances (15 jours) et top tiers du mois.
+- [x] Navigation par mois (‹ Octobre 2026 ›), bouton « Importer un relevé ».
+- [x] Indicateurs : patrimoine net (+ variation vs fin du mois précédent), disponible (courants + épargne, cartes déduites), dépenses du mois (vs mois précédent), revenus du mois (+ reste).
+- [x] Dépenses par catégorie (anneau + légende, petites catégories regroupées), évolution du disponible sur 12 mois.
+- [x] Carte Comptes (soldes, dernier import / dernière valorisation, « + Ajouter »).
+- [x] Prochaines échéances (15 jours) et top tiers du mois (barres ECharts, comme les autres graphiques).
+- État vide (aucun compte) : invitation à créer un compte ou importer un relevé. Écran chargé à la demande avec ECharts.
 
 #### V1-07.5 · Paramètres et finitions — S
 - [ ] Écran Paramètres : emplacement des données, dossier des sauvegardes, mappings CSV enregistrés.

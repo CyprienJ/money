@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  availableHistoryOption,
   balanceHistoryOption,
   categoryBarsOption,
   categoryDonutOption,
+  compactEuros,
   incomeExpensesOption,
   netWorthOption,
   periodLabel,
@@ -162,5 +164,21 @@ describe("categoryBarsOption with a comparison", () => {
     const option = categoryBarsOption([{ name: "Courses", color: "groceries", amountCents: 41200 }], tokens);
     expect(option.series).toHaveLength(1);
     expect((option.series[0] as LabelledSeries).label.formatter({ dataIndex: 0 })).toBe("{amount|412\u00a0€}");
+  });
+});
+
+describe("availableHistoryOption", () => {
+  it("names months, marks the last point and labels it", () => {
+    const option = availableHistoryOption(
+      [
+        { date: "2026-09-30", balanceCents: 2_200_000 },
+        { date: "2026-10-31", balanceCents: 2_341_000 },
+      ],
+      tokens,
+    );
+    expect(option.xAxis.data).toEqual(["sept.", "oct."]);
+    expect(option.series[0].data.map((d) => d.symbol)).toEqual(["none", "circle"]);
+    expect(option.series[0].endLabel.formatter({ value: 2_341_000 } as never)).toBe("23\u00a0410\u00a0€");
+    expect(compactEuros(2_400_000)).toBe("24 k");
   });
 });

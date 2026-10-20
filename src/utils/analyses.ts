@@ -65,3 +65,22 @@ export function variationPercent(current: number, previous: number): number | nu
   if (previous <= 0) return null;
   return Math.round(((current - previous) * 100) / previous);
 }
+
+/**
+ * Slices of the dashboard ring and legend: the `max` largest categories, the others grouped
+ * under their names when there are two ("Santé, Autres"), or the first one followed by
+ * "autres" ("Santé, autres").
+ */
+export function legendSlices(slices: CategorySlice[], max = 6): CategorySlice[] {
+  const sorted = [...slices].sort((a, b) => b.amountCents - a.amountCents);
+  if (sorted.length <= max + 1) return sorted;
+  const rest = sorted.slice(max);
+  return [
+    ...sorted.slice(0, max),
+    {
+      name: rest.length === 2 ? `${rest[0].name}, ${rest[1].name}` : `${rest[0].name}, autres`,
+      color: "neutral",
+      amountCents: rest.reduce((sum, s) => sum + s.amountCents, 0),
+    },
+  ];
+}

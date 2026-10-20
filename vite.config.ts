@@ -8,8 +8,8 @@ export default defineConfig({
   plugins: [vue()],
   clearScreen: false,
   build: {
-    // The Analyses chunk carries ECharts (~620 kB). The app is read from disk, not
-    // downloaded, so the default 500 kB warning does not apply.
+    // The chart chunk shared by the Dashboard and Analyses screens carries ECharts (~620 kB).
+    // The app is read from disk, not downloaded, so the default 500 kB warning does not apply.
     chunkSizeWarningLimit: 800,
   },
   server: {

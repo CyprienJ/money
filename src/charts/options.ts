@@ -276,3 +276,57 @@ export function netWorthOption(points: NetWorth[], tokens: ChartTokens) {
     ],
   };
 }
+
+/** "24 k" for 2 400 000 cents, as on the dashboard axis. */
+export function compactEuros(cents: number): string {
+  return `${Math.round(cents / 100_000)} k`;
+}
+
+/**
+ * "Évolution du disponible" of the dashboard: green line over a light area, month names, the
+ * last value in a green badge.
+ */
+export function availableHistoryOption(points: BalancePoint[], tokens: ChartTokens) {
+  const green = tokens.categories.transport;
+  const last = points.length - 1;
+  return {
+    grid: { left: 8, right: 70, top: 16, bottom: 8, containLabel: true },
+    tooltip: {
+      trigger: "axis",
+      formatter: (params: TooltipParam[]) => {
+        const point = points[(params[0] as unknown as { dataIndex: number }).dataIndex];
+        return `${formatDate(point.date)}<br><b>${formatAmount(point.balanceCents)}</b>`;
+      },
+    },
+    xAxis: {
+      type: "category",
+      boundaryGap: false,
+      data: points.map((p) => periodLabel(p.date, "month")),
+    },
+    yAxis: { type: "value", scale: true, splitNumber: 2, axisLabel: { formatter: compactEuros } },
+    series: [
+      {
+        type: "line",
+        data: points.map((p, index) => ({
+          value: p.balanceCents,
+          symbol: index === last ? "circle" : "none",
+          symbolSize: 12,
+          itemStyle: { color: tokens.card, borderColor: green, borderWidth: 3 },
+        })),
+        lineStyle: { color: green, width: 3 },
+        areaStyle: { color: green, opacity: 0.12 },
+        endLabel: {
+          show: true,
+          formatter: (p: TooltipParam) => euros(p.value),
+          backgroundColor: tokens.decrease.background,
+          color: tokens.decrease.text,
+          fontSize: 12,
+          fontWeight: 800,
+          padding: [3, 8],
+          borderRadius: 8,
+          offset: [-8, -16],
+        },
+      },
+    ],
+  };
+}
