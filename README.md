@@ -147,7 +147,7 @@ operation_split          -- one row per operation in V1; several rows once split
   id, operation_id, category_id, amount_cents
 
 category
-  id, name, parent_id, is_internal_transfer (system flag), is_income
+  id, name, parent_id, color, is_internal_transfer (system flag), is_income
 
 import_batch
   id, account_id, source_type (CSV | PDF), source_file_name, source_file_hash,
@@ -166,13 +166,19 @@ valuation                -- history of value for INVESTMENT / ASSET / LIABILITY 
 
 scheduled_operation      -- schedule (display only in V1)
   id, account_id, label, amount_cents, category_id,
-  frequency (MONTHLY | QUARTERLY | YEARLY | ...), day_of_period, start_date, end_date
+  frequency (WEEKLY | MONTHLY | QUARTERLY | SEMIANNUAL | YEARLY), day_of_period, start_date, end_date
 
 -- Prévus (V2+) : payee, payee_alias, tag, operation_tag, attachment,
 --               categorization_rule, security, security_price, investment_transaction
 ```
 
 Note : la catégorie est portée par `operation_split` dès la V1. Ainsi, l'arrivée de la ventilation ne change aucune requête de statistique.
+
+Conventions de stockage :
+- **Dates** en `TEXT` ISO : `YYYY-MM-DD` pour les dates, `YYYY-MM-DDTHH:MM:SSZ` (UTC) pour les horodatages (`created_at`, `imported_at`…).
+- **Énumérations** en `TEXT` avec une contrainte `CHECK` sur les valeurs autorisées.
+- **Couleur de catégorie** : une famille de couleurs du design (`housing`, `groceries`, `restaurants`, `transport`, `leisure`, `subscriptions`, `health`, `neutral`), pas un code hexadécimal.
+- **Migrations** : jusqu'à la première release, la migration initiale est modifiée directement (supprimer son `money.sqlite` local quand elle change) ; ensuite, chaque évolution du schéma est une nouvelle migration.
 
 ---
 
@@ -228,7 +234,7 @@ L'application est une **application de bureau Tauri**. L'interface est écrite e
 |---|---|---|
 | Framework applicatif | **Tauri 2** | Fenêtre native, IPC, permissions par commande (*capabilities*), bundler |
 | Langage backend | **Rust** | Logique métier, import, normalisation, statistiques |
-| Base de données | **SQLite** via **sqlx** | Requêtes vérifiées à la compilation ; un seul fichier de données |
+| Base de données | **SQLite** via **sqlx** | Requêtes vérifiées à la compilation ; un seul fichier de données. Le cache `.sqlx/` (généré par `cargo sqlx prepare`, outil **sqlx-cli**) est commité pour compiler sans base, en CI notamment |
 | Migrations | **sqlx migrate** | Fichiers SQL versionnés, appliqués au démarrage |
 | Montants | `i64` en centimes | Jamais de flottant ; `rust_decimal` si des calculs de taux l'exigent |
 | Dates | **chrono** (ou **time**) | |
