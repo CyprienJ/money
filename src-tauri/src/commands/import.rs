@@ -7,6 +7,7 @@ use crate::error::{AppError, AppResult};
 use crate::importing::batch::{self, ImportBatch};
 use crate::importing::csv::{self, CsvEncoding};
 use crate::importing::csv_import::{self, CsvFile, ImportPreview, ImportSelection};
+use crate::importing::pdf::{self, SupportedBank};
 
 /// Lines shown when defining a CSV mapping.
 const HEAD_LINES: usize = 12;
@@ -79,6 +80,34 @@ fn csv_file<'a>(path: &'a str, account_id: i64, mapping_id: i64, bytes: &'a [u8]
         file_name,
         bytes,
     }
+}
+
+/// Banks whose PDF statements can be imported.
+#[tauri::command]
+#[specta::specta]
+pub fn supported_banks() -> Vec<SupportedBank> {
+    pdf::supported_banks()
+}
+
+/// Bank of the PDF statement at `path`, `null` when no parser recognizes it.
+#[tauri::command]
+#[specta::specta]
+pub async fn detect_pdf_statement(
+    app: AppHandle,
+    path: String,
+) -> AppResult<Option<SupportedBank>> {
+    let bytes = std::fs::read(path)?;
+    let document = pdf::extract(&pdfium_dir(&app)?, &bytes)?;
+    Ok(pdf::detect(&document).map(SupportedBank::of))
+}
+
+/// Directory of the PDFium library, bundled as a resource (`tauri.<os>.conf.json`).
+fn pdfium_dir(app: &AppHandle) -> AppResult<PathBuf> {
+    let resources = app
+        .path()
+        .resource_dir()
+        .map_err(|error| AppError::Io(std::io::Error::other(error)))?;
+    Ok(resources.join("pdfium"))
 }
 
 /// `backups/` in the application data directory (README, storage).

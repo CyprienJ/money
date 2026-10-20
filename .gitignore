@@ -16,3 +16,6 @@ node_modules/
 
 # sqlx development database (see src-tauri/.env)
 /src-tauri/dev.sqlite*
+
+# PDFium library, downloaded by tools/fetch_pdfium.sh
+/src-tauri/pdfium/

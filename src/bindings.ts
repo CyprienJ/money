@@ -52,6 +52,13 @@ export const commands = {
 	 *  `file_hash` comes from the preview and guards against a file changed in between.
 	 */
 	importCsv: (path: string, accountId: number, mappingId: number, fileHash: string, selections: ImportSelection[]) => typedError<ImportBatch, AppError>(__TAURI_INVOKE("import_csv", { path, accountId, mappingId, fileHash, selections })),
+	/**  Banks whose PDF statements can be imported. */
+	supportedBanks: () => __TAURI_INVOKE<SupportedBank[]>("supported_banks"),
+	/**  Bank of the PDF statement at `path`, `null` when no parser recognizes it. */
+	detectPdfStatement: (path: string) => typedError<{
+	id: string,
+	name: string,
+} | null, AppError>(__TAURI_INVOKE("detect_pdf_statement", { path })),
 	/**
 	 *  Net expenses by category between `from` and `to` (included), internal transfers excluded.
 	 *  `accounts`: `null` for every account with operations.
@@ -373,6 +380,12 @@ export type SavedCsvMapping = {
 };
 
 export type SourceType = "CSV" | "PDF";
+
+/**  A bank whose PDF statements can be imported. */
+export type SupportedBank = {
+	id: string,
+	name: string,
+};
 
 /* Tauri Specta runtime */
 async function typedError<T, E>(result: Promise<T>): Promise<{ status: "ok"; data: T } | { status: "error"; error: E }> {

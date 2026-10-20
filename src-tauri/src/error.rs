@@ -5,6 +5,7 @@ use specta::datatype::DataType;
 use crate::account::AccountError;
 use crate::importing::batch::ImportError;
 use crate::importing::csv::{CsvError, CsvMappingError};
+use crate::importing::pdf::PdfError;
 use crate::operation::OperationError;
 use crate::operation::category::CategoryError;
 use crate::stats::StatsError;
@@ -41,6 +42,9 @@ pub enum AppError {
 
     #[error(transparent)]
     Import(#[from] ImportError),
+
+    #[error(transparent)]
+    Pdf(#[from] PdfError),
 }
 
 /// Stable identifier the frontend can match on.
@@ -77,6 +81,7 @@ impl AppError {
             AppError::Csv(error) => error.kind(),
             AppError::CsvMapping(error) => error.kind(),
             AppError::Import(error) => error.kind(),
+            AppError::Pdf(error) => error.kind(),
         }
     }
 }

@@ -4,6 +4,13 @@ pub mod batch;
 pub mod csv;
 pub mod csv_import;
 pub mod duplicates;
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "statements are parsed by the bank parsers of V1-05.2"
+    )
+)]
 pub mod pdf;
 
 use chrono::NaiveDate;

@@ -54,6 +54,11 @@ jobs:
       - name: Frontend build
         run: npm run build
 
+      # Native PDF library, bundled as a resource and used by the PDF import tests.
+      - name: Download PDFium
+        shell: bash
+        run: tools/fetch_pdfium.sh
+
       - name: cargo check
         working-directory: src-tauri
         run: cargo check --all-targets

@@ -250,7 +250,7 @@ L'application est une **application de bureau Tauri**. L'interface est écrite e
 | Erreurs | **thiserror** (domaine) / **anyhow** (outillage) | Erreurs typées remontées au front |
 | Import CSV | crate **csv** + **encoding_rs** | Séparateur `;`, encodage ISO-8859-1 / Windows-1252 courants |
 | Empreinte des fichiers importés | crate **sha2** | SHA-256 du fichier source (`source_file_hash`), pour signaler un fichier déjà importé |
-| Import PDF | **pdfium-render** | Texte avec positions via PDFium ; bibliothèque PDFium embarquée dans le bundle |
+| Import PDF | **pdfium-render** | Texte avec positions via PDFium ; bibliothèque PDFium embarquée dans le bundle. Version épinglée (binaires `bblanchon/pdfium-binaries`, `chromium/7881`, vérifiés par SHA-256), téléchargée dans `src-tauri/pdfium/` par `tools/fetch_pdfium.sh`, à lancer une fois avant de compiler |
 | Normalisation des libellés | crate **regex** | |
 | Frontend | **Vue 3 + TypeScript + Vite** | |
 | Navigation | **Vue Router** | Un écran par entrée de la barre latérale |
@@ -301,7 +301,7 @@ finances-perso/
 │       ├── labeling/             # label normalization, category memory
 │       └── stats/                # aggregation queries for charts (future AI tools)
 ├── tests/fixtures/               # anonymized real statements + expected results
-├── tools/                        # dev scripts (anonymize_pdf.py: PDF anonymization, PyMuPDF)
+├── tools/                        # dev scripts (anonymize_pdf.py: PDF anonymization; fetch_pdfium.sh: PDFium library)
 └── .github/workflows/            # tauri-action build matrix
 ```
 

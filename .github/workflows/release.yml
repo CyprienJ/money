@@ -43,6 +43,11 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      # Native PDF library, bundled as a resource.
+      - name: Download PDFium
+        shell: bash
+        run: tools/fetch_pdfium.sh
+
       # .deb, .rpm and AppImage on Linux; .msi and NSIS on Windows.
       - uses: tauri-apps/tauri-action@v1
         env:

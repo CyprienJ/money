@@ -48,6 +48,8 @@ pub fn builder() -> Builder<tauri::Wry> {
             import::read_file_head,
             import::preview_csv_import,
             import::import_csv,
+            import::supported_banks,
+            import::detect_pdf_statement,
             stats::expenses_by_category,
             stats::income_vs_expenses,
             stats::balance_history,

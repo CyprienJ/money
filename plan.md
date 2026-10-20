@@ -181,9 +181,11 @@ Maquette : `Analyses.dc.html`.
 ### Étape 5 — Import PDF
 
 #### V1-05.1 · Infrastructure PDF — M
-- [ ] `pdfium-render` avec la bibliothèque PDFium embarquée dans le bundle (Linux et Windows).
-- [ ] Trait `StatementParser` : détection du format, extraction des `RawLine` + soldes initial et final + période.
-- [ ] Détection automatique du parser à partir du contenu (« Format reconnu : … »).
+- [x] `pdfium-render` avec la bibliothèque PDFium embarquée dans le bundle (Linux et Windows) : `tools/fetch_pdfium.sh` (version épinglée, SHA-256), ressources `tauri.linux.conf.json` / `tauri.windows.conf.json`, téléchargement en CI. Windows non testé localement : à confirmer par la CI.
+- [x] Extraction du texte avec positions (lignes triées, éléments de gauche à droite), testée sur les relevés Fortuneo et Trade Republic.
+- [x] Trait `StatementParser` : détection du format, extraction des `RawLine` + soldes initial et final + période.
+- [x] Détection automatique du parser à partir du contenu (commande `detect_pdf_statement`), liste `supported_banks`. Le « Format reconnu : … » s'affichera avec les parsers (V1-05.2).
+- Retirer en V1-05.2 l'`allow(dead_code)` temporaire du module `importing::pdf`.
 
 #### V1-05.2 · Parsers Fortuneo et Trade Republic — L
 - [ ] Un parser par banque : Fortuneo (compte courant), Trade Republic (compte courant) ; fixtures anonymisées dans `tests/fixtures/` + résultats attendus.
