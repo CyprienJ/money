@@ -30,6 +30,7 @@ pub fn builder() -> Builder<tauri::Wry> {
             operation::update_operation,
             operation::set_operation_category,
             operation::delete_operation,
+            operation::list_categories,
         ])
         .typ::<AppError>()
         // Amounts are i64 cents: exact as a JS number up to 2^53 (README, stack).

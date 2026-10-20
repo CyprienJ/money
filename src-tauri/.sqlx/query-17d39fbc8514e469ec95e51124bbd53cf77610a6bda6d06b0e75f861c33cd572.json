@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO category (id, name, color, is_income) VALUES (10, 'Revenus', 'transport', 1);\n                 INSERT INTO category (name, parent_id, color, is_income) VALUES ('Salaire', 10, 'transport', 1);",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "17d39fbc8514e469ec95e51124bbd53cf77610a6bda6d06b0e75f861c33cd572"
+}

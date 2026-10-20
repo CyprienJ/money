@@ -23,6 +23,7 @@ export const commands = {
 	updateOperation: (id: number, changes: OperationUpdate) => typedError<Operation, AppError>(__TAURI_INVOKE("update_operation", { id, changes })),
 	setOperationCategory: (id: number, categoryId: number | null) => typedError<Operation, AppError>(__TAURI_INVOKE("set_operation_category", { id, categoryId })),
 	deleteOperation: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_operation", { id })),
+	listCategories: () => typedError<Category[], AppError>(__TAURI_INVOKE("list_categories")),
 };
 
 /* Types */
@@ -67,6 +68,24 @@ export type AppError = {
 	kind: ErrorKind,
 	message: string,
 };
+
+export type Category = {
+	id: number,
+	name: string,
+	/**  `None` for a top-level category. Two levels at most. */
+	parentId: number | null,
+	color: CategoryColor,
+	/**  System category excluded from income and expense statistics. */
+	isInternalTransfer: boolean,
+	isIncome: boolean,
+};
+
+/**  Color family of a category, mapped to the `--cat-<color>` design tokens. */
+export type CategoryColor = "housing" | "groceries" | "restaurants" | 
+/**  Transport and income. */
+"transport" | "leisure" | "subscriptions" | "health" | 
+/**  Internal transfer and other. */
+"neutral";
 
 /**  Stable identifier the frontend can match on. */
 export type ErrorKind = "database" | "migration" | "io" | 

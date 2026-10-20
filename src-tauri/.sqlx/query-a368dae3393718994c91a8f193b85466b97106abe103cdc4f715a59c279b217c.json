@@ -1,0 +1,86 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id, name, parent_id, color AS \"color: CategoryColor\",\n                  is_internal_transfer AS \"is_internal_transfer: bool\", is_income AS \"is_income: bool\"\n           FROM category\n           ORDER BY name COLLATE NOCASE",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "category",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "name",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "category",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "parent_id",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "category",
+            "name": "parent_id"
+          }
+        }
+      },
+      {
+        "name": "color: CategoryColor",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "category",
+            "name": "color"
+          }
+        }
+      },
+      {
+        "name": "is_internal_transfer: bool",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "category",
+            "name": "is_internal_transfer"
+          }
+        }
+      },
+      {
+        "name": "is_income: bool",
+        "ordinal": 5,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "category",
+            "name": "is_income"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "a368dae3393718994c91a8f193b85466b97106abe103cdc4f715a59c279b217c"
+}

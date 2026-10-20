@@ -3,6 +3,7 @@ use sqlx::SqlitePool;
 use tauri::State;
 
 use crate::error::AppResult;
+use crate::operation::category::{self, Category};
 use crate::operation::{self, NewOperation, Operation, OperationRow, OperationUpdate};
 
 /// Operations of an account, most recent first, with the balance after each one.
@@ -56,4 +57,10 @@ pub async fn set_operation_category(
 #[specta::specta]
 pub async fn delete_operation(pool: State<'_, SqlitePool>, id: i64) -> AppResult<()> {
     operation::delete(&pool, id).await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn list_categories(pool: State<'_, SqlitePool>) -> AppResult<Vec<Category>> {
+    category::list(&pool).await
 }

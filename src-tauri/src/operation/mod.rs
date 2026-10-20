@@ -1,5 +1,6 @@
 //! Operations, splits and categories.
 
+pub mod category;
 mod repository;
 #[cfg(test)]
 mod tests;
