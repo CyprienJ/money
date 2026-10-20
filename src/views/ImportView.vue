@@ -5,6 +5,7 @@ import { useRoute, useRouter } from "vue-router";
 import {
   commands,
   type AccountSummary,
+  type Category,
   type ImportPreview,
   type MappingSuggestion,
   type SavedCsvMapping,
@@ -16,6 +17,7 @@ import { errorMessage, unwrap } from "../utils/commands";
 import { displayLabel, formatAmount, formatDate, localDateOf, operationCount } from "../utils/format";
 import {
   ambiguityText,
+  categoryCounts,
   defaultSelection,
   groupPreview,
   lineAmount,
@@ -29,6 +31,7 @@ const router = useRouter();
 
 const step = ref<Step>("file");
 const accounts = ref<AccountSummary[]>([]);
+const categories = ref<Category[]>([]);
 const mappings = ref<SavedCsvMapping[]>([]);
 const suggestions = ref<MappingSuggestion[]>([]);
 const path = ref<string | null>(null);
@@ -63,6 +66,10 @@ const groups = computed(() => (preview.value ? groupPreview(preview.value) : nul
 const ambiguousCount = computed(
   () => groups.value?.candidates.filter((c) => c.line.duplicate.status === "ambiguous").length ?? 0,
 );
+const categoriesById = computed(() => new Map(categories.value.map((c) => [c.id, c])));
+const counts = computed(() =>
+  preview.value ? categoryCounts(preview.value, selected.value) : { automatic: 0, toCategorize: 0 },
+);
 const accountNames = computed(() => new Map(accounts.value.map((s) => [s.account.id, s.account.name])));
 
 async function load() {
@@ -70,6 +77,7 @@ async function load() {
     const summaries = await unwrap(commands.listAccountSummaries(false));
     accounts.value = summaries.filter((s) => ACCOUNT_TYPES[s.account.type].hasOperations);
     mappings.value = await unwrap(commands.listCsvMappings());
+    categories.value = await unwrap(commands.listCategories());
     const requested = Number(route.query.account);
     accountId.value =
       accounts.value.find((s) => s.account.id === requested)?.account.id ??
@@ -307,7 +315,8 @@ onMounted(load);
       <span v-if="groups.beforeOpening.length > 0" class="chip neutral">
         <strong>{{ groups.beforeOpening.length }}</strong> antérieures à l'ouverture
       </span>
-      <span class="chip groceries"><strong>{{ selected.size }}</strong> à catégoriser</span>
+      <span class="chip transport"><strong>{{ counts.automatic }}</strong> catégorisées automatiquement</span>
+      <span class="chip groceries"><strong>{{ counts.toCategorize }}</strong> à catégoriser</span>
     </section>
 
     <section class="table-card">
@@ -329,7 +338,10 @@ onMounted(load);
           <tr
             v-for="{ index, line } in groups.candidates"
             :key="index"
-            :class="{ ambiguous: line.duplicate.status === 'ambiguous', excluded: !selected.has(index) }"
+            :class="{
+              todo: line.duplicate.status === 'ambiguous' || line.categoryId === null,
+              excluded: !selected.has(index),
+            }"
           >
             <td class="col-check">
               <input
@@ -347,7 +359,19 @@ onMounted(load);
                 {{ ambiguityText(line, preview.matchedOperations) }}
               </span>
             </td>
-            <td><CategoryPill label="À catégoriser" pending /></td>
+            <td>
+              <template v-if="line.categoryId !== null && categoriesById.has(line.categoryId)">
+                <CategoryPill
+                  :label="categoriesById.get(line.categoryId)!.name"
+                  :color="categoriesById.get(line.categoryId)!.color"
+                />
+                <span class="category-hint">Reprise de « {{ displayLabel(line.normalizedLabel) }} »</span>
+              </template>
+              <template v-else>
+                <CategoryPill label="À catégoriser" pending />
+                <span class="category-hint">Libellé inconnu</span>
+              </template>
+            </td>
             <td class="col-amount" :class="{ positive: line.line.amountCents > 0 }">
               {{ formatAmount(line.line.amountCents, { signed: true }) }}
             </td>
@@ -648,6 +672,19 @@ h1 {
   color: var(--cat-housing-fg);
 }
 
+.chip.transport {
+  border-color: transparent;
+  background: var(--cat-transport-bg);
+  color: var(--cat-transport-fg);
+}
+
+.category-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
 .chip.groceries {
   border-color: transparent;
   background: var(--cat-groceries-bg);
@@ -735,7 +772,7 @@ td.col-amount.positive {
   color: var(--color-positive);
 }
 
-tr.ambiguous {
+tr.todo {
   background: var(--color-pending-row);
 }
 

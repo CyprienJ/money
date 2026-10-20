@@ -113,7 +113,7 @@ Maquette : `Operations.dc.html`.
 #### V1-02.5 · Écran Import (assistant) — L
 Maquette : `Import.dc.html` (étape 2 « Vérification et aperçu »).
 - [x] Étape 1 « Fichier » : sélection via `tauri-plugin-dialog`, choix du compte de destination, choix / création du mapping CSV (appelé « format » dans l'interface), avec le début du fichier affiché en colonnes et le format reconnu présélectionné.
-- [x] Étape 2 : compteurs (lues, doublons ignorés, nouvelles, à vérifier, antérieures à l'ouverture, à catégoriser), tableau des nouvelles opérations avec case « Inclure » (lignes ambiguës décochées, avec le motif), blocs repliables des doublons ignorés et des lignes antérieures à l'ouverture, alerte si le fichier a déjà été importé, mention de la sauvegarde. Carte « Soldes non vérifiés » pour un CSV. Le compteur « catégorisées automatiquement » arrivera avec V1-03.4.
+- [x] Étape 2 : compteurs (lues, doublons ignorés, nouvelles, à vérifier, antérieures à l'ouverture, à catégoriser), tableau des nouvelles opérations avec case « Inclure » (lignes ambiguës décochées, avec le motif), blocs repliables des doublons ignorés et des lignes antérieures à l'ouverture, alerte si le fichier a déjà été importé, mention de la sauvegarde. Carte « Soldes non vérifiés » pour un CSV. Le compteur « catégorisées automatiquement » est ajouté par V1-03.4.
 - [x] Retirer les `allow(dead_code)` temporaires de `importing::batch` et `importing::duplicates`.
 - [x] Étape 3 : import, puis retour à l'écran Opérations.
 - [x] Bandeau « Dernier import … · Annuler cet import » sur l'écran Opérations, avec confirmation.
@@ -143,9 +143,9 @@ Module `labeling/`.
 - [x] Affichage : capitale initiale par mot, petits mots en minuscules (« Pharmacie du Centre »), calculé côté front (décision du 20/10/2026) ; les noms lisibles viendront avec les tiers en V2.
 
 #### V1-03.4 · Reprise automatique de catégorie — S
-- [ ] Mise à jour de `label_category_memory` à chaque catégorisation manuelle.
-- [ ] À l'import, catégorie proposée depuis la mémoire, avec indice « Reprise de « … » » ou « Libellé inconnu ».
-- [ ] Tests unitaires.
+- [x] Mise à jour de `label_category_memory` à chaque catégorisation manuelle (saisie, modification, changement de catégorie ; un retour à « à catégoriser » ne l'efface pas).
+- [x] À l'import, catégorie proposée depuis la mémoire, avec indice « Reprise de « … » » ou « Libellé inconnu », enregistrée avec l'opération ; compteur « catégorisées automatiquement » dans l'aperçu.
+- [x] Tests unitaires.
 
 #### V1-03.5 · Catégorisation dans l'UI — S
 - [ ] Sélecteur de catégorie dans l'aperçu d'import et dans l'écran Opérations.

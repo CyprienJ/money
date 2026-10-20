@@ -4,6 +4,7 @@ import { splitLine } from "./csvMapping";
 import { operationCount } from "./format";
 import {
   ambiguityText,
+  categoryCounts,
   defaultSelection,
   groupPreview,
   periodText,
@@ -16,6 +17,7 @@ function line(overrides: Partial<PreviewLine> = {}): PreviewLine {
     duplicate: { status: "new" },
     beforeOpening: false,
     includedByDefault: true,
+    categoryId: null,
     ...overrides,
   };
 }
@@ -98,5 +100,12 @@ describe("splitLine", () => {
       "",
     ]);
     expect(splitLine('a,"say ""hi""",b', ",")).toEqual(["a", 'say "hi"', "b"]);
+  });
+});
+
+describe("categoryCounts", () => {
+  it("counts checked lines with and without a remembered category", () => {
+    const lines = [line({ categoryId: 3 }), line(), line({ categoryId: 4 }), line()];
+    expect(categoryCounts(preview(lines), new Set([0, 1, 3]))).toEqual({ automatic: 1, toCategorize: 2 });
   });
 });

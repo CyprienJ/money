@@ -75,3 +75,17 @@ export function periodText(preview: ImportPreview): string {
 export function lineAmount(line: PreviewLine): string {
   return formatAmount(line.line.amountCents, { signed: true });
 }
+
+/** Checked lines that receive a remembered category, and those left to categorize. */
+export function categoryCounts(
+  preview: ImportPreview,
+  selected: Set<number>,
+): { automatic: number; toCategorize: number } {
+  const counts = { automatic: 0, toCategorize: 0 };
+  preview.lines.forEach((line, index) => {
+    if (!selected.has(index)) return;
+    if (line.categoryId === null) counts.toCategorize++;
+    else counts.automatic++;
+  });
+  return counts;
+}
