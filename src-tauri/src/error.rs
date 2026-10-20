@@ -6,6 +6,7 @@ use crate::account::AccountError;
 use crate::importing::batch::ImportError;
 use crate::importing::csv::{CsvError, CsvMappingError};
 use crate::operation::OperationError;
+use crate::operation::category::CategoryError;
 
 /// Error type returned by the domain layer and propagated to the frontend.
 #[derive(Debug, thiserror::Error)]
@@ -24,6 +25,9 @@ pub enum AppError {
 
     #[error(transparent)]
     Operation(#[from] OperationError),
+
+    #[error(transparent)]
+    Category(#[from] CategoryError),
 
     #[error(transparent)]
     Csv(#[from] CsvError),
@@ -64,6 +68,7 @@ impl AppError {
             AppError::Io(_) => ErrorKind::Io,
             AppError::Account(error) => error.kind(),
             AppError::Operation(error) => error.kind(),
+            AppError::Category(error) => error.kind(),
             AppError::Csv(error) => error.kind(),
             AppError::CsvMapping(error) => error.kind(),
             AppError::Import(error) => error.kind(),

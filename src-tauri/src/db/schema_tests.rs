@@ -144,26 +144,29 @@ fn category_names_are_unique_among_siblings() {
     run(|pool| async move {
         exec(
             &pool,
-            "INSERT INTO category (id, name) VALUES (10, 'Logement')",
-        )
-        .await
-        .unwrap();
-        assert!(
-            exec(&pool, "INSERT INTO category (name) VALUES ('Logement')")
-                .await
-                .is_err()
-        );
-
-        exec(
-            &pool,
-            "INSERT INTO category (name, parent_id) VALUES ('Loyer', 10)",
+            "INSERT INTO category (id, name) VALUES (100, 'Parent de test')",
         )
         .await
         .unwrap();
         assert!(
             exec(
                 &pool,
-                "INSERT INTO category (name, parent_id) VALUES ('Loyer', 10)"
+                "INSERT INTO category (name) VALUES ('Parent de test')"
+            )
+            .await
+            .is_err()
+        );
+
+        exec(
+            &pool,
+            "INSERT INTO category (name, parent_id) VALUES ('Loyer', 100)",
+        )
+        .await
+        .unwrap();
+        assert!(
+            exec(
+                &pool,
+                "INSERT INTO category (name, parent_id) VALUES ('Loyer', 100)"
             )
             .await
             .is_err()

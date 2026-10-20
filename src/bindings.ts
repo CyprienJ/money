@@ -24,6 +24,14 @@ export const commands = {
 	setOperationCategory: (id: number, categoryId: number | null) => typedError<Operation, AppError>(__TAURI_INVOKE("set_operation_category", { id, categoryId })),
 	deleteOperation: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_operation", { id })),
 	listCategories: () => typedError<Category[], AppError>(__TAURI_INVOKE("list_categories")),
+	createCategory: (category: CategoryInput) => typedError<Category, AppError>(__TAURI_INVOKE("create_category", { category })),
+	/**  Renames, moves or recolors a category; subcategories follow their top-level category. */
+	updateCategory: (id: number, changes: CategoryInput) => typedError<Category, AppError>(__TAURI_INVOKE("update_category", { id, changes })),
+	/**
+	 *  Deletes a category without subcategories; its operations move to `reassign_to`, or become
+	 *  uncategorized with `null`.
+	 */
+	deleteCategory: (id: number, reassignTo: number | null) => typedError<null, AppError>(__TAURI_INVOKE("delete_category", { id, reassignTo })),
 	listCsvMappings: () => typedError<SavedCsvMapping[], AppError>(__TAURI_INVOKE("list_csv_mappings")),
 	getCsvMapping: (id: number) => typedError<SavedCsvMapping, AppError>(__TAURI_INVOKE("get_csv_mapping", { id })),
 	createCsvMapping: (mapping: NewCsvMapping) => typedError<SavedCsvMapping, AppError>(__TAURI_INVOKE("create_csv_mapping", { mapping })),
@@ -126,6 +134,17 @@ export type CategoryColor = "housing" | "groceries" | "restaurants" |
 "transport" | "leisure" | "subscriptions" | "health" | 
 /**  Internal transfer and other. */
 "neutral";
+
+/**
+ *  Fields of a category to create or update. For a subcategory, `color` and `is_income` are
+ *  ignored: they come from the parent.
+ */
+export type CategoryInput = {
+	name: string,
+	parentId: number | null,
+	color: CategoryColor,
+	isIncome: boolean,
+};
 
 /**  Text encoding of a CSV file. */
 export type CsvEncoding = "UTF-8" | "ISO-8859-1" | "WINDOWS-1252";

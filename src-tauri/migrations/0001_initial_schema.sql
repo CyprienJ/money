@@ -146,3 +146,57 @@ CREATE INDEX scheduled_operation_account ON scheduled_operation (account_id);
 -- System category, excluded from income and expense statistics.
 INSERT INTO category (name, color, is_internal_transfer, is_income)
 VALUES ('Virement interne', 'neutral', 1, 0);
+
+-- Default category tree, created on the first launch. Subcategories inherit the color
+-- and the income flag of their top-level category.
+
+INSERT INTO category (name, color, is_income) VALUES
+    ('Logement', 'housing', 0),
+    ('Courses', 'groceries', 0),
+    ('Restaurants', 'restaurants', 0),
+    ('Transport', 'transport', 0),
+    ('Loisirs', 'leisure', 0),
+    ('Abonnements', 'subscriptions', 0),
+    ('Santé', 'health', 0),
+    ('Revenus', 'transport', 1),
+    ('Autres', 'neutral', 0);
+
+INSERT INTO category (name, parent_id, color, is_income)
+SELECT child.name, parent.id, parent.color, parent.is_income
+FROM (
+              SELECT 'Logement' AS parent, 'Loyer ou crédit' AS name, 1 AS position
+    UNION ALL SELECT 'Logement', 'Charges et énergie', 2
+    UNION ALL SELECT 'Logement', 'Assurance habitation', 3
+    UNION ALL SELECT 'Logement', 'Travaux et équipement', 4
+    UNION ALL SELECT 'Courses', 'Alimentation', 1
+    UNION ALL SELECT 'Courses', 'Maison et hygiène', 2
+    UNION ALL SELECT 'Restaurants', 'Restaurants', 1
+    UNION ALL SELECT 'Restaurants', 'Cafés et snacks', 2
+    UNION ALL SELECT 'Restaurants', 'Livraison', 3
+    UNION ALL SELECT 'Transport', 'Carburant', 1
+    UNION ALL SELECT 'Transport', 'Transports en commun', 2
+    UNION ALL SELECT 'Transport', 'Train et avion', 3
+    UNION ALL SELECT 'Transport', 'Entretien du véhicule', 4
+    UNION ALL SELECT 'Transport', 'Péages et parking', 5
+    UNION ALL SELECT 'Loisirs', 'Sorties et culture', 1
+    UNION ALL SELECT 'Loisirs', 'Sport', 2
+    UNION ALL SELECT 'Loisirs', 'Voyages', 3
+    UNION ALL SELECT 'Loisirs', 'Shopping', 4
+    UNION ALL SELECT 'Loisirs', 'Cadeaux', 5
+    UNION ALL SELECT 'Abonnements', 'Téléphone et internet', 1
+    UNION ALL SELECT 'Abonnements', 'Streaming', 2
+    UNION ALL SELECT 'Abonnements', 'Logiciels et presse', 3
+    UNION ALL SELECT 'Santé', 'Médecin', 1
+    UNION ALL SELECT 'Santé', 'Pharmacie', 2
+    UNION ALL SELECT 'Santé', 'Mutuelle', 3
+    UNION ALL SELECT 'Revenus', 'Salaire', 1
+    UNION ALL SELECT 'Revenus', 'Remboursements', 2
+    UNION ALL SELECT 'Revenus', 'Intérêts', 3
+    UNION ALL SELECT 'Revenus', 'Autres revenus', 4
+    UNION ALL SELECT 'Autres', 'Impôts et taxes', 1
+    UNION ALL SELECT 'Autres', 'Frais bancaires', 2
+    UNION ALL SELECT 'Autres', 'Retraits d''espèces', 3
+    UNION ALL SELECT 'Autres', 'Divers', 4
+) AS child
+JOIN category parent ON parent.name = child.parent AND parent.parent_id IS NULL
+ORDER BY parent.id, child.position;

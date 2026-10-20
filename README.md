@@ -49,8 +49,9 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 - **Saisie et édition manuelle** des opérations.
 
 #### Catégorisation
-- **Catégories et sous-catégories** personnalisables, sur deux niveaux.
-- **Catégorie spéciale « Virement interne »**, exclue de toutes les statistiques de revenus et de dépenses. En V1, on l'attribue à la main ou via la reprise automatique.
+- **Catégories et sous-catégories** personnalisables, sur deux niveaux. Une sous-catégorie hérite de la couleur et de l'indicateur « revenu » de sa catégorie principale. Une catégorie qui a des sous-catégories ne peut pas être supprimée ; les opérations d'une catégorie supprimée passent à une catégorie choisie ou redeviennent « à catégoriser ».
+- **Arborescence par défaut** créée au premier lancement, modifiable ensuite : Logement (loyer ou crédit, charges et énergie, assurance habitation, travaux et équipement), Courses (alimentation, maison et hygiène), Restaurants (restaurants, cafés et snacks, livraison), Transport (carburant, transports en commun, train et avion, entretien du véhicule, péages et parking), Loisirs (sorties et culture, sport, voyages, shopping, cadeaux), Abonnements (téléphone et internet, streaming, logiciels et presse), Santé (médecin, pharmacie, mutuelle), Revenus (salaire, remboursements, intérêts, autres revenus), Autres (impôts et taxes, frais bancaires, retraits d'espèces, divers).
+- **Catégorie spéciale « Virement interne »**, exclue de toutes les statistiques de revenus et de dépenses. En V1, on l'attribue à la main ou via la reprise automatique. Elle ne peut être ni modifiée, ni supprimée, ni avoir de sous-catégories.
 - **Normalisation simple des libellés** : suppression des dates, numéros de carte, références de prélèvement et préfixes bancaires (`CB`, `PRLV SEPA`, `VIR`…) à l'aide d'expressions régulières. Le libellé brut est toujours conservé.
 - **Reprise automatique de catégorie** : à l'import, une opération dont le libellé normalisé a déjà été catégorisé reçoit la même catégorie. L'utilisateur peut corriger.
 
@@ -325,4 +326,3 @@ finances-perso/
 ## Questions ouvertes
 
 - Profondeur de l'historique à importer au départ
-- Arborescence de catégories par défaut proposée au premier lancement

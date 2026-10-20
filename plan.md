@@ -125,11 +125,10 @@ Maquette : `Import.dc.html` (étape 2 « Vérification et aperçu »).
 
 #### V1-03.1 · Catégories (backend) — M
 - [x] Lecture seule `list_categories` (avancée au ticket V1-01.5 pour l'écran Opérations).
-- [ ] CRUD sur deux niveaux (`parent_id`), indicateur `is_income`.
-- [ ] Catégorie système « Virement interne » (`is_internal_transfer`), non supprimable.
-- [ ] Arborescence par défaut créée au premier lancement, avec les couleurs du design.
-- [ ] `operation.is_internal_transfer` dérivé de la catégorie à chaque modification.
-- 🟡 Arborescence par défaut (question ouverte du README) et stockage de la couleur d'une catégorie (pas de colonne prévue dans le modèle).
+- [x] CRUD sur deux niveaux (`parent_id`), indicateur `is_income` ; couleur et `is_income` hérités de la catégorie principale ; suppression refusée s'il reste des sous-catégories, avec réaffectation des opérations.
+- [x] Catégorie système « Virement interne » (`is_internal_transfer`), non modifiable et non supprimable.
+- [x] Arborescence par défaut créée au premier lancement (migration initiale), avec les couleurs du design (décision du 20/10/2026, inscrite au README).
+- [x] `operation.is_internal_transfer` dérivé de la catégorie à chaque modification, y compris lors de la réaffectation d'une catégorie supprimée.
 
 #### V1-03.2 · Écran Catégories — M
 - [ ] Liste arborescente, création, renommage, déplacement, suppression (avec réaffectation des opérations).
@@ -325,7 +324,6 @@ Ordre indicatif : catégorisation et tiers d'abord (gain quotidien), puis opéra
 | Ticket | Question |
 |---|---|
 | V1-01.3, V1-03.2, V1-07.1, V1-07.5 | Design des écrans sans maquette : Comptes, Catégories, Échéancier, Paramètres |
-| V1-03.1 | Arborescence de catégories par défaut ; stockage des couleurs de catégorie |
 | V1-03.3 | Affichage lisible des libellés normalisés en V1 |
 | V1-05.4 | Sens de « corriger » un import suspect |
 | V1-06.2 | Traitement des cartes à débit différé dans le patrimoine et le disponible |

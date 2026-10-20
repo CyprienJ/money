@@ -3,7 +3,7 @@ use sqlx::SqlitePool;
 use tauri::State;
 
 use crate::error::AppResult;
-use crate::operation::category::{self, Category};
+use crate::operation::category::{self, Category, CategoryInput};
 use crate::operation::{self, NewOperation, Operation, OperationRow, OperationUpdate};
 
 /// Operations of an account, most recent first, with the balance after each one.
@@ -63,4 +63,36 @@ pub async fn delete_operation(pool: State<'_, SqlitePool>, id: i64) -> AppResult
 #[specta::specta]
 pub async fn list_categories(pool: State<'_, SqlitePool>) -> AppResult<Vec<Category>> {
     category::list(&pool).await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn create_category(
+    pool: State<'_, SqlitePool>,
+    category: CategoryInput,
+) -> AppResult<Category> {
+    category::create(&pool, category).await
+}
+
+/// Renames, moves or recolors a category; subcategories follow their top-level category.
+#[tauri::command]
+#[specta::specta]
+pub async fn update_category(
+    pool: State<'_, SqlitePool>,
+    id: i64,
+    changes: CategoryInput,
+) -> AppResult<Category> {
+    category::update(&pool, id, changes).await
+}
+
+/// Deletes a category without subcategories; its operations move to `reassign_to`, or become
+/// uncategorized with `null`.
+#[tauri::command]
+#[specta::specta]
+pub async fn delete_category(
+    pool: State<'_, SqlitePool>,
+    id: i64,
+    reassign_to: Option<i64>,
+) -> AppResult<()> {
+    category::delete(&pool, id, reassign_to).await
 }

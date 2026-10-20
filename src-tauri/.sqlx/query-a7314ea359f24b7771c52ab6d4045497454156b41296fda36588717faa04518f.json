@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE operation\n         SET is_internal_transfer = ?2\n         WHERE id IN (SELECT operation_id FROM operation_split WHERE category_id = ?1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "a7314ea359f24b7771c52ab6d4045497454156b41296fda36588717faa04518f"
+}

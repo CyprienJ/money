@@ -1,0 +1,21 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT COUNT(*) AS \"count!: i64\"\n           FROM category\n           WHERE parent_id IS ?1 AND name = ?2 COLLATE NOCASE AND id IS NOT ?3",
+  "describe": {
+    "columns": [
+      {
+        "name": "count!: i64",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "7be8e66915b5fe6728b940665a5dd95ba23e41d850cd90fd1126e22470334fac"
+}

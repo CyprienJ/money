@@ -45,7 +45,11 @@ pub enum AmbiguityReason {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Type)]
-#[serde(tag = "status", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "status",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum DuplicateStatus {
     New,
     Duplicate {

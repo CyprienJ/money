@@ -52,7 +52,7 @@ async fn internal_transfer_category(pool: &SqlitePool) -> i64 {
 }
 
 async fn regular_category(pool: &SqlitePool) -> i64 {
-    sqlx::query!("INSERT INTO category (name, color) VALUES ('Courses', 'groceries')")
+    sqlx::query!("INSERT INTO category (name, color) VALUES ('Catégorie de test', 'groceries')")
         .execute(pool)
         .await
         .unwrap()
