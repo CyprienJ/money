@@ -126,3 +126,25 @@ export function localDateOf(timestamp: string): string {
 export function operationCount(count: number): string {
   return `${count} opération${count > 1 ? "s" : ""}`;
 }
+
+/** Small French words kept in lowercase inside a displayed label. */
+const SMALL_WORDS = new Set(["à", "au", "aux", "d", "de", "des", "du", "en", "et", "l", "la", "le", "les", "par", "pour", "sur"]);
+
+/**
+ * Readable form of a normalized label: a capital at the start of each word, small words in
+ * lowercase, words with digits unchanged. `PHARMACIE DU CENTRE` → `Pharmacie du Centre`.
+ */
+export function displayLabel(normalizedLabel: string): string {
+  return normalizedLabel
+    .split(" ")
+    .map((word, index) => {
+      if (/\d/.test(word)) return word;
+      const lower = word.toLocaleLowerCase("fr");
+      if (index > 0 && SMALL_WORDS.has(lower)) return lower;
+      // Capitalize each part of "SAINT-MARTIN" or "L'ARBRE".
+      return lower.replace(/(^|[-'’])(\p{L})/gu, (_, separator: string, letter: string) =>
+        separator + letter.toLocaleUpperCase("fr"),
+      );
+    })
+    .join(" ");
+}

@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { formatAmount, formatAmountInput, formatDate, localDateOf, parseAmount } from "./format";
+import {
+  displayLabel,
+  formatAmount,
+  formatAmountInput,
+  formatDate,
+  localDateOf,
+  parseAmount,
+} from "./format";
 
 // Intl groups thousands with a narrow no-break space; normalize to plain spaces for readability.
 const plain = (text: string) => text.replace(/[  ]/g, " ");
@@ -99,5 +106,22 @@ describe("localDateOf", () => {
   it("returns the local date of a UTC timestamp", () => {
     // Noon UTC is the same day in every time zone between UTC−11 and UTC+11.
     expect(localDateOf("2026-10-20T12:00:00Z")).toBe("2026-10-20");
+  });
+});
+
+describe("displayLabel", () => {
+  it("capitalizes words and keeps small words in lowercase", () => {
+    expect(displayLabel("CARREFOUR MKT")).toBe("Carrefour Mkt");
+    expect(displayLabel("PHARMACIE DU CENTRE")).toBe("Pharmacie du Centre");
+    expect(displayLabel("VERS LIVRET A")).toBe("Vers Livret A");
+    expect(displayLabel("LE PETIT BISTROT")).toBe("Le Petit Bistrot");
+    expect(displayLabel("LOYER SCI DES ÉRABLES")).toBe("Loyer Sci des Érables");
+  });
+
+  it("handles hyphens, apostrophes and digits", () => {
+    expect(displayLabel("BOULANGERIE SAINT-MARTIN")).toBe("Boulangerie Saint-Martin");
+    expect(displayLabel("CAFE L'ARBRE")).toBe("Cafe L'Arbre");
+    expect(displayLabel("RETRAIT DAB PARIS 11")).toBe("Retrait Dab Paris 11");
+    expect(displayLabel("FNAC.COM")).toBe("Fnac.com");
   });
 });

@@ -136,11 +136,11 @@ Maquette : `Import.dc.html` (étape 2 « Vérification et aperçu »).
 
 #### V1-03.3 · Normalisation des libellés — M
 Module `labeling/`.
-- [ ] Regex : préfixes bancaires (`CB`, `PRLV SEPA`, `VIR`, `VIR SEPA`…), dates, numéros de carte, références d'échéance.
-- [ ] Ex. `CB CARREFOUR MKT 18/10 CARTE 4417` → `CARREFOUR MKT`.
-- [ ] `raw_label` jamais modifié ; recalcul possible de tous les `normalized_label`.
-- [ ] Tests unitaires sur un jeu de libellés réels anonymisés.
-- 🟡 Affichage : la maquette montre « Carrefour Market » (casse et nom lisibles) alors que le libellé normalisé est brut ; à décider en V1 (mise en forme simple ?) ou à laisser à la gestion des tiers V2.
+- [x] Regex : préfixes bancaires (`CB`, `PRLV SEPA`, `VIR`, `VIR SEPA`…), dates, numéros de carte, IBAN, références d'échéance et codes de référence.
+- [x] Ex. `CB CARREFOUR MKT 18/10 CARTE 4417` → `CARREFOUR MKT`.
+- [x] `raw_label` jamais modifié ; tous les `normalized_label` sont recalculés au démarrage (seules les lignes modifiées sont réécrites).
+- [x] Tests unitaires sur un jeu de libellés réels anonymisés (relevés Fortuneo et Trade Republic, maquettes, formats courants).
+- [x] Affichage : capitale initiale par mot, petits mots en minuscules (« Pharmacie du Centre »), calculé côté front (décision du 20/10/2026) ; les noms lisibles viendront avec les tiers en V2.
 
 #### V1-03.4 · Reprise automatique de catégorie — S
 - [ ] Mise à jour de `label_category_memory` à chaque catégorisation manuelle.
@@ -324,7 +324,6 @@ Ordre indicatif : catégorisation et tiers d'abord (gain quotidien), puis opéra
 | Ticket | Question |
 |---|---|
 | V1-07.1, V1-07.5 | Design des écrans sans maquette : Échéancier, Paramètres |
-| V1-03.3 | Affichage lisible des libellés normalisés en V1 |
 | V1-05.4 | Sens de « corriger » un import suspect |
 | V1-06.2 | Traitement des cartes à débit différé dans le patrimoine et le disponible |
 | V1-07.3 | Sens de « hors crédit » dans le top tiers |

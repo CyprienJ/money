@@ -13,7 +13,7 @@ import CategoryPill from "../components/CategoryPill.vue";
 import CsvMappingModal from "../components/CsvMappingModal.vue";
 import { ACCOUNT_TYPES } from "../utils/accounts";
 import { errorMessage, unwrap } from "../utils/commands";
-import { formatAmount, formatDate, localDateOf, operationCount } from "../utils/format";
+import { displayLabel, formatAmount, formatDate, localDateOf, operationCount } from "../utils/format";
 import {
   ambiguityText,
   defaultSelection,
@@ -335,13 +335,13 @@ onMounted(load);
               <input
                 type="checkbox"
                 :checked="selected.has(index)"
-                :aria-label="`Inclure ${line.normalizedLabel} du ${formatDate(line.line.date, 'day-month')}`"
+                :aria-label="`Inclure ${displayLabel(line.normalizedLabel)} du ${formatDate(line.line.date, 'day-month')}`"
                 @change="toggle(index)"
               />
             </td>
             <td class="col-date">{{ formatDate(line.line.date, "day-month") }}</td>
             <td>
-              <span class="label">{{ line.normalizedLabel }}</span>
+              <span class="label">{{ displayLabel(line.normalizedLabel) }}</span>
               <span class="raw">{{ line.line.label }}</span>
               <span v-if="line.duplicate.status === 'ambiguous'" class="hint">
                 {{ ambiguityText(line, preview.matchedOperations) }}
@@ -363,7 +363,7 @@ onMounted(load);
         <ul>
           <li v-for="{ index, line } in groups.duplicates" :key="index">
             <span class="list-date">{{ formatDate(line.line.date, "day-month") }}</span>
-            <span class="list-label">{{ line.normalizedLabel }}</span>
+            <span class="list-label">{{ displayLabel(line.normalizedLabel) }}</span>
             <span class="list-amount">{{ lineAmount(line) }}</span>
           </li>
         </ul>
@@ -378,7 +378,7 @@ onMounted(load);
         <ul>
           <li v-for="{ index, line } in groups.beforeOpening" :key="index">
             <span class="list-date">{{ formatDate(line.line.date, "day-month") }}</span>
-            <span class="list-label">{{ line.normalizedLabel }}</span>
+            <span class="list-label">{{ displayLabel(line.normalizedLabel) }}</span>
             <span class="list-amount">{{ lineAmount(line) }}</span>
           </li>
         </ul>

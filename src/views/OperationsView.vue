@@ -14,7 +14,7 @@ import OperationFormModal from "../components/OperationFormModal.vue";
 import { ACCOUNT_TYPES } from "../utils/accounts";
 import { categoryTree } from "../utils/categories";
 import { errorMessage, unwrap } from "../utils/commands";
-import { formatAmount, formatDate, localDateOf, operationCount, todayIso } from "../utils/format";
+import { displayLabel, formatAmount, formatDate, localDateOf, operationCount, todayIso } from "../utils/format";
 import { matchesSearch, summarize } from "../utils/operations";
 import { periodOptions } from "../utils/periods";
 
@@ -126,7 +126,7 @@ function selectAccount(id: number) {
 
 function label(operation: Operation): string {
   // Manual entries keep the text typed by the user; imported ones show the cleaned label.
-  return operation.importBatchId === null ? operation.rawLabel : operation.normalizedLabel;
+  return operation.importBatchId === null ? operation.rawLabel : displayLabel(operation.normalizedLabel);
 }
 
 function amountClass(operation: Operation): string {
