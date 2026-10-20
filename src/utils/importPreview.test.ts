@@ -4,6 +4,7 @@ import { splitLine } from "./csvMapping";
 import { operationCount } from "./format";
 import {
   ambiguityText,
+  balanceGap,
   categoryCounts,
   lineCategory,
   defaultSelection,
@@ -127,5 +128,19 @@ describe("categoryCounts with choices", () => {
     expect(lineCategory(lines[0], 0, chosen)).toBe(5);
     expect(lineCategory(lines[2], 2, chosen)).toBe(null);
     expect(lineCategory(lines[2], 2, new Map())).toBe(4);
+  });
+});
+
+describe("balanceGap", () => {
+  it("compares the printed closing balance with the computed one", () => {
+    const base = preview([]);
+    expect(balanceGap(base)).toBe(null);
+    const mismatch = {
+      ...base,
+      startBalanceCents: 797,
+      endBalanceCents: 8717,
+      balanceCheck: { status: "MISMATCH" as const, linesTotalCents: -80, computedEndCents: 717 },
+    };
+    expect(balanceGap(mismatch)).toBe(8000);
   });
 });

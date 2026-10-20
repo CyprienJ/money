@@ -222,7 +222,7 @@ watch([() => selected.value?.account.id, periodId], () => reload());
       </button>
     </div>
 
-    <div v-if="lastImport" class="import-banner">
+    <div v-if="lastImport" class="import-banner" :class="{ mismatch: lastImport.balanceCheckStatus === 'MISMATCH' }">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
         <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z M14 3v5h5" stroke-linejoin="round" />
       </svg>
@@ -231,6 +231,9 @@ watch([() => selected.value?.account.id, periodId], () => reload());
         le {{ formatDate(localDateOf(lastImport.importedAt), "day-month") }}
         · {{ operationCount(lastImport.operationCount) }}
         · {{ BALANCE_CHECK_TEXT[lastImport.balanceCheckStatus] }}
+        <template v-if="lastImport.balanceCheckStatus === 'MISMATCH'">
+          : saisis l'opération manquante, ou annule l'import.
+        </template>
       </span>
       <button type="button" class="import-cancel" @click="cancelLastImport">
         {{ confirmingCancel ? `Confirmer : supprimer ${operationCount(lastImport.operationCount)}` : "Annuler cet import" }}
@@ -413,6 +416,11 @@ h1 {
   background: var(--cat-groceries-bg);
   color: var(--cat-groceries-fg);
   font-size: 14px;
+}
+
+.import-banner.mismatch {
+  background: var(--cat-restaurants-bg);
+  color: var(--cat-restaurants-fg);
 }
 
 .import-text {

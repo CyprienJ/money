@@ -21,6 +21,9 @@
   --color-on-primary: #ffffff;
   --color-accent: #f26b3a;
   --color-positive: #0f7a5f;
+  /* Borders of the balance check cards (Import mockup). */
+  --color-success-border: #a9dfd4;
+  --color-danger-border: #f6c3ae;
 
   /* Sidebar */
   --sidebar-width: 232px;

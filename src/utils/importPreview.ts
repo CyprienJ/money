@@ -103,3 +103,14 @@ export function categoryCounts(
   });
   return counts;
 }
+
+/**
+ * Difference between the closing balance printed on the statement and the balance computed
+ * from its lines: positive when lines are missing in credit, negative when missing in debit.
+ * `null` when the statement gives no balances.
+ */
+export function balanceGap(preview: ImportPreview): number | null {
+  const computed = preview.balanceCheck.computedEndCents;
+  if (computed === null || preview.endBalanceCents === null) return null;
+  return preview.endBalanceCents - computed;
+}

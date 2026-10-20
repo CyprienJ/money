@@ -19,6 +19,7 @@ import { errorMessage, unwrap } from "../utils/commands";
 import { displayLabel, formatAmount, formatDate, localDateOf, operationCount } from "../utils/format";
 import {
   ambiguityText,
+  balanceGap,
   categoryCounts,
   defaultSelection,
   groupPreview,
@@ -88,6 +89,8 @@ const counts = computed(() =>
     ? categoryCounts(preview.value, selected.value, chosen.value)
     : { automatic: 0, toCategorize: 0 },
 );
+/** No balance mismatch: balances checked, or not available (CSV). */
+const balanceOk = computed(() => preview.value?.balanceCheck.status !== "MISMATCH");
 const accountNames = computed(() => new Map(accounts.value.map((s) => [s.account.id, s.account.name])));
 
 async function load() {
@@ -364,14 +367,36 @@ onMounted(load);
           <span class="muted">Compte de destination : <strong>{{ account?.name }}</strong></span>
         </div>
       </div>
-      <div v-if="preview.startBalanceCents !== null && preview.endBalanceCents !== null" class="card balance-card">
-        <div class="balance-title">Soldes du relevé</div>
-        <div class="balance-grid">
-          <span>Solde initial</span>
-          <strong>{{ formatAmount(preview.startBalanceCents) }}</strong>
-          <span>Solde final</span>
-          <strong>{{ formatAmount(preview.endBalanceCents) }}</strong>
+      <div
+        v-if="preview.balanceCheck.status !== 'NOT_AVAILABLE'"
+        class="card balance-card"
+        :class="balanceOk ? 'checked' : 'mismatch'"
+      >
+        <div class="balance-title">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
+            <circle cx="12" cy="12" r="9.5" />
+            <path v-if="balanceOk" d="M7.5 12l3 3 6-6" stroke-linecap="round" stroke-linejoin="round" />
+            <path v-else d="M12 7.5v5M12 16v.5" stroke-linecap="round" />
+          </svg>
+          {{ balanceOk ? "Soldes vérifiés" : "Écart de solde" }}
         </div>
+        <div class="balance-grid">
+          <span>Solde initial du relevé</span>
+          <strong>{{ formatAmount(preview.startBalanceCents ?? 0) }}</strong>
+          <span>+ Somme des opérations lues</span>
+          <strong>{{ formatAmount(preview.balanceCheck.linesTotalCents, { signed: true }) }}</strong>
+          <span class="total">= Solde calculé</span>
+          <strong class="total">{{ formatAmount(preview.balanceCheck.computedEndCents ?? 0) }}</strong>
+          <template v-if="!balanceOk">
+            <span>Solde final du relevé</span>
+            <strong>{{ formatAmount(preview.endBalanceCents ?? 0) }}</strong>
+          </template>
+        </div>
+        <span v-if="balanceOk">Identique au solde final indiqué sur le relevé : aucune ligne manquante.</span>
+        <span v-else>
+          Écart de {{ formatAmount(balanceGap(preview) ?? 0, { signed: true }) }} : une ligne du relevé n'a pas
+          été lue correctement. Tu peux annuler, ou importer quand même et saisir ensuite l'opération manquante.
+        </span>
       </div>
       <div v-else class="card balance-card">
         <div class="balance-title">
@@ -499,6 +524,7 @@ onMounted(load);
           <path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z" stroke-linejoin="round" />
         </svg>
         Une sauvegarde sera faite avant l'import. Tu pourras l'annuler à tout moment.
+        <template v-if="!balanceOk">L'import sera signalé par un écart de solde.</template>
       </span>
       <div class="buttons">
         <button type="button" class="btn btn-secondary" :disabled="step === 'importing'" @click="back">Retour</button>
@@ -508,7 +534,11 @@ onMounted(load);
           :disabled="selected.size === 0 || step === 'importing'"
           @click="runImport"
         >
-          {{ step === "importing" ? "Import en cours…" : `Importer ${operationCount(selected.size)}` }}
+          {{
+            step === "importing"
+              ? "Import en cours…"
+              : `Importer ${balanceOk ? "" : "quand même "}${operationCount(selected.size)}`
+          }}
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
             <path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
@@ -647,6 +677,23 @@ h1 {
   font-size: 14px;
   font-weight: 700;
   color: var(--cat-transport-fg);
+}
+
+.balance-card.checked {
+  border-color: var(--color-success-border);
+  background: var(--cat-transport-bg);
+  color: var(--cat-transport-fg);
+}
+
+.balance-card.mismatch {
+  border-color: var(--color-danger-border);
+  background: var(--cat-restaurants-bg);
+  color: var(--cat-restaurants-fg);
+}
+
+.balance-grid .total {
+  padding-top: 6px;
+  border-top: 1px solid currentColor;
 }
 
 .balance-grid {

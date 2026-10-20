@@ -198,10 +198,10 @@ Maquette : `Analyses.dc.html`.
 - [x] Tests unitaires.
 
 #### V1-05.4 · UI du contrôle des soldes — S
-- [ ] Bloc « Soldes vérifiés » de la maquette Import (solde initial, somme, solde calculé, verdict).
-- [ ] En cas d'écart : import signalé comme suspect, choix annuler / corriger.
-- [ ] « soldes vérifiés » dans le bandeau du dernier import (écran Opérations).
-- 🟡 Ce que recouvre « corriger » (éditer les lignes lues ? ajouter une ligne d'ajustement ?).
+- [x] Bloc « Soldes vérifiés » de la maquette Import (solde initial, somme, solde calculé, verdict) ; bloc « Écart de solde » avec le solde final du relevé et le montant de l'écart.
+- [x] En cas d'écart : import signalé comme suspect, choix annuler (Retour) / « Importer quand même ».
+- [x] « soldes vérifiés » / « écart de solde » dans le bandeau du dernier import (écran Opérations), en rouge en cas d'écart avec la marche à suivre.
+- « Corriger » = importer quand même, puis saisir à la main l'opération manquante (décision du 20/10/2026, inscrite au README).
 
 ---
 
@@ -329,7 +329,6 @@ Ordre indicatif : catégorisation et tiers d'abord (gain quotidien), puis opéra
 | Ticket | Question |
 |---|---|
 | V1-07.1, V1-07.5 | Design des écrans sans maquette : Échéancier, Paramètres |
-| V1-05.4 | Sens de « corriger » un import suspect |
 | V1-06.2 | Traitement des cartes à débit différé dans le patrimoine et le disponible |
 | V1-07.3 | Sens de « hors crédit » dans le top tiers |
 | V2-12 | Source des cours de bourse (accès réseau) |
