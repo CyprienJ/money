@@ -1,5 +1,13 @@
 //! Import batches, duplicate detection, balance check and backup.
 
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "import is called by the import preview of V1-02.5"
+    )
+)]
+pub mod batch;
 pub mod csv;
 #[cfg_attr(
     not(test),

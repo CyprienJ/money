@@ -247,6 +247,7 @@ L'application est une **application de bureau Tauri**. L'interface est écrite e
 | Dates | **chrono** (ou **time**) | |
 | Erreurs | **thiserror** (domaine) / **anyhow** (outillage) | Erreurs typées remontées au front |
 | Import CSV | crate **csv** + **encoding_rs** | Séparateur `;`, encodage ISO-8859-1 / Windows-1252 courants |
+| Empreinte des fichiers importés | crate **sha2** | SHA-256 du fichier source (`source_file_hash`), pour signaler un fichier déjà importé |
 | Import PDF | **pdfium-render** | Texte avec positions via PDFium ; bibliothèque PDFium embarquée dans le bundle |
 | Normalisation des libellés | crate **regex** | |
 | Frontend | **Vue 3 + TypeScript + Vite** | |

@@ -5,6 +5,7 @@ mod repository;
 #[cfg(test)]
 mod tests;
 
+pub(crate) use repository::{check_account, timestamp};
 pub use repository::{create, delete, get, list, set_category, update};
 
 use chrono::NaiveDate;

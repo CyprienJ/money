@@ -16,6 +16,7 @@ chrono = { version = "0.4.45", default-features = false, features = ["std", "clo
 csv = "1.4.0"
 encoding_rs = "0.8.42"
 serde = { version = "1", features = ["derive"] }
+sha2 = "0.11.1"
 specta = { version = "=2.0.0-rc.25", features = ["derive", "chrono"] }
 specta-typescript = "=0.0.12"
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "sqlite-bundled", "migrate", "macros", "chrono"] }

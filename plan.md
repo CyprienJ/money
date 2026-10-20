@@ -104,15 +104,17 @@ Maquette : `Operations.dc.html`.
 - [x] Tests unitaires couvrant les cas limites.
 
 #### V1-02.4 · Lots d'import, sauvegarde et annulation — M
-- [ ] Hash du fichier source (`source_file_hash`) ; alerte si le même fichier a déjà été importé.
-- [ ] Copie horodatée du fichier SQLite dans `app_data_dir()/backups/` avant chaque insertion.
-- [ ] Insertion transactionnelle d'un `import_batch` et de ses opérations.
-- [ ] Commande « annuler un import » : suppression du lot entier.
+- [x] Hash du fichier source (`source_file_hash`, SHA-256 via `sha2`) ; `find_by_hash` pour l'alerte « fichier déjà importé » (affichée en V1-02.5).
+- [x] Copie horodatée du fichier SQLite dans `app_data_dir()/backups/` avant chaque insertion (`VACUUM INTO`).
+- [x] Insertion transactionnelle d'un `import_batch` et de ses opérations (non catégorisées).
+- [x] Commande « annuler un import » : suppression du lot entier ; liste des lots d'un compte.
+- Lignes antérieures à la date d'ouverture du compte : exclues et signalées dans l'aperçu (V1-02.5) ; `import` les refuse (décision du 20/10/2026).
 
 #### V1-02.5 · Écran Import (assistant) — L
 Maquette : `Import.dc.html` (étape 2 « Vérification et aperçu »).
 - [ ] Étape 1 « Fichier » : sélection via `tauri-plugin-dialog`, choix du compte de destination, choix / création du mapping CSV.
-- [ ] Étape 2 : compteurs (lues, doublons ignorés, nouvelles, catégorisées, à catégoriser), tableau des nouvelles opérations avec case « Inclure », bloc repliable des doublons ignorés, mention de la sauvegarde.
+- [ ] Étape 2 : compteurs (lues, doublons ignorés, nouvelles, catégorisées, à catégoriser), tableau des nouvelles opérations avec case « Inclure », bloc repliable des doublons ignorés, mention de la sauvegarde. Lignes antérieures à l'ouverture du compte exclues et signalées ; alerte si le fichier a déjà été importé.
+- [ ] Retirer les `allow(dead_code)` temporaires de `importing::batch` et `importing::duplicates`.
 - [ ] Étape 3 : import, puis retour à l'écran Opérations.
 - [ ] Bandeau « Dernier import … · Annuler cet import » sur l'écran Opérations. (masqué depuis V1-01.5 en attendant les lots d'import)
 - 🟡 Pas de maquette pour l'étape 1 ni pour l'édition du mapping CSV.

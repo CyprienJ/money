@@ -237,7 +237,7 @@ async fn write_category(
 }
 
 /// Checks that the account takes operations and that `date` is not before its opening.
-async fn check_account(
+pub(crate) async fn check_account(
     conn: &mut SqliteConnection,
     account_id: i64,
     date: NaiveDate,
@@ -293,6 +293,6 @@ fn check_amount(amount_cents: i64) -> Result<(), OperationError> {
 }
 
 /// Current UTC time in the storage format `YYYY-MM-DDTHH:MM:SSZ`.
-fn timestamp() -> String {
+pub(crate) fn timestamp() -> String {
     Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
 }

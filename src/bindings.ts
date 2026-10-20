@@ -31,6 +31,10 @@ export const commands = {
 	deleteCsvMapping: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_csv_mapping", { id })),
 	/**  Saved mappings that read the CSV file at `path`, the most lines read first. */
 	suggestCsvMappings: (path: string) => typedError<MappingSuggestion[], AppError>(__TAURI_INVOKE("suggest_csv_mappings", { path })),
+	/**  Imports of an account, most recent first. */
+	listImportBatches: (accountId: number) => typedError<ImportBatch[], AppError>(__TAURI_INVOKE("list_import_batches", { accountId })),
+	/**  Deletes an import and all its operations. */
+	cancelImport: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("cancel_import", { id })),
 };
 
 /* Types */
@@ -83,6 +87,11 @@ export type AppError = {
 	message: string,
 };
 
+/**  Result of `start balance + Σ operations = end balance` on the statement. */
+export type BalanceCheckStatus = "OK" | "MISMATCH" | 
+/**  The statement gives no balances (CSV files). */
+"NOT_AVAILABLE";
+
 export type Category = {
 	id: number,
 	name: string,
@@ -127,6 +136,20 @@ export type ErrorKind = "database" | "migration" | "io" |
 "not_found" | 
 /**  The input breaks a business rule; the message says which. */
 "validation";
+
+export type ImportBatch = {
+	id: number,
+	accountId: number,
+	sourceType: SourceType,
+	sourceFileName: string,
+	/**  SHA-256 of the file, in hexadecimal. */
+	sourceFileHash: string,
+	importedAt: string,
+	statementStartBalanceCents: number | null,
+	statementEndBalanceCents: number | null,
+	balanceCheckStatus: BalanceCheckStatus,
+	operationCount: number,
+};
 
 /**  A saved mapping that reads a file without error. */
 export type MappingSuggestion = {
@@ -203,6 +226,8 @@ export type SavedCsvMapping = {
 	name: string,
 	mapping: CsvMapping,
 };
+
+export type SourceType = "CSV" | "PDF";
 
 /* Tauri Specta runtime */
 async function typedError<T, E>(result: Promise<T>): Promise<{ status: "ok"; data: T } | { status: "error"; error: E }> {
