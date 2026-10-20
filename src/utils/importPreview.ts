@@ -71,11 +71,6 @@ export function periodText(preview: ImportPreview): string {
   return `relevé du ${formatDate(preview.firstDate, "day-month")} au ${formatDate(preview.lastDate, "day-month")}`;
 }
 
-/** "12 opérations" / "1 opération". */
-export function operationCount(count: number): string {
-  return `${count} opération${count > 1 ? "s" : ""}`;
-}
-
 /** Short amount for lists, e.g. "−97,15 €". */
 export function lineAmount(line: PreviewLine): string {
   return formatAmount(line.line.amountCents, { signed: true });

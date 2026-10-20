@@ -121,3 +121,8 @@ export function localDateOf(timestamp: string): string {
     String(date.getDate()).padStart(2, "0"),
   ].join("-");
 }
+
+/** "12 opérations" / "1 opération". */
+export function operationCount(count: number): string {
+  return `${count} opération${count > 1 ? "s" : ""}`;
+}

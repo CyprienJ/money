@@ -14,8 +14,7 @@ import OperationFormModal from "../components/OperationFormModal.vue";
 import { ACCOUNT_TYPES } from "../utils/accounts";
 import { categoryTree } from "../utils/categories";
 import { errorMessage, unwrap } from "../utils/commands";
-import { formatAmount, formatDate, localDateOf, todayIso } from "../utils/format";
-import { operationCount } from "../utils/importPreview";
+import { formatAmount, formatDate, localDateOf, operationCount, todayIso } from "../utils/format";
 import { matchesSearch, summarize } from "../utils/operations";
 import { periodOptions } from "../utils/periods";
 

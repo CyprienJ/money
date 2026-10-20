@@ -131,8 +131,8 @@ Maquette : `Import.dc.html` (étape 2 « Vérification et aperçu »).
 - [x] `operation.is_internal_transfer` dérivé de la catégorie à chaque modification, y compris lors de la réaffectation d'une catégorie supprimée.
 
 #### V1-03.2 · Écran Catégories — M
-- [ ] Liste arborescente, création, renommage, déplacement, suppression (avec réaffectation des opérations).
-- 🟡 Pas de maquette pour cet écran.
+- [x] Liste arborescente (une carte par catégorie principale, avec le nombre d'opérations), création, renommage, déplacement, changement de couleur, suppression (avec réaffectation des opérations).
+- Pas de maquette : présentation alignée sur les cartes de l'écran Comptes.
 
 #### V1-03.3 · Normalisation des libellés — M
 Module `labeling/`.
@@ -323,7 +323,7 @@ Ordre indicatif : catégorisation et tiers d'abord (gain quotidien), puis opéra
 
 | Ticket | Question |
 |---|---|
-| V1-01.3, V1-03.2, V1-07.1, V1-07.5 | Design des écrans sans maquette : Comptes, Catégories, Échéancier, Paramètres |
+| V1-07.1, V1-07.5 | Design des écrans sans maquette : Échéancier, Paramètres |
 | V1-03.3 | Affichage lisible des libellés normalisés en V1 |
 | V1-05.4 | Sens de « corriger » un import suspect |
 | V1-06.2 | Traitement des cartes à débit différé dans le patrimoine et le disponible |

@@ -13,13 +13,12 @@ import CategoryPill from "../components/CategoryPill.vue";
 import CsvMappingModal from "../components/CsvMappingModal.vue";
 import { ACCOUNT_TYPES } from "../utils/accounts";
 import { errorMessage, unwrap } from "../utils/commands";
-import { formatAmount, formatDate, localDateOf } from "../utils/format";
+import { formatAmount, formatDate, localDateOf, operationCount } from "../utils/format";
 import {
   ambiguityText,
   defaultSelection,
   groupPreview,
   lineAmount,
-  operationCount,
   periodText,
 } from "../utils/importPreview";
 

@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { ExistingOperation, ImportPreview, PreviewLine } from "../bindings";
 import { splitLine } from "./csvMapping";
+import { operationCount } from "./format";
 import {
   ambiguityText,
   defaultSelection,
   groupPreview,
-  operationCount,
   periodText,
 } from "./importPreview";
 
