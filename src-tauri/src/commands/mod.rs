@@ -57,6 +57,8 @@ pub fn builder() -> Builder<tauri::Wry> {
             stats::expenses_by_category,
             stats::income_vs_expenses,
             stats::balance_history,
+            stats::net_worth_at,
+            stats::net_worth_history,
         ])
         .typ::<AppError>()
         // Amounts are i64 cents: exact as a JS number up to 2^53 (README, stack).

@@ -117,9 +117,11 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 - **Les virements internes sont exclus** de tous les indicateurs de revenus, de dépenses, des tops et des comparaisons. Ils restent pris en compte dans les soldes.
 - **Revenu ou dépense** : une opération est un revenu si sa catégorie est une catégorie de revenus, une dépense sinon, en net : un remboursement classé en Courses diminue les dépenses de Courses. Une opération non catégorisée est classée selon son signe.
 - **Le patrimoine net** à une date D se calcule ainsi :
-  - Σ soldes des comptes courants et d'épargne à D
+  - Σ soldes des comptes courants, d'épargne et des cartes à débit différé à D (l'encours d'une carte, négatif, est déjà de l'argent dépensé)
   - \+ dernière valorisation connue ≤ D de chaque compte de placement et de chaque actif
   - − dernier capital restant dû connu ≤ D de chaque dette
+- **Le disponible** (tableau de bord) est la somme des soldes des comptes courants, d'épargne et des cartes à débit différé : l'encours des cartes en est déduit.
+- **Par défaut, les comptes archivés** sont exclus des indicateurs. Un compte est pris en compte à partir de sa date d'ouverture, un compte valorisé à partir de sa première valorisation.
 - **Les montants** sont stockés en **centimes (entiers)**, jamais en virgule flottante.
 - **Le signe** est négatif pour un débit et positif pour un crédit, du point de vue du compte.
 

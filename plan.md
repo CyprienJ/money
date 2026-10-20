@@ -212,10 +212,10 @@ Maquette : `Analyses.dc.html`.
 - [x] Historique des valorisations dans la fiche du compte ; solde des comptes valorisés = dernière valorisation à la date (négatif pour une dette) ; mentions « Valorisé au … », « estimé en … », « capital restant dû » dans l'écran Comptes.
 
 #### V1-06.2 · Calcul du patrimoine net — M
-- [ ] `net_worth_at(date)` : Σ soldes courants et épargne + dernière valorisation ≤ D (placements, actifs) − dernier capital restant dû ≤ D (dettes).
-- [ ] `net_worth_history(from, to, step)`.
-- [ ] Tests unitaires.
-- 🟡 Place des comptes `CREDIT_CARD` (carte à débit différé) dans le patrimoine et dans le « Disponible ».
+- [x] `net_worth_at(date)` : Σ soldes courants, épargne et cartes à débit différé + dernière valorisation ≤ D (placements, actifs) − dernier capital restant dû ≤ D (dettes), avec le détail par famille.
+- [x] `net_worth_history(from, to, step)`.
+- [x] Tests unitaires.
+- Cartes à débit différé : encours compté dans le patrimoine et déduit du « Disponible » (décision du 20/10/2026, inscrite au README) ; le libellé du Disponible sur le tableau de bord deviendra « Comptes courants et épargne, cartes déduites ».
 
 #### V1-06.3 · Graphique du patrimoine net — S
 - [ ] Carte « Patrimoine net » de l'écran Analyses : valeur actuelle, variation sur 12 mois, courbe.
@@ -329,6 +329,5 @@ Ordre indicatif : catégorisation et tiers d'abord (gain quotidien), puis opéra
 | Ticket | Question |
 |---|---|
 | V1-07.1, V1-07.5 | Design des écrans sans maquette : Échéancier, Paramètres |
-| V1-06.2 | Traitement des cartes à débit différé dans le patrimoine et le disponible |
 | V1-07.3 | Sens de « hors crédit » dans le top tiers |
 | V2-12 | Source des cours de bourse (accès réseau) |

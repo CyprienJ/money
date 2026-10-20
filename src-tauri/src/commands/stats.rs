@@ -4,7 +4,7 @@ use tauri::State;
 
 use crate::error::AppResult;
 use crate::stats::{
-    self, BalancePoint, BalanceStep, CategoryExpense, CategoryLevel, Granularity,
+    self, BalancePoint, BalanceStep, CategoryExpense, CategoryLevel, Granularity, NetWorth,
     PeriodIncomeExpenses,
 };
 
@@ -46,4 +46,23 @@ pub async fn balance_history(
     step: BalanceStep,
 ) -> AppResult<Vec<BalancePoint>> {
     stats::balance_history(&pool, from, to, accounts.as_deref(), step).await
+}
+
+/// Net worth at the end of `date`, with its breakdown (cash, investments, assets, debts).
+#[tauri::command]
+#[specta::specta]
+pub async fn net_worth_at(pool: State<'_, SqlitePool>, date: NaiveDate) -> AppResult<NetWorth> {
+    stats::net_worth_at(&pool, date).await
+}
+
+/// Net worth at the end of each day, week or month between `from` and `to`.
+#[tauri::command]
+#[specta::specta]
+pub async fn net_worth_history(
+    pool: State<'_, SqlitePool>,
+    from: NaiveDate,
+    to: NaiveDate,
+    step: BalanceStep,
+) -> AppResult<Vec<NetWorth>> {
+    stats::net_worth_history(&pool, from, to, step).await
 }

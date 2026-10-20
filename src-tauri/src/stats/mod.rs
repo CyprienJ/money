@@ -17,6 +17,10 @@ use sqlx::SqlitePool;
 
 use crate::error::{AppResult, ErrorKind};
 
+mod net_worth;
+
+pub use net_worth::{NetWorth, net_worth_at, net_worth_history};
+
 /// How expenses are grouped by category.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]

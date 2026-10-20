@@ -76,6 +76,10 @@ export const commands = {
 	incomeVsExpenses: (from: string, to: string, accounts: number[] | null, granularity: Granularity) => typedError<PeriodIncomeExpenses[], AppError>(__TAURI_INVOKE("income_vs_expenses", { from, to, accounts, granularity })),
 	/**  Total balance of the accounts at the end of each day, week or month. */
 	balanceHistory: (from: string, to: string, accounts: number[] | null, step: BalanceStep) => typedError<BalancePoint[], AppError>(__TAURI_INVOKE("balance_history", { from, to, accounts, step })),
+	/**  Net worth at the end of `date`, with its breakdown (cash, investments, assets, debts). */
+	netWorthAt: (date: string) => typedError<NetWorth, AppError>(__TAURI_INVOKE("net_worth_at", { date })),
+	/**  Net worth at the end of each day, week or month between `from` and `to`. */
+	netWorthHistory: (from: string, to: string, step: BalanceStep) => typedError<NetWorth[], AppError>(__TAURI_INVOKE("net_worth_history", { from, to, step })),
 };
 
 /* Types */
@@ -308,6 +312,18 @@ export type MappingSuggestion = {
 	mapping: SavedCsvMapping,
 	/**  Statement lines read from the file with this mapping. */
 	lineCount: number,
+};
+
+export type NetWorth = {
+	date: string,
+	/**  Cash + investments + assets − liabilities. */
+	netWorthCents: number,
+	/**  Checking, savings and deferred debit card balances. */
+	cashCents: number,
+	investmentsCents: number,
+	assetsCents: number,
+	/**  Outstanding capital of the debts, as a positive amount. */
+	liabilitiesCents: number,
 };
 
 /**  Fields chosen when creating an account. */
