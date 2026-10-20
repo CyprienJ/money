@@ -11,7 +11,13 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let builder = commands::builder();
+
+    #[cfg(debug_assertions)]
+    commands::export_bindings(&builder);
+
     tauri::Builder::default()
+        .invoke_handler(builder.invoke_handler())
         .setup(|app| {
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;

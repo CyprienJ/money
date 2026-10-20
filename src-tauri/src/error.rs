@@ -1,5 +1,6 @@
-use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
+use specta::Type;
+use specta::datatype::DataType;
 
 /// Error type returned by the domain layer and propagated to the frontend.
 #[derive(Debug, thiserror::Error)]
@@ -14,24 +15,46 @@ pub enum AppError {
     Io(#[from] std::io::Error),
 }
 
+/// Stable identifier the frontend can match on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum ErrorKind {
+    Database,
+    Migration,
+    Io,
+}
+
+/// Error returned by commands to the frontend: `{ kind, message }`.
+#[derive(Serialize, Type)]
+#[serde(rename = "AppError")]
+struct ErrorPayload {
+    kind: ErrorKind,
+    message: String,
+}
+
 impl AppError {
-    /// Stable identifier the frontend can match on.
-    pub fn kind(&self) -> &'static str {
+    pub fn kind(&self) -> ErrorKind {
         match self {
-            AppError::Database(_) => "database",
-            AppError::Migration(_) => "migration",
-            AppError::Io(_) => "io",
+            AppError::Database(_) => ErrorKind::Database,
+            AppError::Migration(_) => ErrorKind::Migration,
+            AppError::Io(_) => ErrorKind::Io,
         }
     }
 }
 
-/// Serialized as `{ "kind": "...", "message": "..." }` for Tauri commands.
 impl Serialize for AppError {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut state = serializer.serialize_struct("AppError", 2)?;
-        state.serialize_field("kind", self.kind())?;
-        state.serialize_field("message", &self.to_string())?;
-        state.end()
+        ErrorPayload {
+            kind: self.kind(),
+            message: self.to_string(),
+        }
+        .serialize(serializer)
+    }
+}
+
+impl Type for AppError {
+    fn definition(types: &mut specta::Types) -> DataType {
+        ErrorPayload::definition(types)
     }
 }
 

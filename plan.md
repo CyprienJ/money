@@ -28,9 +28,9 @@ Remplacer le projet Cargo actuel (`Cargo.toml` et `src/main.rs` à la racine) pa
 - [x] Type d'erreur de domaine (`thiserror`) sérialisable vers le front.
 
 #### V1-00.3 · Pont tauri-specta — S
-- [ ] Une commande de démonstration (`app_version`) exposée et typée.
-- [ ] `src/bindings.ts` généré automatiquement en mode dev ; aucun appel `invoke` en dehors.
-- [ ] Capabilities Tauri 2 minimales dans `src-tauri/capabilities/`.
+- [x] Une commande de démonstration (`app_version`) exposée et typée.
+- [x] `src/bindings.ts` généré automatiquement en mode dev ; aucun appel `invoke` en dehors.
+- [x] Capabilities Tauri 2 minimales dans `src-tauri/capabilities/`.
 
 #### V1-00.4 · Design system et coque applicative — M
 - [ ] `src/styles/tokens.css` : couleurs, rayons, police, couleurs de catégories (tables de `CLAUDE.md`).
