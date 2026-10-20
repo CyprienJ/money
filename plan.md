@@ -23,9 +23,9 @@ Remplacer le projet Cargo actuel (`Cargo.toml` et `src/main.rs` à la racine) pa
 - [x] `.gitignore` couvre `target/`, `node_modules/`, `dist/`, `.idea/`.
 
 #### V1-00.2 · Base SQLite et migrations — S
-- [ ] Pool `sqlx` (SQLite) ouvert sur un fichier dans `app_data_dir()`.
-- [ ] `sqlx migrate` appliqué au démarrage, dossier `src-tauri/migrations/`.
-- [ ] Type d'erreur de domaine (`thiserror`) sérialisable vers le front.
+- [x] Pool `sqlx` (SQLite) ouvert sur un fichier dans `app_data_dir()`.
+- [x] `sqlx migrate` appliqué au démarrage, dossier `src-tauri/migrations/`.
+- [x] Type d'erreur de domaine (`thiserror`) sérialisable vers le front.
 
 #### V1-00.3 · Pont tauri-specta — S
 - [ ] Une commande de démonstration (`app_version`) exposée et typée.
