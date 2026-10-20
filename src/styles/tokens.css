@@ -1,0 +1,70 @@
+/* Design tokens, taken from the validated mockups in docs/design/. */
+
+:root {
+  /* Typography */
+  --font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+
+  /* Surfaces */
+  --color-page: #f5f3f9;
+  --color-card: #ffffff;
+  --color-border: #e7e3ef;
+  --color-divider: #f0eef5;
+
+  /* Text */
+  --color-text: #1e1830;
+  --color-text-muted: #6b6480;
+
+  /* Brand */
+  --color-primary: #2a1e3f;
+  --color-on-primary: #ffffff;
+  --color-accent: #f26b3a;
+  --color-positive: #0f7a5f;
+
+  /* Sidebar */
+  --sidebar-width: 232px;
+  --sidebar-text: #f3eefa;
+  --sidebar-link: #cfc4e3;
+  --sidebar-section: #9e8fbd;
+  --sidebar-active-bg: rgba(255, 255, 255, 0.12);
+
+  /* Radii */
+  --radius-card: 18px;
+  --radius-control: 12px;
+  --radius-nav: 10px;
+  --radius-pill: 99px;
+
+  /* Category colors: solid (charts) / pill background / pill text */
+  --cat-housing: #5b6cf0;
+  --cat-housing-bg: #e5e8fd;
+  --cat-housing-fg: #3341b8;
+
+  --cat-groceries: #f2a93b;
+  --cat-groceries-bg: #fdf0d9;
+  --cat-groceries-fg: #8a5a0b;
+
+  --cat-restaurants: #f26b3a;
+  --cat-restaurants-bg: #fde7de;
+  --cat-restaurants-fg: #9a3412;
+
+  /* Also used for income */
+  --cat-transport: #1f9e89;
+  --cat-transport-bg: #ddf3ef;
+  --cat-transport-fg: #0f5e52;
+
+  --cat-leisure: #e8547a;
+  --cat-leisure-bg: #fce3ea;
+  --cat-leisure-fg: #a61e48;
+
+  --cat-subscriptions: #3ba3d9;
+  --cat-subscriptions-bg: #e0f1fa;
+  --cat-subscriptions-fg: #1b6a94;
+
+  --cat-health: #8c5ad8;
+  --cat-health-bg: #eee5fa;
+  --cat-health-fg: #5b2ca3;
+
+  /* Internal transfer and other */
+  --cat-neutral: #b9b4c6;
+  --cat-neutral-bg: #eeedf2;
+  --cat-neutral-fg: #4a4657;
+}

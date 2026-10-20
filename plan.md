@@ -33,15 +33,15 @@ Remplacer le projet Cargo actuel (`Cargo.toml` et `src/main.rs` à la racine) pa
 - [x] Capabilities Tauri 2 minimales dans `src-tauri/capabilities/`.
 
 #### V1-00.4 · Design system et coque applicative — M
-- [ ] `src/styles/tokens.css` : couleurs, rayons, police, couleurs de catégories (tables de `CLAUDE.md`).
-- [ ] Plus Jakarta Sans (400–800) embarquée en `.woff2`, chiffres tabulaires.
-- [ ] Layout commun aux maquettes : barre latérale `#2A1E3F` (Tableau de bord, Opérations, Importer un relevé, Analyses ; section Patrimoine : Comptes, Échéancier, Catégories, Paramètres) + zone de contenu.
-- [ ] Vue Router avec une vue vide par entrée de menu.
-- [ ] Utilitaires front : formatage des montants en centimes → `1 234,56 €` (signe `−` typographique), des dates `fr-FR`.
-- [ ] Composant `CategoryPill` (pastille fond clair / texte foncé, variante pointillée « À catégoriser »).
+- [x] `src/styles/tokens.css` : couleurs, rayons, police, couleurs de catégories (tables de `CLAUDE.md`).
+- [x] Plus Jakarta Sans (400–800) embarquée en `.woff2`, chiffres tabulaires.
+- [x] Layout commun aux maquettes : barre latérale `#2A1E3F` (Tableau de bord, Opérations, Importer un relevé, Analyses ; section Patrimoine : Comptes, Échéancier, Catégories, Paramètres) + zone de contenu.
+- [x] Vue Router avec une vue vide par entrée de menu.
+- [x] Utilitaires front : formatage des montants en centimes → `1 234,56 €` (signe `−` typographique), des dates `fr-FR`.
+- [x] Composant `CategoryPill` (pastille fond clair / texte foncé, variante pointillée « À catégoriser »).
 
 #### V1-00.5 · Outillage qualité et CI — S
-- [ ] Vitest configuré côté front.
+- [x] Vitest configuré côté front (fait avec V1-00.4).
 - [ ] GitHub Actions : `cargo check/test/clippy` + `npm run build` sur `ubuntu-latest` et `windows-latest`.
 - [ ] Workflow `tauri-action` pour les artefacts (`.msi`/NSIS, `.deb`, `.rpm`, AppImage).
 - [ ] Vérification précoce du rendu d'ECharts sous WebView2 et WebKitGTK (point d'attention du README).
