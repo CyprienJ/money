@@ -265,3 +265,32 @@ fn rejects_malformed_amounts() {
         assert_eq!(parse_cents(text, comma), Err(()), "{text}");
     }
 }
+
+#[test]
+fn recurring_payees_keep_their_normalized_label_from_one_month_to_the_next() {
+    let normalized = |name: &str| -> Vec<String> {
+        parse(&fixture(name), &debit_credit_mapping())
+            .unwrap()
+            .iter()
+            .map(|line| crate::labeling::normalize_label(&line.label))
+            .collect()
+    };
+    let september = normalized("csv_debit_credit_windows1252.csv");
+    let october = normalized("csv_debit_credit_windows1252_2.csv");
+    assert_eq!(october.len(), 5);
+    for label in [
+        "EDF CLIENTS PARTICULIERS",
+        "CARREFOUR MARKET",
+        "BOULANGERIE PÂTISSERIE",
+        "LOYER SCI DES ÉRABLES",
+    ] {
+        assert!(
+            september.iter().any(|l| l == label),
+            "{label} missing in September"
+        );
+        assert!(
+            october.iter().any(|l| l == label),
+            "{label} missing in October"
+        );
+    }
+}
