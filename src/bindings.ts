@@ -131,6 +131,14 @@ export type AppError = {
 	message: string,
 };
 
+export type BalanceCheck = {
+	status: BalanceCheckStatus,
+	/**  Sum of the statement lines. */
+	linesTotalCents: number,
+	/**  Start balance plus the lines; `None` without a start balance. */
+	computedEndCents: number | null,
+};
+
 /**  Result of `start balance + Σ operations = end balance` on the statement. */
 export type BalanceCheckStatus = "OK" | "MISMATCH" | 
 /**  The statement gives no balances (CSV files). */
@@ -272,6 +280,8 @@ export type ImportPreview = {
 	/**  Balances printed on the statement, when it gives them. */
 	startBalanceCents: number | null,
 	endBalanceCents: number | null,
+	/**  `start balance + Σ lines = end balance`, over every line read. */
+	balanceCheck: BalanceCheck,
 };
 
 /**  A preview line to import, with the category the user kept or chose. */

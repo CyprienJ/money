@@ -1,5 +1,6 @@
 //! Import batches, duplicate detection, balance check and backup.
 
+pub mod balance;
 pub mod batch;
 pub mod csv;
 pub mod duplicates;

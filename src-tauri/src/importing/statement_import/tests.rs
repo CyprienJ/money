@@ -4,6 +4,7 @@ use super::*;
 use crate::account::{AccountType, NewAccount};
 use crate::db::tests::memory_pool;
 use crate::error::AppError;
+use crate::importing::batch::BalanceCheckStatus;
 use crate::importing::csv::{
     AmountColumns, CsvEncoding, CsvMapping, DecimalSeparator, NewCsvMapping,
 };
@@ -409,17 +410,20 @@ fn previews_and_imports_a_pdf_statement() {
         assert_eq!(preview.last_date, Some(date("2026-09-30")));
         assert_eq!(preview.lines.len(), 2);
         assert_eq!(preview.lines[0].normalized_label, "MAXICOFFEE SUD SATURNE");
+        assert_eq!(
+            preview.balance_check,
+            BalanceCheck {
+                status: BalanceCheckStatus::Ok,
+                lines_total_cents: 7_920,
+                computed_end_cents: Some(8_717),
+            }
+        );
 
-        let selections = [
-            ImportSelection {
-                index: 0,
-                category_id: None,
-            },
-            ImportSelection {
-                index: 1,
-                category_id: None,
-            },
-        ];
+        // Only one line kept: the check still covers the whole statement.
+        let selections = [ImportSelection {
+            index: 1,
+            category_id: None,
+        }];
         let batch = import(
             &setup.pool,
             &setup.backups,
@@ -430,9 +434,10 @@ fn previews_and_imports_a_pdf_statement() {
         .await
         .unwrap();
         assert_eq!(batch.source_type, SourceType::Pdf);
-        assert_eq!(batch.operation_count, 2);
+        assert_eq!(batch.operation_count, 1);
         assert_eq!(batch.statement_start_balance_cents, Some(797));
         assert_eq!(batch.statement_end_balance_cents, Some(8_717));
+        assert_eq!(batch.balance_check_status, BalanceCheckStatus::Ok);
     });
 }
 

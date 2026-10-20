@@ -35,6 +35,7 @@ function preview(lines: PreviewLine[]): ImportPreview {
     bank: null,
     startBalanceCents: null,
     endBalanceCents: null,
+    balanceCheck: { status: "NOT_AVAILABLE", linesTotalCents: 0, computedEndCents: null },
   };
 }
 

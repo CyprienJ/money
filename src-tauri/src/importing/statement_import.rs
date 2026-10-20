@@ -10,9 +10,8 @@ use specta::Type;
 use sqlx::SqlitePool;
 
 use super::RawLine;
-use super::batch::{
-    self, BalanceCheckStatus, ImportBatch, ImportError, ImportLine, NewImportBatch, SourceType,
-};
+use super::balance::{self, BalanceCheck};
+use super::batch::{self, ImportBatch, ImportError, ImportLine, NewImportBatch, SourceType};
 use super::csv;
 use super::duplicates::{self, DuplicateStatus, ExistingOperation};
 use super::pdf::{self, PdfError};
@@ -118,12 +117,19 @@ pub struct ImportPreview {
     /// Balances printed on the statement, when it gives them.
     pub start_balance_cents: Option<i64>,
     pub end_balance_cents: Option<i64>,
+    /// `start balance + Σ lines = end balance`, over every line read.
+    pub balance_check: BalanceCheck,
 }
 
 /// Reads the statement file and compares its lines with the account.
 pub async fn preview(pool: &SqlitePool, file: StatementFile<'_>) -> AppResult<ImportPreview> {
     let account = account::get(pool, file.account_id).await?;
     let statement = read(pool, file).await?;
+    let balance_check = balance::check(
+        statement.start_balance_cents,
+        &statement.lines,
+        statement.end_balance_cents,
+    );
     let raw_lines = statement.lines;
 
     let existing = duplicates::existing_operations(pool, file.account_id, &raw_lines).await?;
@@ -180,6 +186,7 @@ pub async fn preview(pool: &SqlitePool, file: StatementFile<'_>) -> AppResult<Im
         bank: statement.bank,
         start_balance_cents: statement.start_balance_cents,
         end_balance_cents: statement.end_balance_cents,
+        balance_check,
         lines,
         matched_operations: existing
             .into_iter()
@@ -249,8 +256,7 @@ pub async fn import(
             source_file_hash: file_hash,
             statement_start_balance_cents: preview.start_balance_cents,
             statement_end_balance_cents: preview.end_balance_cents,
-            // Computed by the balance check (V1-05.3).
-            balance_check_status: BalanceCheckStatus::NotAvailable,
+            balance_check_status: preview.balance_check.status,
         },
         &lines,
     )

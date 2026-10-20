@@ -194,8 +194,8 @@ Maquette : `Analyses.dc.html`.
 - Les autres banques françaises s'ajoutent ensuite, un ticket par banque, dès qu'un relevé anonymisé est fourni (outil : `tools/anonymize_pdf.py`).
 
 #### V1-05.3 · Contrôle des soldes — S
-- [ ] `start + Σ opérations = end` → `balance_check_status` `OK | MISMATCH | NOT_AVAILABLE`.
-- [ ] Tests unitaires.
+- [x] `start + Σ opérations = end` → `balance_check_status` `OK | MISMATCH | NOT_AVAILABLE`, sur toutes les lignes lues du relevé (doublons et lignes antérieures à l'ouverture compris) ; calculé dans l'aperçu (`balanceCheck`) et enregistré sur le lot.
+- [x] Tests unitaires.
 
 #### V1-05.4 · UI du contrôle des soldes — S
 - [ ] Bloc « Soldes vérifiés » de la maquette Import (solde initial, somme, solde calculé, verdict).
