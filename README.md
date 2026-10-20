@@ -121,6 +121,13 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 - **Les montants** sont stockés en **centimes (entiers)**, jamais en virgule flottante.
 - **Le signe** est négatif pour un débit et positif pour un crédit, du point de vue du compte.
 
+## Règles de gestion des opérations
+
+- **Comptes concernés** : seuls les comptes courants, d'épargne et les cartes à débit différé ont des opérations. Les placements, actifs et dettes sont suivis par leurs valorisations.
+- **Date** : une opération ne peut pas être antérieure à la date d'ouverture de son compte, puisqu'elle serait déjà comprise dans le solde d'ouverture.
+- **Opération importée** : sa date, son montant et son libellé brut viennent de la banque et ne sont pas modifiables (détection des doublons, contrôle des soldes). Seules sa catégorie et sa date de valeur le sont. Elle ne se supprime pas seule : on annule le lot d'import entier.
+- **Opération saisie à la main** : entièrement modifiable et supprimable. Le texte saisi devient son libellé brut.
+
 ---
 
 ## Modèle de données (V1, avec anticipation des versions suivantes)
