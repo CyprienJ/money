@@ -208,8 +208,8 @@ Maquette : `Analyses.dc.html`.
 ### Étape 6 — Patrimoine
 
 #### V1-06.1 · Valorisations — M
-- [ ] CRUD `valuation` pour les comptes `INVESTMENT`, `ASSET` et `LIABILITY` (valeur ou capital restant dû, à une date).
-- [ ] Historique des valorisations dans l'écran Comptes ; mentions « Valorisé au … », « estimé en … », « capital restant dû ».
+- [x] CRUD `valuation` pour les comptes `INVESTMENT`, `ASSET` et `LIABILITY` (valeur ou capital restant dû, à une date ; positive, une par date, pas avant l'ouverture du compte).
+- [x] Historique des valorisations dans la fiche du compte ; solde des comptes valorisés = dernière valorisation à la date (négatif pour une dette) ; mentions « Valorisé au … », « estimé en … », « capital restant dû » dans l'écran Comptes.
 
 #### V1-06.2 · Calcul du patrimoine net — M
 - [ ] `net_worth_at(date)` : Σ soldes courants et épargne + dernière valorisation ≤ D (placements, actifs) − dernier capital restant dû ≤ D (dettes).

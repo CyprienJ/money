@@ -5,6 +5,7 @@ import { ACCOUNT_TYPES } from "../utils/accounts";
 import { errorMessage, unwrap } from "../utils/commands";
 import { formatAmountInput, parseAmount, todayIso } from "../utils/format";
 import BaseModal from "./BaseModal.vue";
+import ValuationHistory from "./ValuationHistory.vue";
 
 const props = defineProps<{
   open: boolean;
@@ -15,6 +16,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: [];
   saved: [account: Account];
+  /** Valuations changed: the account value may have changed. */
+  valuationsChanged: [];
 }>();
 
 const form = reactive({
@@ -98,7 +101,12 @@ async function toggleArchived() {
 </script>
 
 <template>
-  <BaseModal :open="open" :title="isEdit ? 'Modifier le compte' : 'Nouveau compte'" @close="emit('close')">
+  <BaseModal
+    :open="open"
+    :title="isEdit ? 'Modifier le compte' : 'Nouveau compte'"
+    :wide="isEdit && !hasOperations"
+    @close="emit('close')"
+  >
     <form class="form" novalidate @submit.prevent="save">
       <label class="field">
         Nom
@@ -155,6 +163,8 @@ async function toggleArchived() {
         </button>
       </footer>
     </form>
+
+    <ValuationHistory v-if="account && !hasOperations" :account="account" @changed="emit('valuationsChanged')" />
   </BaseModal>
 </template>
 

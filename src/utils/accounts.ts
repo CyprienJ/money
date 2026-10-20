@@ -41,3 +41,42 @@ export function accountInitials(name: string): string {
   }
   return (words[0][0] + words[1][0]).toUpperCase();
 }
+
+const MONTH_NAMES = [
+  "janvier",
+  "février",
+  "mars",
+  "avril",
+  "mai",
+  "juin",
+  "juillet",
+  "août",
+  "septembre",
+  "octobre",
+  "novembre",
+  "décembre",
+];
+
+/**
+ * Secondary line of a valued account, as in the Dashboard mockup: "Valorisé au 30/09",
+ * "Actif · estimé en janvier", "Dette · capital restant dû". `valuedOn` is the date of the
+ * last valuation, `null` when there is none yet.
+ */
+export function valuationSubtitle(
+  type: AccountType,
+  valuedOn: string | null,
+  today: Date = new Date(),
+): string {
+  if (valuedOn === null) return `${ACCOUNT_TYPES[type].label} · à valoriser`;
+  const [year, month, day] = valuedOn.split("-");
+  switch (type) {
+    case "ASSET": {
+      const sameYear = Number(year) === today.getFullYear();
+      return `Actif · estimé en ${MONTH_NAMES[Number(month) - 1]}${sameYear ? "" : ` ${year}`}`;
+    }
+    case "LIABILITY":
+      return "Dette · capital restant dû";
+    default:
+      return `Valorisé au ${day}/${month}${Number(year) === today.getFullYear() ? "" : `/${year}`}`;
+  }
+}

@@ -4,7 +4,7 @@ import { commands, type Account, type AccountSummary } from "../bindings";
 import AccountBadge from "../components/AccountBadge.vue";
 import AccountFormModal from "../components/AccountFormModal.vue";
 import PageHeader from "../components/PageHeader.vue";
-import { ACCOUNT_GROUPS, ACCOUNT_TYPES } from "../utils/accounts";
+import { ACCOUNT_GROUPS, ACCOUNT_TYPES, valuationSubtitle } from "../utils/accounts";
 import { errorMessage, unwrap } from "../utils/commands";
 import { formatAmount } from "../utils/format";
 
@@ -39,7 +39,8 @@ async function load() {
   }
 }
 
-function subtitle(account: Account): string {
+function subtitle({ account, valuedOn }: AccountSummary): string {
+  if (!ACCOUNT_TYPES[account.type].hasOperations) return valuationSubtitle(account.type, valuedOn);
   return [ACCOUNT_TYPES[account.type].label, account.institution].filter(Boolean).join(" · ");
 }
 
@@ -92,24 +93,24 @@ watch(showArchived, load);
         </span>
       </div>
       <ul class="accounts">
-        <li v-for="{ account, balanceCents } in group.items" :key="account.id">
-          <button type="button" class="account" @click="openEdit(account)">
-            <AccountBadge :name="account.name" :type="account.type" />
+        <li v-for="summary in group.items" :key="summary.account.id">
+          <button type="button" class="account" @click="openEdit(summary.account)">
+            <AccountBadge :name="summary.account.name" :type="summary.account.type" />
             <span class="details">
               <span class="name">
-                {{ account.name }}
-                <span v-if="account.archived" class="archived">Archivé</span>
+                {{ summary.account.name }}
+                <span v-if="summary.account.archived" class="archived">Archivé</span>
               </span>
-              <span class="subtitle">{{ subtitle(account) }}</span>
+              <span class="subtitle">{{ subtitle(summary) }}</span>
             </span>
             <strong
-              v-if="balanceCents !== null"
+              v-if="summary.balanceCents !== null"
               class="amount"
-              :class="{ negative: balanceCents < 0 }"
+              :class="{ negative: summary.balanceCents < 0 }"
             >
-              {{ formatAmount(balanceCents) }}
+              {{ formatAmount(summary.balanceCents) }}
             </strong>
-            <span v-else class="amount pending" title="Valorisations disponibles prochainement">—</span>
+            <span v-else class="amount pending" title="Ajoute une valorisation depuis la fiche du compte">—</span>
           </button>
         </li>
       </ul>
@@ -121,6 +122,7 @@ watch(showArchived, load);
     :account="editedAccount"
     @close="modalOpen = false"
     @saved="onSaved"
+    @valuations-changed="load"
   />
 </template>
 
