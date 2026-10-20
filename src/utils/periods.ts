@@ -49,3 +49,46 @@ export function periodOptions(today: Date = new Date()): Period[] {
     { id: "all", label: "Tout l'historique", from: null, to: null },
   ];
 }
+
+export type AnalysisGranularity = "month" | "quarter" | "year";
+
+export interface AnalysisPeriod {
+  /** "Octobre 2026", "3e trimestre 2026" or "2026". */
+  label: string;
+  /** First and last days of the period (`YYYY-MM-DD`), both included. */
+  from: string;
+  to: string;
+  /** The 12 months ending with the period, for the income and expenses trend. */
+  trendFrom: string;
+}
+
+/**
+ * Period of the Analyses screen: the current month, quarter or year for `offset` 0, the
+ * previous one for -1, and so on.
+ */
+export function analysisPeriod(
+  granularity: AnalysisGranularity,
+  offset: number,
+  today: Date = new Date(),
+): AnalysisPeriod {
+  const length = { month: 1, quarter: 3, year: 12 }[granularity];
+  const year = today.getFullYear();
+  // First month (0-based) of the current period.
+  const month = today.getMonth();
+  const currentStart = { month, quarter: month - (month % 3), year: 0 }[granularity];
+  const start = new Date(year, currentStart + offset * length, 1);
+  const startYear = start.getFullYear();
+  const startMonth = start.getMonth();
+
+  let label: string;
+  if (granularity === "month") label = capitalize(monthFormat.format(start));
+  else if (granularity === "quarter") label = `${startMonth / 3 + 1}e trimestre ${startYear}`.replace(/^1e/, "1er");
+  else label = String(startYear);
+
+  return {
+    label,
+    from: iso(startYear, startMonth, 1),
+    to: iso(startYear, startMonth + length, 0),
+    trendFrom: iso(startYear, startMonth + length - 12, 1),
+  };
+}

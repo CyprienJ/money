@@ -170,10 +170,11 @@ Module `stats/`, signatures claires (futurs outils de l'assistant IA). Toutes pa
 
 #### V1-04.3 · Écran Analyses (première version) — L
 Maquette : `Analyses.dc.html`.
-- [ ] Sélecteur de période Mois / Trimestre / Année.
-- [ ] « Revenus et dépenses » : barres groupées sur 12 mois + totaux revenus, dépenses, épargné (montant et %).
-- [ ] Dépenses par catégorie (barres et camembert / anneau).
-- [ ] Évolution du solde, par compte et tous comptes confondus, avec zoom sur la période.
+- [x] Sélecteur de période Mois / Trimestre / Année, avec navigation ‹ › vers les périodes précédentes (ajout hors maquette).
+- [x] « Revenus et dépenses » : barres groupées sur les 12 mois qui finissent avec la période + totaux revenus, dépenses, épargné (montant et %).
+- [x] Dépenses par catégorie de la période (barres avec montants et anneau avec total).
+- [x] Évolution du solde sur 12 mois, par compte et tous comptes confondus, avec zoom.
+- Écran chargé à la demande (ECharts, ~620 kB, n'alourdit pas le démarrage). Comparaison avec l'année précédente, patrimoine net, top tiers et plus grosses dépenses de la maquette : étapes 6 et 7.
 
 ---
 

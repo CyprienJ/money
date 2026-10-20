@@ -85,9 +85,9 @@ export interface CategorySlice {
 export function categoryBarsOption(slices: CategorySlice[], tokens: ChartTokens) {
   const sorted = [...slices].sort((a, b) => b.amountCents - a.amountCents);
   return {
-    grid: { left: 8, right: 16, top: 8, bottom: 8, containLabel: true },
+    grid: { left: 8, right: 72, top: 8, bottom: 8, containLabel: true },
     tooltip: { trigger: "item", formatter: (p: TooltipParam) => `${p.name} <b>${formatAmount(p.value)}</b>` },
-    xAxis: { type: "value", axisLabel: { formatter: euros } },
+    xAxis: { type: "value", axisLabel: { show: false }, splitLine: { show: false } },
     yAxis: {
       type: "category",
       inverse: true,
@@ -100,6 +100,15 @@ export function categoryBarsOption(slices: CategorySlice[], tokens: ChartTokens)
         data: sorted.map((s) => ({ value: s.amountCents, itemStyle: { color: tokens.categories[s.color] } })),
         barWidth: 10,
         itemStyle: { borderRadius: 5 },
+        // Amount at the end of each bar, as in the mockup.
+        label: {
+          show: true,
+          position: "right",
+          formatter: (p: TooltipParam) => euros(p.value),
+          color: tokens.text,
+          fontSize: 13,
+          fontWeight: 700,
+        },
       },
     ],
   };

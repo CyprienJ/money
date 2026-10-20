@@ -7,6 +7,11 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig({
   plugins: [vue()],
   clearScreen: false,
+  build: {
+    // The Analyses chunk carries ECharts (~620 kB). The app is read from disk, not
+    // downloaded, so the default 500 kB warning does not apply.
+    chunkSizeWarningLimit: 800,
+  },
   server: {
     port: 1420,
     strictPort: true,

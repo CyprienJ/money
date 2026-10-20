@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { periodOptions } from "./periods";
+import { analysisPeriod, periodOptions } from "./periods";
 
 describe("periodOptions", () => {
   const options = periodOptions(new Date(2026, 9, 20)); // 20 October 2026
@@ -25,5 +25,41 @@ describe("periodOptions", () => {
       { id: "last-12-months", label: "12 derniers mois", from: "2025-11-01", to: "2026-10-20" },
       { id: "all", label: "Tout l'historique", from: null, to: null },
     ]);
+  });
+});
+
+describe("analysisPeriod", () => {
+  const today = new Date(2026, 9, 20);
+
+  it("gives the current month, quarter and year", () => {
+    expect(analysisPeriod("month", 0, today)).toEqual({
+      label: "Octobre 2026",
+      from: "2026-10-01",
+      to: "2026-10-31",
+      trendFrom: "2025-11-01",
+    });
+    expect(analysisPeriod("quarter", 0, today)).toEqual({
+      label: "4e trimestre 2026",
+      from: "2026-10-01",
+      to: "2026-12-31",
+      trendFrom: "2026-01-01",
+    });
+    expect(analysisPeriod("year", 0, today)).toEqual({
+      label: "2026",
+      from: "2026-01-01",
+      to: "2026-12-31",
+      trendFrom: "2026-01-01",
+    });
+  });
+
+  it("goes back across years", () => {
+    expect(analysisPeriod("month", -10, today).label).toBe("Décembre 2025");
+    expect(analysisPeriod("quarter", -3, today)).toMatchObject({
+      label: "1er trimestre 2026",
+      from: "2026-01-01",
+      to: "2026-03-31",
+    });
+    expect(analysisPeriod("quarter", -4, today).label).toBe("4e trimestre 2025");
+    expect(analysisPeriod("year", -1, today).from).toBe("2025-01-01");
   });
 });
