@@ -17,8 +17,14 @@ pub struct Fortuneo;
 /// Maximum gap, in points, between the lines of one operation label.
 const CONTINUATION_GAP: f32 = 16.0;
 
+/// Text further left than this, in points, from the "Date" header is in the page margin.
+const MARGIN_GAP: f32 = 12.0;
+
 /// Position of the operations table header.
 struct Columns {
+    /// Left of the "Date" header: text left of it is in the margin ("Réf : MRELPAR", the
+    /// issue date), printed on the same baseline as some table lines.
+    date: f32,
     /// Left of the "Crédit" header: amounts starting there are credits.
     credit: f32,
 }
@@ -48,12 +54,16 @@ impl StatementParser for Fortuneo {
             // y and label start of the last operation line, while its label may go on.
             let mut last: Option<(f32, f32)> = None;
             for line in &page.lines {
-                let text = line.text();
                 if let Some(header) = table_header(line) {
                     columns = Some(header);
                     continue;
                 }
                 let Some(columns) = &columns else { continue };
+                let Some(line) = without_margin(line, columns) else {
+                    continue;
+                };
+                let line = &line;
+                let text = line.text();
 
                 if text.starts_with("ANCIEN SOLDE") {
                     start_balance = Some(balance(line)?);
@@ -115,8 +125,20 @@ fn table_header(line: &TextLine) -> Option<Columns> {
     let credit = find("Crédit")?;
     find("Débit")?;
     (date.left < label.left).then_some(Columns {
+        date: date.left,
         credit: credit.left,
     })
+}
+
+/// The line without its page margin text, or `None` when nothing else is left.
+fn without_margin(line: &TextLine, columns: &Columns) -> Option<TextLine> {
+    let items: Vec<TextItem> = line
+        .items
+        .iter()
+        .filter(|item| item.left >= columns.date - MARGIN_GAP)
+        .cloned()
+        .collect();
+    (!items.is_empty()).then_some(TextLine { y: line.y, items })
 }
 
 /// Signed balance of an "ANCIEN SOLDE" or "NOUVEAU SOLDE" line: the amount before `€`,
@@ -216,7 +238,23 @@ fn day_month(text: &str, end: NaiveDate) -> Option<NaiveDate> {
 
 #[cfg(test)]
 mod tests {
+    use super::super::text::PageText;
     use super::*;
+
+    /// A line of items given as `(left, text)`.
+    fn line(y: f32, items: &[(f32, &str)]) -> TextLine {
+        TextLine {
+            y,
+            items: items
+                .iter()
+                .map(|&(left, text)| TextItem {
+                    left,
+                    right: left + 5.0 * text.len() as f32,
+                    text: text.to_owned(),
+                })
+                .collect(),
+        }
+    }
 
     fn date(text: &str) -> NaiveDate {
         text.parse().unwrap()
@@ -229,5 +267,66 @@ mod tests {
         assert_eq!(day_month("05/01", end), Some(date("2026-01-05")));
         assert_eq!(day_month("5/01", end), None);
         assert_eq!(day_month("08/09/2026", end), None);
+    }
+
+    #[test]
+    fn ignores_the_margin_text_on_table_lines() {
+        let lines = vec![
+            line(37.0, &[(264.0, "Relevé de Compte"), (534.0, "FORTUNEO")]),
+            line(73.0, &[(264.0, "Arrêté au 30 avril 2025")]),
+            line(
+                360.0,
+                &[
+                    (57.0, "Date"),
+                    (84.0, "Date de Valeur"),
+                    (237.0, "Opération"),
+                    (408.0, "Débit"),
+                    (496.0, "Crédit"),
+                ],
+            ),
+            line(
+                379.0,
+                &[(54.0, "ANCIEN SOLDE"), (529.0, "20,00"), (550.0, "€")],
+            ),
+            line(
+                655.0,
+                &[
+                    (30.0, "Réf : MRELPAR"),
+                    (54.0, "30/04"),
+                    (90.0, "30/04/2025"),
+                    (136.0, "CARTE 28/04 SUSHI PARIS"),
+                    (444.0, "15,90"),
+                ],
+            ),
+            line(
+                695.0,
+                &[
+                    (30.0, "01/05/2025"),
+                    (54.0, "NOUVEAU SOLDE CRÉDITEUR AU 30 AVRIL 2025"),
+                    (520.0, "4,10"),
+                    (550.0, "€"),
+                ],
+            ),
+        ];
+        let document = DocumentText {
+            pages: vec![PageText {
+                width: 595.0,
+                height: 842.0,
+                lines,
+            }],
+        };
+
+        let statement = Fortuneo.parse(&document).unwrap();
+        assert_eq!(
+            statement.lines,
+            [RawLine {
+                date: date("2025-04-30"),
+                value_date: Some(date("2025-04-30")),
+                label: "CARTE 28/04 SUSHI PARIS".to_owned(),
+                amount_cents: -1590,
+            }]
+        );
+        assert_eq!(statement.start_balance_cents, Some(2000));
+        assert_eq!(statement.end_balance_cents, Some(410));
     }
 }
