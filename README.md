@@ -93,6 +93,9 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 - **Cours de bourse récupérés automatiquement**.
 - **Performance et plus-values**, latentes et réalisées.
 
+#### Interface
+- **Mode clair et mode sombre** : choix entre « clair », « sombre » et « système » (suit le réglage du système d'exploitation, par défaut), mémorisé dans les préférences. Le thème sombre redéfinit les variables CSS de `src/styles/tokens.css`, y compris les couleurs des catégories (pastilles et graphiques ECharts), pour garder un contraste lisible.
+
 #### Technique
 - **Multi-devises** avec conversion vers la devise de référence.
 - **Chiffrement** du fichier de données, protégé par mot de passe.
