@@ -113,6 +113,10 @@ export const commands = {
 	dismissScheduleMatch: (scheduledOperationId: number, occurrenceDate: string, operationId: number) => typedError<null, AppError>(__TAURI_INVOKE("dismiss_schedule_match", { scheduledOperationId, occurrenceDate, operationId })),
 	/**  Operations that can be matched by hand with an occurrence, the closest dates first. */
 	scheduleMatchCandidates: (scheduledOperationId: number, occurrenceDate: string) => typedError<MatchedOperation[], AppError>(__TAURI_INVOKE("schedule_match_candidates", { scheduledOperationId, occurrenceDate })),
+	/**  Recurring series of operations the schedule does not cover, to add as scheduled operations. */
+	recurringSuggestions: () => typedError<RecurringSuggestion[], AppError>(__TAURI_INVOKE("recurring_suggestions")),
+	/**  Stops suggesting the series of a payee on an account, in one direction. */
+	dismissRecurringSuggestion: (accountId: number, payeeId: number, isCredit: boolean) => typedError<null, AppError>(__TAURI_INVOKE("dismiss_recurring_suggestion", { accountId, payeeId, isCredit })),
 	/**  Payees that have operations, by name, with their labels. */
 	listPayees: () => typedError<Payee[], AppError>(__TAURI_INVOKE("list_payees")),
 	/**  Renames a payee; refused when another payee already has this name. */
@@ -763,6 +767,25 @@ export type RawLine = {
 	label: string,
 	/**  Negative for a debit, positive for a credit. */
 	amountCents: number,
+};
+
+/**  A recurring series suggested as a scheduled operation. */
+export type RecurringSuggestion = {
+	accountId: number,
+	payeeId: number,
+	/**  Suggested label of the scheduled operation. */
+	payeeName: string,
+	/**  Amount of the most recent operation. */
+	amountCents: number,
+	/**  Category of the most recent operation. */
+	categoryId: number | null,
+	frequency: Frequency,
+	/**  Weekday (1 = Monday) for a weekly series, the usual day of the month otherwise. */
+	dayOfPeriod: number,
+	/**  Date of the first operation of the series. */
+	startDate: string,
+	lastDate: string,
+	occurrenceCount: number,
 };
 
 export type Rule = {

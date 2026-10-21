@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR IGNORE INTO recurring_dismissal (account_id, payee_id, is_credit)\n         VALUES (?1, ?2, ?3)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "868676fa0a47bdb469dfd3528918977e225b1c5ad9d8c17aa890d30152ff97d7"
+}

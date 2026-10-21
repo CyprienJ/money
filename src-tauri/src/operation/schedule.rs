@@ -14,6 +14,7 @@ use sqlx::SqlitePool;
 use crate::account;
 use crate::error::{AppResult, ErrorKind};
 
+pub mod detection;
 pub mod matching;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type, sqlx::Type)]

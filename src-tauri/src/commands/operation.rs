@@ -7,6 +7,7 @@ use crate::error::AppResult;
 use crate::labeling::rules::{self, Rule, RuleInput};
 use crate::operation::category::{self, Category, CategoryInput};
 use crate::operation::same_label::{self, SameLabel};
+use crate::operation::schedule::detection::{self, RecurringSuggestion};
 use crate::operation::schedule::matching::{self, ScheduleMatchProposal};
 use crate::operation::schedule::{
     self, MatchedOperation, ScheduledOperation, ScheduledOperationInput, UpcomingOperation,
@@ -358,4 +359,25 @@ pub async fn schedule_match_candidates(
 /// Today in the local time zone.
 pub(super) fn today() -> NaiveDate {
     chrono::Local::now().date_naive()
+}
+
+/// Recurring series of operations the schedule does not cover, to add as scheduled operations.
+#[tauri::command]
+#[specta::specta]
+pub async fn recurring_suggestions(
+    pool: State<'_, SqlitePool>,
+) -> AppResult<Vec<RecurringSuggestion>> {
+    detection::suggestions(&pool, today()).await
+}
+
+/// Stops suggesting the series of a payee on an account, in one direction.
+#[tauri::command]
+#[specta::specta]
+pub async fn dismiss_recurring_suggestion(
+    pool: State<'_, SqlitePool>,
+    account_id: i64,
+    payee_id: i64,
+    is_credit: bool,
+) -> AppResult<()> {
+    detection::dismiss(&pool, account_id, payee_id, is_credit).await
 }

@@ -4,7 +4,9 @@ import {
   commands,
   type Account,
   type Category,
+  type RecurringSuggestion,
   type ScheduledOperation,
+  type ScheduledOperationInput,
   type UpcomingOperation,
 } from "../bindings";
 import OccurrenceList from "../components/OccurrenceList.vue";
@@ -33,6 +35,12 @@ const error = ref("");
 
 const modalOpen = ref(false);
 const edited = ref<ScheduledOperation | null>(null);
+/** Recurring series the schedule does not cover yet. */
+const suggestions = ref<RecurringSuggestion[]>([]);
+/** Values of the scheduled operation created from a suggestion. */
+const prefill = ref<ScheduledOperationInput | null>(null);
+/** Message shown after a suggestion is added. */
+const suggestionNotice = ref("");
 
 const accountNames = computed(() => new Map(accounts.value.map((a) => [a.id, a.name])));
 const categoriesById = computed(() => new Map(categories.value.map((c) => [c.id, c])));
@@ -56,6 +64,7 @@ async function load() {
     const range = recentRange(todayIso());
     recent.value = (await unwrap(commands.scheduleOccurrences(range.from, range.to))).reverse();
     proposalCount.value = (await unwrap(commands.listScheduleMatchProposals())).length;
+    suggestions.value = await unwrap(commands.recurringSuggestions());
   } catch (e) {
     error.value = errorMessage(e);
   } finally {
@@ -65,11 +74,13 @@ async function load() {
 
 function openCreate() {
   edited.value = null;
+  prefill.value = null;
   modalOpen.value = true;
 }
 
 function openEdit(schedule: ScheduledOperation) {
   edited.value = schedule;
+  prefill.value = null;
   modalOpen.value = true;
 }
 
@@ -81,8 +92,48 @@ async function onMatchesChanged(remaining: number) {
   await load();
 }
 
+function addSuggestion(suggestion: RecurringSuggestion) {
+  edited.value = null;
+  prefill.value = {
+    accountId: suggestion.accountId,
+    label: suggestion.payeeName,
+    amountCents: suggestion.amountCents,
+    categoryId: suggestion.categoryId,
+    frequency: suggestion.frequency,
+    dayOfPeriod: suggestion.dayOfPeriod,
+    startDate: suggestion.startDate,
+    endDate: null,
+  };
+  suggestionNotice.value = "";
+  modalOpen.value = true;
+}
+
+async function dismissSuggestion(suggestion: RecurringSuggestion) {
+  error.value = "";
+  try {
+    await unwrap(
+      commands.dismissRecurringSuggestion(suggestion.accountId, suggestion.payeeId, suggestion.amountCents > 0),
+    );
+  } catch (e) {
+    error.value = errorMessage(e);
+  }
+  await load();
+}
+
 async function onChanged() {
   modalOpen.value = false;
+  // A schedule added from a suggestion is realized at once by the past operations of its series.
+  if (prefill.value) {
+    try {
+      const count = await unwrap(commands.detectScheduleMatches());
+      suggestionNotice.value = `Échéance « ${prefill.value.label} » ajoutée${
+        count > 0 ? `, ${count} occurrence${count > 1 ? "s" : ""} passée${count > 1 ? "s" : ""} réalisée${count > 1 ? "s" : ""}` : ""
+      }.`;
+    } catch (e) {
+      error.value = errorMessage(e);
+    }
+    prefill.value = null;
+  }
   await load();
 }
 
@@ -154,6 +205,39 @@ onMounted(load);
       <p v-else class="muted">Aucune échéance dans les {{ RECENT_DAYS }} derniers jours.</p>
     </section>
 
+    <section v-if="suggestions.length > 0 || suggestionNotice" class="card">
+      <div class="card-header">
+        <h2 class="card-title">Récurrences détectées</h2>
+        <span class="muted">{{ suggestions.length }}</span>
+      </div>
+      <p class="muted">
+        Des opérations régulières qui ne sont pas encore dans l'échéancier : abonnements, salaire,
+        épargne…
+      </p>
+      <p v-if="suggestionNotice" class="notice">{{ suggestionNotice }}</p>
+      <ul v-if="suggestions.length > 0" class="list">
+        <li v-for="suggestion in suggestions" :key="`${suggestion.accountId}-${suggestion.payeeId}-${suggestion.amountCents > 0}`">
+          <span class="details">
+            <span class="label">{{ suggestion.payeeName }}</span>
+            <span class="sub">
+              {{ describeSchedule(suggestion) }} · {{ accountNames.get(suggestion.accountId) }}
+            </span>
+            <span class="sub">
+              {{ suggestion.occurrenceCount }} opérations depuis le {{ formatDate(suggestion.startDate) }},
+              dernière le {{ formatDate(suggestion.lastDate) }}
+            </span>
+          </span>
+          <strong class="amount" :class="{ positive: suggestion.amountCents > 0 }">
+            {{ formatAmount(suggestion.amountCents, { signed: true }) }}
+          </strong>
+          <span class="suggestion-actions">
+            <button type="button" class="btn btn-link" @click="dismissSuggestion(suggestion)">Ignorer</button>
+            <button type="button" class="btn btn-secondary" @click="addSuggestion(suggestion)">Ajouter</button>
+          </span>
+        </li>
+      </ul>
+    </section>
+
     <section class="card">
       <div class="card-header">
         <h2 class="card-title">Opérations récurrentes</h2>
@@ -197,12 +281,29 @@ onMounted(load);
     :accounts="accounts"
     :categories="categories"
     :schedule="edited"
+    :prefill="prefill"
     @close="modalOpen = false"
     @changed="onChanged"
   />
 </template>
 
 <style scoped>
+.notice {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-nav);
+  background: var(--cat-transport-bg);
+  color: var(--cat-transport-fg);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.suggestion-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .banner {
   display: flex;
   flex-wrap: wrap;

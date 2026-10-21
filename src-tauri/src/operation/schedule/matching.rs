@@ -47,7 +47,7 @@ struct Candidate {
 }
 
 /// Whether `amount_cents` is in the same direction as `scheduled_cents`, within the tolerance.
-fn amount_matches(scheduled_cents: i64, amount_cents: i64) -> bool {
+pub(super) fn amount_matches(scheduled_cents: i64, amount_cents: i64) -> bool {
     scheduled_cents.signum() == amount_cents.signum()
         && (amount_cents - scheduled_cents).abs() * 100
             <= scheduled_cents.abs() * AMOUNT_TOLERANCE_PERCENT

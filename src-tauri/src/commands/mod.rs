@@ -73,6 +73,8 @@ pub fn builder() -> Builder<tauri::Wry> {
             operation::unmatch_schedule_occurrence,
             operation::dismiss_schedule_match,
             operation::schedule_match_candidates,
+            operation::recurring_suggestions,
+            operation::dismiss_recurring_suggestion,
             payee::list_payees,
             payee::rename_payee,
             payee::merge_payees,
