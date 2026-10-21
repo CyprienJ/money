@@ -167,6 +167,26 @@ Module `labeling/`.
 - [x] Sélecteur de catégorie (pastille cliquable) dans l'aperçu d'import et dans l'écran Opérations ; une catégorie choisie dans l'aperçu, différente de la proposition, est retenue pour le libellé.
 - [x] Mention « Exclu des statistiques » sur les virements internes ; montant en gris.
 
+#### V1-03.6 · Dates en toutes lettres et entités HTML dans la normalisation — S
+Ajouté le 21/10/2026 (retour de recette : « Intérêts nets versés pour Compte d&#39;épargne le Apr 5, 2025 » donne un libellé différent chaque mois).
+- [ ] Décodage des entités HTML (`&#39;`, `&amp;`…).
+- [ ] Suppression des dates en toutes lettres, en anglais (« Apr 5, 2025 ») et en français (« 5 avr. 2025 », « 5 avril 2025 »).
+- [ ] Opérations existantes renormalisées au démarrage (mécanisme existant) ; tests unitaires.
+
+#### V1-03.7 · Propagation de la catégorie — S
+Ajouté le 21/10/2026.
+- [ ] Aperçu d'import : une catégorie choisie sur une ligne s'applique aux autres lignes du même libellé normalisé, sauf celles choisies à la main.
+- [ ] Écran Opérations : après une catégorisation, bandeau « Classer aussi les N autres « … » dans … ? » pour les opérations du même libellé encore à catégoriser ; avertissement si d'autres opérations du même libellé sont dans une autre catégorie.
+- [ ] Commandes fines : compte des opérations concernées, catégorisation groupée (une requête, mémoire mise à jour) ; tests unitaires.
+
+#### V1-03.8 · Règles de catégorisation — M
+Avancé de la V2 le 21/10/2026. Une seule condition : « libellé normalisé contient X », sans tenir compte des majuscules ni des accents.
+- [ ] Table `categorization_rule` (nouvelle migration), CRUD et réordonnancement ; la première règle qui correspond l'emporte.
+- [ ] À l'import, règles appliquées avant la reprise automatique, avec l'indice « Règle « … » ».
+- [ ] Application d'une règle aux opérations existantes encore à catégoriser, avec le nombre d'opérations concernées.
+- [ ] Écran de gestion des règles (section de l'écran Catégories) ; création rapide depuis une opération.
+- [ ] Tests unitaires.
+
 ---
 
 ### Étape 4 — Premiers graphiques

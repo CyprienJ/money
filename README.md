@@ -51,9 +51,11 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 #### Catégorisation
 - **Catégories et sous-catégories** personnalisables, sur deux niveaux. Une sous-catégorie hérite de la couleur et de l'indicateur « revenu » de sa catégorie principale. Une catégorie qui a des sous-catégories ne peut pas être supprimée ; les opérations d'une catégorie supprimée passent à une catégorie choisie ou redeviennent « à catégoriser ».
 - **Arborescence par défaut** créée au premier lancement, modifiable ensuite : Logement (loyer ou crédit, charges et énergie, assurance habitation, travaux et équipement), Courses (alimentation, maison et hygiène), Restaurants (restaurants, cafés et snacks, livraison), Transport (carburant, transports en commun, train et avion, entretien du véhicule, péages et parking), Loisirs (sorties et culture, sport, voyages, shopping, cadeaux), Abonnements (téléphone et internet, streaming, logiciels et presse), Santé (médecin, pharmacie, mutuelle), Revenus (salaire, remboursements, intérêts, autres revenus), Autres (impôts et taxes, frais bancaires, retraits d'espèces, divers).
-- **Catégorie spéciale « Virement interne »**, exclue de toutes les statistiques de revenus et de dépenses. En V1, on l'attribue à la main ou via la reprise automatique. Elle ne peut être ni modifiée, ni supprimée, ni avoir de sous-catégories.
-- **Normalisation simple des libellés** : suppression des dates, numéros de carte, références de prélèvement et préfixes bancaires (`CB`, `PRLV SEPA`, `VIR`…) à l'aide d'expressions régulières. Le libellé brut est toujours conservé. Le libellé normalisé, en majuscules, sert de clé ; il est recalculé au démarrage quand les règles évoluent. À l'écran, il est affiché avec une capitale initiale par mot (« Carrefour Mkt ») ; les noms lisibles des tiers viendront en V2.
+- **Catégorie spéciale « Virement interne »**, exclue de toutes les statistiques de revenus et de dépenses. En V1, on l'attribue à la main, via la reprise automatique ou via une règle. Elle ne peut être ni modifiée, ni supprimée, ni avoir de sous-catégories.
+- **Normalisation simple des libellés** : décodage des entités HTML (`&#39;`), suppression des dates (chiffrées ou en toutes lettres, en français et en anglais : « Apr 5, 2025 », « 5 avr. 2025 »), numéros de carte, références de prélèvement et préfixes bancaires (`CB`, `PRLV SEPA`, `VIR`…) à l'aide d'expressions régulières. Le libellé brut est toujours conservé. Le libellé normalisé, en majuscules, sert de clé ; il est recalculé au démarrage quand les règles évoluent. À l'écran, il est affiché avec une capitale initiale par mot (« Carrefour Mkt ») ; les noms lisibles des tiers viendront en V2.
 - **Reprise automatique de catégorie** : à l'import, une opération dont le libellé normalisé a déjà été catégorisé reçoit la même catégorie. L'utilisateur peut corriger.
+- **Propagation de la catégorie** : dans l'aperçu d'import, une catégorie choisie sur une ligne s'applique aux autres lignes du même libellé normalisé, sauf celles choisies à la main. Dans l'écran Opérations, catégoriser une opération propose (sans l'imposer) de classer les autres opérations du même libellé encore à catégoriser, et avertit si d'autres opérations du même libellé sont dans une autre catégorie.
+- **Règles de catégorisation** *(avancées de la V2, décision du 21/10/2026)* : « libellé normalisé contient X », sans tenir compte des majuscules ni des accents, vers une catégorie. Pas d'autre condition. La première règle qui correspond, dans l'ordre de la liste, l'emporte ; une règle passe avant la reprise automatique. Une règle créée peut être appliquée aux opérations existantes encore à catégoriser.
 
 #### Échéancier
 - **Opérations récurrentes** (loyer, salaire, abonnements) avec une périodicité : hebdomadaire, mensuelle, trimestrielle, semestrielle ou annuelle. Le jour est le jour de la semaine pour une échéance hebdomadaire, le jour du mois sinon (ramené au dernier jour des mois plus courts) ; les périodicités de plus d'un mois se répètent à partir du mois de la date de début.
@@ -71,7 +73,6 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 ### V2 — Automatiser et enrichir
 
 #### Catégorisation et tiers
-- **Règles de catégorisation configurables**, du type « libellé contient X » ou « montant entre A et B », avec priorités.
 - **Gestion des tiers** : fusion de plusieurs libellés normalisés en un seul tiers (alias) et renommage.
 - **Appariement automatique des virements internes** : le débit sur le compte A et le crédit correspondant sur le compte B sont liés.
 
@@ -174,6 +175,9 @@ csv_mapping
 label_category_memory    -- V1 automatic category reuse
   normalized_label, category_id, last_used_at
 
+categorization_rule      -- "normalized label contains X" → category, first match wins
+  id, pattern, category_id, position
+
 valuation                -- history of value for INVESTMENT / ASSET / LIABILITY accounts
   id, account_id, date, value_cents
 
@@ -182,7 +186,7 @@ scheduled_operation      -- schedule (display only in V1)
   frequency (WEEKLY | MONTHLY | QUARTERLY | SEMIANNUAL | YEARLY), day_of_period, start_date, end_date
 
 -- Prévus (V2+) : payee, payee_alias, tag, operation_tag, attachment,
---               categorization_rule, security, security_price, investment_transaction
+--               security, security_price, investment_transaction
 ```
 
 Note : la catégorie est portée par `operation_split` dès la V1. Ainsi, l'arrivée de la ventilation ne change aucune requête de statistique.
@@ -204,7 +208,7 @@ File (CSV / PDF)
   → Balance check (start + Σ = end ?)          → warning if mismatch
   → Label normalization (regex)
   → Duplicate detection                         → ambiguous cases shown to the user
-  → Automatic category reuse (label memory)
+  → Categorization rules, then automatic category reuse (label memory)
   → Preview screen (user validates / corrects)
   → Automatic backup of the data file
   → Insert as a new import_batch
@@ -218,7 +222,7 @@ Un import peut être annulé à tout moment en supprimant son lot.
 
 1. **Socle** : modèle de données, gestion des comptes, saisie manuelle des opérations
 2. **Import CSV** : mapping des colonnes, détection des doublons, lots d'import et annulation, sauvegarde avant import
-3. **Catégorisation** : catégories, virement interne, normalisation des libellés, reprise automatique de catégorie
+3. **Catégorisation** : catégories, virement interne, normalisation des libellés, reprise automatique de catégorie, propagation, règles de catégorisation
 4. **Premiers graphiques** : dépenses par catégorie, évolution du solde, revenus vs dépenses
 5. **Import PDF** : parsers Fortuneo et Trade Republic, liste des banques prises en charge, contrôle des soldes
 6. **Patrimoine** : comptes de placement, actifs, dettes, valorisations, patrimoine net
