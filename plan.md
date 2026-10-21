@@ -169,9 +169,9 @@ Module `labeling/`.
 
 #### V1-03.6 · Dates en toutes lettres et entités HTML dans la normalisation — S
 Ajouté le 21/10/2026 (retour de recette : « Intérêts nets versés pour Compte d&#39;épargne le Apr 5, 2025 » donne un libellé différent chaque mois).
-- [ ] Décodage des entités HTML (`&#39;`, `&amp;`…).
-- [ ] Suppression des dates en toutes lettres, en anglais (« Apr 5, 2025 ») et en français (« 5 avr. 2025 », « 5 avril 2025 »).
-- [ ] Opérations existantes renormalisées au démarrage (mécanisme existant) ; tests unitaires.
+- [x] Décodage des entités HTML (`&#39;`, `&amp;`…).
+- [x] Suppression des dates en toutes lettres, en anglais (« Apr 5, 2025 ») et en français (« 5 avr. 2025 », « 1er avril 2025 »), et d'un mois suivi de son année (« Loyer avril 2025 »). Un mois seul est gardé (« Salaire sept », « Mars Distribution »).
+- [x] Opérations existantes renormalisées au démarrage (mécanisme existant) ; la catégorie retenue pour l'ancien libellé est reportée sur le nouveau. Tests unitaires.
 
 #### V1-03.7 · Propagation de la catégorie — S
 Ajouté le 21/10/2026.

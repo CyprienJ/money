@@ -3,7 +3,8 @@ use chrono::NaiveDate;
 use super::*;
 use crate::account::{self, AccountType, NewAccount};
 use crate::db::tests::memory_pool;
-use crate::operation::{self, NewOperation};
+use crate::labeling::memory::recall;
+use crate::operation::{self, NewOperation, category};
 
 fn check(cases: &[(&str, &str)]) {
     for (raw, expected) in cases {
@@ -30,6 +31,44 @@ fn removes_card_payment_prefixes_dates_and_card_numbers() {
         ),
         ("PAIEMENT CB DU 03/10/26 LECLERC", "LECLERC"),
         ("ACHAT CB TOTALENERGIES 21/09 XXXX4417", "TOTALENERGIES"),
+    ]);
+}
+
+#[test]
+fn removes_dates_in_words() {
+    check(&[
+        (
+            "Intérêts nets versés pour Compte d&#39;épargne le Apr 5, 2025",
+            "INTÉRÊTS NETS VERSÉS POUR COMPTE D'ÉPARGNE",
+        ),
+        (
+            "Intérêts nets versés pour Compte d&#39;épargne le May 5, 2025",
+            "INTÉRÊTS NETS VERSÉS POUR COMPTE D'ÉPARGNE",
+        ),
+        (
+            "Interest payment on September 30th, 2025",
+            "INTEREST PAYMENT",
+        ),
+        ("Cotisation carte du 5 avr. 2025", "COTISATION CARTE"),
+        ("Cotisation carte du 1er février 2025", "COTISATION CARTE"),
+        ("LOYER AVRIL 2025", "LOYER"),
+        ("Loyer de décembre 2025", "LOYER"),
+        // A month without a day nor a year is kept: it can be part of a name.
+        (
+            "VIR SEPA RECU /DE EMPLOYEUR SA; SALAIRE SEPT",
+            "EMPLOYEUR SA SALAIRE SEPT",
+        ),
+        ("CB MARS DISTRIBUTION 18/10", "MARS DISTRIBUTION"),
+    ]);
+}
+
+#[test]
+fn decodes_html_entities() {
+    check(&[
+        ("CB H&amp;M 18/10", "H&M"),
+        ("L&#x27;ATELIER", "L'ATELIER"),
+        // Unknown entities are left as they are (the ";" separator is then dropped).
+        ("AT&T &foo;", "AT&T &FOO"),
     ]);
 }
 
@@ -154,10 +193,28 @@ fn renormalizes_stored_labels() {
         .execute(&pool)
         .await
         .unwrap();
+        // Categories remembered under the old label (recent) and the new one (older).
+        let categories = category::list(&pool).await.unwrap();
+        let id = |name: &str| categories.iter().find(|c| c.name == name).unwrap().id;
+        let (groceries, health) = (id("Courses"), id("Santé"));
+        sqlx::query!(
+            "INSERT INTO label_category_memory (normalized_label, category_id, last_used_at)
+             VALUES ('OLD', ?1, '2026-10-02T10:00:00Z'), ('CARREFOUR MKT', ?2, '2026-10-01T10:00:00Z')",
+            groceries,
+            health
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
         assert_eq!(renormalize_all(&pool).await.unwrap(), 1);
         let operation = operation::get(&pool, created.id).await.unwrap();
         assert_eq!(operation.normalized_label, "CARREFOUR MKT");
         assert_eq!(operation.raw_label, "CB CARREFOUR MKT 18/10");
+        let mut conn = pool.acquire().await.unwrap();
+        let remembered = recall(&mut conn, &["CARREFOUR MKT"]).await.unwrap();
+        assert_eq!(remembered["CARREFOUR MKT"], groceries);
+        drop(conn);
         assert_eq!(renormalize_all(&pool).await.unwrap(), 0);
     });
 }

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO label_category_memory (normalized_label, category_id, last_used_at)\n             VALUES ('OLD', ?1, '2026-10-02T10:00:00Z'), ('CARREFOUR MKT', ?2, '2026-10-01T10:00:00Z')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "bf8f1ee63d532d2d7477dba63e4cfdcdffcad207a192a4bd56236e65355e0f40"
+}
