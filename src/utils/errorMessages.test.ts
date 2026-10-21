@@ -16,6 +16,9 @@ describe("businessMessage", () => {
     expect(businessMessage({ domain: "operation", error: { code: "dateBeforeOpening", params: "2026-09-01" } })).toContain(
       "(01/09/2026)",
     );
+    expect(
+      businessMessage({ domain: "csv", error: { code: "wrongDecimalSeparator", params: { line: 2, value: "500.00" } } }),
+    ).toContain("change le « Séparateur décimal » du format");
     expect(businessMessage({ domain: "import", error: { code: "duplicateLine", params: 0 } })).toBe(
       "La ligne 1 est déjà dans le compte et ne peut pas être réimportée.",
     );

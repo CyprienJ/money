@@ -50,6 +50,13 @@ pub enum DecimalSeparator {
 }
 
 impl DecimalSeparator {
+    fn other(self) -> Self {
+        match self {
+            DecimalSeparator::Comma => DecimalSeparator::Dot,
+            DecimalSeparator::Dot => DecimalSeparator::Comma,
+        }
+    }
+
     fn decimal(self) -> char {
         match self {
             DecimalSeparator::Comma => ',',
@@ -143,6 +150,9 @@ pub enum CsvError {
 
     #[error("line {line}: invalid amount {value:?}")]
     InvalidAmount { line: u64, value: String },
+
+    #[error("line {line}: amount {value:?} uses the other decimal separator")]
+    WrongDecimalSeparator { line: u64, value: String },
 
     #[error("line {line}: no amount")]
     MissingAmount { line: u64 },

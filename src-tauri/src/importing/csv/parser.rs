@@ -97,9 +97,14 @@ fn read_line(
     };
     let amount = |column: u32| {
         let value = field(column)?;
-        parse_cents(value, mapping.decimal_separator).map_err(|()| CsvError::InvalidAmount {
-            line,
-            value: value.to_owned(),
+        parse_cents(value, mapping.decimal_separator).map_err(|()| {
+            let value = value.to_owned();
+            // Readable with the other separator: the mapping is likely wrong, say so.
+            if parse_cents(&value, mapping.decimal_separator.other()).is_ok() {
+                CsvError::WrongDecimalSeparator { line, value }
+            } else {
+                CsvError::InvalidAmount { line, value }
+            }
         })
     };
 

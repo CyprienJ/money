@@ -129,6 +129,8 @@ function csv(error: CsvError): string {
       return `Ligne ${error.params.line} : date « ${error.params.value} » illisible avec ce format.`;
     case "invalidAmount":
       return `Ligne ${error.params.line} : montant « ${error.params.value} » illisible.`;
+    case "wrongDecimalSeparator":
+      return `Ligne ${error.params.line} : le montant « ${error.params.value} » utilise l'autre séparateur décimal : change le « Séparateur décimal » du format.`;
     case "missingAmount":
       return `Ligne ${error.params.line} : aucun montant.`;
     case "zeroAmount":

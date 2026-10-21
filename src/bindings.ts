@@ -265,6 +265,9 @@ export type CsvError = { code: "invalidDelimiter"; params: string } | { code: "e
 } } | { code: "invalidAmount"; params: {
 	line: number,
 	value: string,
+} } | { code: "wrongDecimalSeparator"; params: {
+	line: number,
+	value: string,
 } } | { code: "missingAmount"; params: {
 	line: number,
 } } | { code: "zeroAmount"; params: {

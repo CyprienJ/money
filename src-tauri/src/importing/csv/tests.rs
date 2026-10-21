@@ -327,3 +327,23 @@ fn ignores_a_time_after_the_date() {
         "{error:?}"
     );
 }
+
+#[test]
+fn flags_amounts_written_with_the_other_decimal_separator() {
+    let mapping = CsvMapping {
+        decimal_separator: DecimalSeparator::Comma,
+        skip_lines: 0,
+        ..signed_mapping()
+    };
+    let error = parse_text("2026-09-01;X;;500.00", &mapping).unwrap_err();
+    assert!(
+        matches!(&error, CsvError::WrongDecimalSeparator { line: 1, value } if value == "500.00"),
+        "{error:?}"
+    );
+    // Unreadable either way: a plain invalid amount.
+    let error = parse_text("2026-09-01;X;;5O0", &mapping).unwrap_err();
+    assert!(
+        matches!(error, CsvError::InvalidAmount { line: 1, .. }),
+        "{error:?}"
+    );
+}
