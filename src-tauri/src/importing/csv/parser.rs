@@ -65,7 +65,7 @@ fn file_line(data: &str, skipped: u32, position: Option<&csv::Position>) -> u64 
 
 /// Date at the start of `text` in `format`, ignoring a time after it: some banks export
 /// `2025-04-01 13:58:02` or `2025-04-01T13:58:02`.
-fn parse_date(text: &str, format: &str) -> Option<NaiveDate> {
+pub(super) fn parse_date(text: &str, format: &str) -> Option<NaiveDate> {
     let (date, rest) = NaiveDate::parse_and_remainder(text, format).ok()?;
     let time = rest.trim_start_matches([' ', 'T']);
     let is_time = rest.is_empty()

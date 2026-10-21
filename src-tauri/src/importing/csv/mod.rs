@@ -1,12 +1,14 @@
 //! CSV statement parser and column mappings.
 
 mod amount;
+mod detect;
 mod mapping;
 mod parser;
 #[cfg(test)]
 mod tests;
 
 pub(crate) use amount::parse_cents;
+pub use detect::detect;
 pub use mapping::{
     CsvMappingError, MappingSuggestion, NewCsvMapping, SavedCsvMapping, create, delete, get, list,
     suggest, update,

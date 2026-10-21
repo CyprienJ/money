@@ -55,6 +55,22 @@ export const commands = {
 	deleteCsvMapping: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_csv_mapping", { id })),
 	/**  Saved mappings that read the CSV file at `path`, the most lines read first. */
 	suggestCsvMappings: (path: string) => typedError<MappingSuggestion[], AppError>(__TAURI_INVOKE("suggest_csv_mappings", { path })),
+	/**
+	 *  CSV format detected from the file at `path` (encoding, delimiter, columns…), `null` when
+	 *  no format reads the whole file.
+	 */
+	detectCsvMapping: (path: string) => typedError<{
+	delimiter: string,
+	encoding: CsvEncoding,
+	/**  `chrono` format, e.g. `%d/%m/%Y`. */
+	dateFormat: string,
+	decimalSeparator: DecimalSeparator,
+	columnDate: number,
+	columnLabel: number,
+	amountColumns: AmountColumns,
+	/**  Lines ignored at the top of the file, column headers included. */
+	skipLines: number,
+} | null, AppError>(__TAURI_INVOKE("detect_csv_mapping", { path })),
 	/**  Imports of an account, most recent first. */
 	listImportBatches: (accountId: number) => typedError<ImportBatch[], AppError>(__TAURI_INVOKE("list_import_batches", { accountId })),
 	/**  Deletes an import and all its operations. */

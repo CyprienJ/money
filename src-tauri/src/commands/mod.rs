@@ -53,6 +53,7 @@ pub fn builder() -> Builder<tauri::Wry> {
             csv_mapping::update_csv_mapping,
             csv_mapping::delete_csv_mapping,
             csv_mapping::suggest_csv_mappings,
+            csv_mapping::detect_csv_mapping,
             import::list_import_batches,
             import::cancel_import,
             import::read_file_head,

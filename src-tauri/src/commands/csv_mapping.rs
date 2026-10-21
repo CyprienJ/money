@@ -2,7 +2,7 @@ use sqlx::SqlitePool;
 use tauri::State;
 
 use crate::error::AppResult;
-use crate::importing::csv::{self, MappingSuggestion, NewCsvMapping, SavedCsvMapping};
+use crate::importing::csv::{self, CsvMapping, MappingSuggestion, NewCsvMapping, SavedCsvMapping};
 
 #[tauri::command]
 #[specta::specta]
@@ -50,4 +50,13 @@ pub async fn suggest_csv_mappings(
 ) -> AppResult<Vec<MappingSuggestion>> {
     let bytes = std::fs::read(path)?;
     csv::suggest(&pool, &bytes).await
+}
+
+/// CSV format detected from the file at `path` (encoding, delimiter, columns…), `null` when
+/// no format reads the whole file.
+#[tauri::command]
+#[specta::specta]
+pub async fn detect_csv_mapping(path: String) -> AppResult<Option<CsvMapping>> {
+    let bytes = std::fs::read(path)?;
+    Ok(csv::detect(&bytes))
 }
