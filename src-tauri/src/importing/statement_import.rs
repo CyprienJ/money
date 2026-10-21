@@ -19,6 +19,7 @@ use crate::account;
 use crate::error::AppResult;
 use crate::labeling::rules::Rules;
 use crate::labeling::{memory, normalize_label};
+use crate::payee;
 
 /// A statement line in the import preview.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Type)]
@@ -26,6 +27,8 @@ use crate::labeling::{memory, normalize_label};
 pub struct PreviewLine {
     pub line: RawLine,
     pub normalized_label: String,
+    /// Payee of the label, or the name its new payee will get.
+    pub payee_name: String,
     pub duplicate: DuplicateStatus,
     /// Dated before the account opening: already counted in the opening balance, never
     /// imported.
@@ -153,12 +156,13 @@ pub async fn preview(pool: &SqlitePool, file: StatementFile<'_>) -> AppResult<Im
         .iter()
         .map(|l| normalize_label(&l.label))
         .collect();
-    let (rules, remembered) = {
+    let (rules, remembered, payee_names) = {
         let labels: Vec<&str> = normalized.iter().map(String::as_str).collect();
         let mut conn = pool.acquire().await?;
         (
             Rules::load(&mut conn).await?,
             memory::recall(&mut conn, &labels).await?,
+            payee::names_of(&mut conn, &labels).await?,
         )
     };
     let lines = raw_lines
@@ -173,6 +177,10 @@ pub async fn preview(pool: &SqlitePool, file: StatementFile<'_>) -> AppResult<Im
                     .map(|(category_id, _)| category_id)
                     .or_else(|| remembered.get(&normalized_label).copied()),
                 rule_pattern: rule.map(|(_, pattern)| pattern.to_owned()),
+                payee_name: payee_names
+                    .get(&normalized_label)
+                    .cloned()
+                    .unwrap_or_default(),
                 normalized_label,
                 before_opening,
                 included_by_default: !before_opening && duplicate.included_by_default(),

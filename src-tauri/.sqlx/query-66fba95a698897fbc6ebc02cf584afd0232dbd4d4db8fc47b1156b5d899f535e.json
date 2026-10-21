@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE operation SET payee_id = ?2 WHERE normalized_label = ?1 AND payee_id IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "66fba95a698897fbc6ebc02cf584afd0232dbd4d4db8fc47b1156b5d899f535e"
+}

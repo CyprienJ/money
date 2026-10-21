@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO operation\n             (account_id, date, value_date, amount_cents, raw_label, normalized_label, payee_id,\n              import_batch_id, is_internal_transfer, created_at, updated_at)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 10
+    },
+    "nullable": []
+  },
+  "hash": "c79db68a79c0be074e46ba97d15f41551e089a1a3083848099179492d8e85833"
+}

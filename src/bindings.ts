@@ -70,6 +70,14 @@ export const commands = {
 	 *  operation is created.
 	 */
 	upcomingOperations: (days: number) => typedError<UpcomingOperation[], AppError>(__TAURI_INVOKE("upcoming_operations", { days })),
+	/**  Payees that have operations, by name, with their labels. */
+	listPayees: () => typedError<Payee[], AppError>(__TAURI_INVOKE("list_payees")),
+	/**  Renames a payee; refused when another payee already has this name. */
+	renamePayee: (id: number, name: string) => typedError<Payee, AppError>(__TAURI_INVOKE("rename_payee", { id, name })),
+	/**  Merges the `sources` payees into `target`, which keeps its name. */
+	mergePayees: (target: number, sources: number[]) => typedError<Payee, AppError>(__TAURI_INVOKE("merge_payees", { target, sources })),
+	/**  Detaches a label from its payee into a new payee; returns the new payee. */
+	detachPayeeLabel: (normalizedLabel: string) => typedError<Payee, AppError>(__TAURI_INVOKE("detach_payee_label", { normalizedLabel })),
 	listCsvMappings: () => typedError<SavedCsvMapping[], AppError>(__TAURI_INVOKE("list_csv_mappings")),
 	getCsvMapping: (id: number) => typedError<SavedCsvMapping, AppError>(__TAURI_INVOKE("get_csv_mapping", { id })),
 	createCsvMapping: (mapping: NewCsvMapping) => typedError<SavedCsvMapping, AppError>(__TAURI_INVOKE("create_csv_mapping", { mapping })),
@@ -367,7 +375,7 @@ export type DuplicateStatus = { status: "new" } | { status: "duplicate"; operati
 candidateIds: number[] };
 
 /**  Business error with its code and parameters, for a message in French on the frontend. */
-export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "rule"; error: RuleError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError };
+export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "rule"; error: RuleError } | { domain: "payee"; error: PayeeError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError };
 
 /**  Stable identifier the frontend can match on. */
 export type ErrorKind = "database" | "migration" | "io" | 
@@ -448,6 +456,7 @@ export type LargestExpense = {
 	operationId: number,
 	date: string,
 	normalizedLabel: string,
+	payeeName: string,
 	/**  Amount spent, positive. */
 	expenseCents: number,
 	categoryId: number | null,
@@ -508,6 +517,10 @@ export type Operation = {
 	rawLabel: string,
 	/**  Cleaned label used for categorization and payees. */
 	normalizedLabel: string,
+	/**  Payee of the normalized label. */
+	payeeId: number | null,
+	/**  Name of the payee, or the normalized label when the operation has no payee yet. */
+	payeeName: string,
 	/**  `None` for manual entries. */
 	importBatchId: number | null,
 	/**  `None` while the operation is still to categorize. */
@@ -537,8 +550,28 @@ export type OperationUpdate = {
 	categoryId: number | null,
 };
 
+/**  A payee with its labels and the activity of its operations. */
+export type Payee = {
+	id: number,
+	name: string,
+	/**  Normalized labels merged into this payee, alphabetically. */
+	labels: string[],
+	operationCount: number,
+	/**  Sum of the operation amounts, internal transfers excluded. */
+	totalCents: number,
+	lastDate: string | null,
+};
+
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type PayeeError = { code: "notFound"; params: number } | { code: "labelNotFound"; params: string } | { code: "emptyName" } | { code: "nameTaken"; params: {
+	name: string,
+	payeeId: number,
+} } | { code: "mergeIntoItself" } | { code: "lastLabel" };
+
 export type PayeeExpense = {
-	normalizedLabel: string,
+	/**  `None` for operations without a payee yet, grouped by normalized label. */
+	payeeId: number | null,
+	payeeName: string,
 	/**  Net amount spent with this payee, positive. */
 	expenseCents: number,
 	operationCount: number,
@@ -561,6 +594,8 @@ export type PeriodIncomeExpenses = {
 export type PreviewLine = {
 	line: RawLine,
 	normalizedLabel: string,
+	/**  Payee of the label, or the name its new payee will get. */
+	payeeName: string,
 	duplicate: DuplicateStatus,
 	/**
 	 *  Dated before the account opening: already counted in the opening balance, never

@@ -25,7 +25,7 @@ import { readTokens } from "../charts/theme";
 import { ACCOUNT_TYPES, valuationSubtitle } from "../utils/accounts";
 import { categorySlices, legendSlices, variationPercent } from "../utils/analyses";
 import { errorMessage, unwrap } from "../utils/commands";
-import { displayLabel, formatAmount, formatDate, localDateOf, todayIso } from "../utils/format";
+import { formatAmount, formatDate, localDateOf, todayIso } from "../utils/format";
 import { analysisPeriod } from "../utils/periods";
 
 /** Days of upcoming scheduled operations shown. */
@@ -84,7 +84,7 @@ const payeesOption = computed(() =>
     payees.value.map((p) => {
       const category = p.categoryId === null ? undefined : categoriesById.value.get(p.categoryId);
       return {
-        name: displayLabel(p.normalizedLabel),
+        name: p.payeeName,
         color: category?.color ?? "neutral",
         amountCents: p.expenseCents,
       };

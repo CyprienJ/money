@@ -29,6 +29,10 @@ pub struct Operation {
     pub raw_label: String,
     /// Cleaned label used for categorization and payees.
     pub normalized_label: String,
+    /// Payee of the normalized label.
+    pub payee_id: Option<i64>,
+    /// Name of the payee, or the normalized label when the operation has no payee yet.
+    pub payee_name: String,
     /// `None` for manual entries.
     pub import_batch_id: Option<i64>,
     /// `None` while the operation is still to categorize.

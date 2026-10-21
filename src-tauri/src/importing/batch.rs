@@ -14,6 +14,7 @@ use super::RawLine;
 use crate::error::{AppResult, ErrorKind};
 use crate::labeling::{memory, normalize_label};
 use crate::operation::{check_account, internal_transfer_flag, timestamp};
+use crate::payee;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Type, sqlx::Type)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -212,18 +213,20 @@ pub async fn import(
     {
         let label = line.label.trim();
         let normalized_label = normalize_label(label);
+        let payee_id = payee::resolve(&mut tx, &normalized_label).await?;
         let is_internal_transfer = internal_transfer[category_id];
         let operation_id = sqlx::query!(
             "INSERT INTO operation
-             (account_id, date, value_date, amount_cents, raw_label, normalized_label,
+             (account_id, date, value_date, amount_cents, raw_label, normalized_label, payee_id,
               import_batch_id, is_internal_transfer, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)",
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)",
             batch.account_id,
             line.date,
             line.value_date,
             line.amount_cents,
             label,
             normalized_label,
+            payee_id,
             batch_id,
             is_internal_transfer,
             now

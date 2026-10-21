@@ -55,7 +55,7 @@ export function matchesSearch(operation: Operation, query: string): boolean {
     return true;
   }
   const amount = simplify(formatAmount(operation.amountCents)).replace("−", "-");
-  return [operation.rawLabel, operation.normalizedLabel, amount].some((text) =>
+  return [operation.rawLabel, operation.normalizedLabel, operation.payeeName, amount].some((text) =>
     simplify(text).includes(needle),
   );
 }

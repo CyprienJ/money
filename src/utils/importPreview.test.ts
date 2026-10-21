@@ -16,6 +16,7 @@ function line(overrides: Partial<PreviewLine> = {}): PreviewLine {
   return {
     line: { date: "2026-09-02", valueDate: null, label: "CB X", amountCents: -420 },
     normalizedLabel: "CB X",
+    payeeName: "Cb X",
     duplicate: { status: "new" },
     beforeOpening: false,
     includedByDefault: true,

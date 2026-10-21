@@ -6,6 +6,7 @@ import type {
   ErrorDetail,
   ImportError,
   OperationError,
+  PayeeError,
   PdfError,
   RuleError,
   ScheduleError,
@@ -118,6 +119,24 @@ function rule(error: RuleError): string {
   return unreachable(error);
 }
 
+function payee(error: PayeeError): string {
+  switch (error.code) {
+    case "notFound":
+      return "Ce tiers n'existe plus.";
+    case "labelNotFound":
+      return `Le libellé « ${error.params} » n'appartient plus à aucun tiers.`;
+    case "emptyName":
+      return "Le nom du tiers est obligatoire.";
+    case "nameTaken":
+      return `Un tiers s'appelle déjà « ${error.params.name} ».`;
+    case "mergeIntoItself":
+      return "Un tiers ne peut pas être fusionné avec lui-même.";
+    case "lastLabel":
+      return "C'est le seul libellé de ce tiers : il ne peut pas en être détaché.";
+  }
+  return unreachable(error);
+}
+
 function stats(error: StatsError): string {
   switch (error.code) {
     case "invalidPeriod":
@@ -217,6 +236,8 @@ export function businessMessage(detail: ErrorDetail): string {
       return schedule(detail.error);
     case "rule":
       return rule(detail.error);
+    case "payee":
+      return payee(detail.error);
     case "stats":
       return stats(detail.error);
     case "csv":

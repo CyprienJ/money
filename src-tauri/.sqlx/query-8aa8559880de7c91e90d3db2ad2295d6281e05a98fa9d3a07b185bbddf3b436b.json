@@ -1,33 +1,22 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id AS \"id!\", raw_label, normalized_label FROM operation",
+  "query": "SELECT DISTINCT payee_id AS \"payee_id!\", normalized_label FROM operation\n           WHERE payee_id IS NOT NULL AND (?1 IS NULL OR payee_id = ?1)\n           ORDER BY normalized_label",
   "describe": {
     "columns": [
       {
-        "name": "id!",
+        "name": "payee_id!",
         "ordinal": 0,
         "type_info": "Integer",
         "origin": {
           "Table": {
             "table": "operation",
-            "name": "id"
-          }
-        }
-      },
-      {
-        "name": "raw_label",
-        "ordinal": 1,
-        "type_info": "Text",
-        "origin": {
-          "Table": {
-            "table": "operation",
-            "name": "raw_label"
+            "name": "payee_id"
           }
         }
       },
       {
         "name": "normalized_label",
-        "ordinal": 2,
+        "ordinal": 1,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -38,13 +27,12 @@
       }
     ],
     "parameters": {
-      "Right": 0
+      "Right": 1
     },
     "nullable": [
-      false,
-      false,
+      true,
       false
     ]
   },
-  "hash": "0d46428ee2da3bc29acfa6fa45b94af10430147771567c773cb0422a5269e08b"
+  "hash": "8aa8559880de7c91e90d3db2ad2295d6281e05a98fa9d3a07b185bbddf3b436b"
 }

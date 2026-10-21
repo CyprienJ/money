@@ -11,6 +11,8 @@ function operation(fields: Partial<Operation>): Operation {
     amountCents: -6428,
     rawLabel: "CB CARREFOUR MKT 18/10 CARTE 4417",
     normalizedLabel: "CARREFOUR MKT",
+    payeeId: 1,
+    payeeName: "Carrefour Mkt",
     importBatchId: 1,
     categoryId: 2,
     isInternalTransfer: false,

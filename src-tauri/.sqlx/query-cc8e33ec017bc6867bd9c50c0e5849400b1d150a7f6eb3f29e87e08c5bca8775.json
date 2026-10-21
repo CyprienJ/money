@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id AS \"id!\", account_id AS \"account_id!\", date AS \"date!: NaiveDate\",\n                  value_date AS \"value_date: NaiveDate\", amount_cents AS \"amount_cents!\",\n                  raw_label AS \"raw_label!\", normalized_label AS \"normalized_label!\",\n                  import_batch_id, category_id,\n                  is_internal_transfer AS \"is_internal_transfer!: bool\",\n                  balance_cents AS \"balance_cents!: i64\"\n           FROM (\n               SELECT o.id, o.account_id, o.date, o.value_date, o.amount_cents, o.raw_label,\n                      o.normalized_label, o.import_batch_id, s.category_id, o.is_internal_transfer,\n                      a.opening_balance_cents\n                          + SUM(o.amount_cents) OVER (ORDER BY o.date, o.id) AS balance_cents\n               FROM operation o\n               JOIN account a ON a.id = o.account_id\n               LEFT JOIN operation_split s ON s.operation_id = o.id\n               WHERE o.account_id = ?1\n           )\n           WHERE (?2 IS NULL OR date >= ?2) AND (?3 IS NULL OR date <= ?3)\n           ORDER BY date DESC, id DESC",
+  "query": "SELECT id AS \"id!\", account_id AS \"account_id!\", date AS \"date!: NaiveDate\",\n                  value_date AS \"value_date: NaiveDate\", amount_cents AS \"amount_cents!\",\n                  raw_label AS \"raw_label!\", normalized_label AS \"normalized_label!\",\n                  payee_id, payee_name AS \"payee_name!: String\", import_batch_id, category_id,\n                  is_internal_transfer AS \"is_internal_transfer!: bool\",\n                  balance_cents AS \"balance_cents!: i64\"\n           FROM (\n               SELECT o.id, o.account_id, o.date, o.value_date, o.amount_cents, o.raw_label,\n                      o.normalized_label, o.payee_id,\n                      COALESCE(p.name, o.normalized_label) AS payee_name,\n                      o.import_batch_id, s.category_id, o.is_internal_transfer,\n                      a.opening_balance_cents\n                          + SUM(o.amount_cents) OVER (ORDER BY o.date, o.id) AS balance_cents\n               FROM operation o\n               JOIN account a ON a.id = o.account_id\n               LEFT JOIN operation_split s ON s.operation_id = o.id\n               LEFT JOIN payee p ON p.id = o.payee_id\n               WHERE o.account_id = ?1\n           )\n           WHERE (?2 IS NULL OR date >= ?2) AND (?3 IS NULL OR date <= ?3)\n           ORDER BY date DESC, id DESC",
   "describe": {
     "columns": [
       {
@@ -81,8 +81,25 @@
         }
       },
       {
-        "name": "import_batch_id",
+        "name": "payee_id",
         "ordinal": 7,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "payee_id"
+          }
+        }
+      },
+      {
+        "name": "payee_name!: String",
+        "ordinal": 8,
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "name": "import_batch_id",
+        "ordinal": 9,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -93,7 +110,7 @@
       },
       {
         "name": "category_id",
-        "ordinal": 8,
+        "ordinal": 10,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -104,7 +121,7 @@
       },
       {
         "name": "is_internal_transfer!: bool",
-        "ordinal": 9,
+        "ordinal": 11,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -115,7 +132,7 @@
       },
       {
         "name": "balance_cents!: i64",
-        "ordinal": 10,
+        "ordinal": 12,
         "type_info": "Integer",
         "origin": "Expression"
       }
@@ -132,10 +149,12 @@
       false,
       false,
       true,
+      false,
+      true,
       true,
       false,
       false
     ]
   },
-  "hash": "c74dc4e4db5b0eaeb9d8f787fca83893c3017faa641314a79693b979009e0d9b"
+  "hash": "cc8e33ec017bc6867bd9c50c0e5849400b1d150a7f6eb3f29e87e08c5bca8775"
 }

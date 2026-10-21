@@ -5,6 +5,7 @@ mod error;
 mod importing;
 mod labeling;
 mod operation;
+mod payee;
 mod stats;
 
 use tauri::Manager;
@@ -26,6 +27,8 @@ pub fn run() {
                 let pool = db::open(&data_dir.join(db::DATA_FILE_NAME)).await?;
                 // Applies label normalization changes to existing operations.
                 labeling::renormalize_all(&pool).await?;
+                // Gives a payee to operations recorded before payees existed.
+                payee::assign_missing(&pool).await?;
                 Ok::<_, error::AppError>(pool)
             })?;
             app.manage(pool);

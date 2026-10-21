@@ -10,6 +10,7 @@ mod app;
 mod csv_mapping;
 mod import;
 mod operation;
+mod payee;
 mod stats;
 
 /// Path of the generated TypeScript bindings (`src/bindings.ts`).
@@ -56,6 +57,10 @@ pub fn builder() -> Builder<tauri::Wry> {
             operation::update_scheduled_operation,
             operation::delete_scheduled_operation,
             operation::upcoming_operations,
+            payee::list_payees,
+            payee::rename_payee,
+            payee::merge_payees,
+            payee::detach_payee_label,
             csv_mapping::list_csv_mappings,
             csv_mapping::get_csv_mapping,
             csv_mapping::create_csv_mapping,

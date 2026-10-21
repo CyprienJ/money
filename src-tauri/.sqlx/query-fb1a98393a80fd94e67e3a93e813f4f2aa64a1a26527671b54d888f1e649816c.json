@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT payee_id FROM payee_alias WHERE normalized_label = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "payee_id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "payee_alias",
+            "name": "payee_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "fb1a98393a80fd94e67e3a93e813f4f2aa64a1a26527671b54d888f1e649816c"
+}

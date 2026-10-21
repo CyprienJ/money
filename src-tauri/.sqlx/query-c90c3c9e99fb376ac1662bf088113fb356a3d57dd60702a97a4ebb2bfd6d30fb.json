@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE payee_alias SET payee_id = ?2 WHERE payee_id = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "c90c3c9e99fb376ac1662bf088113fb356a3d57dd60702a97a4ebb2bfd6d30fb"
+}

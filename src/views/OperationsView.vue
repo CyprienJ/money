@@ -135,8 +135,7 @@ function selectAccount(id: number) {
 }
 
 function label(operation: Operation): string {
-  // Manual entries keep the text typed by the user; imported ones show the cleaned label.
-  return operation.importBatchId === null ? operation.rawLabel : displayLabel(operation.normalizedLabel);
+  return operation.payeeName;
 }
 
 function amountClass(operation: Operation): string {
@@ -387,7 +386,7 @@ watch([() => selected.value?.account.id, periodId], () => reload());
             <td class="col-date">{{ formatDate(operation.date, "day-month") }}</td>
             <td>
               <span class="label">{{ label(operation) }}</span>
-              <span v-if="operation.importBatchId !== null" class="raw">{{ operation.rawLabel }}</span>
+              <span v-if="operation.rawLabel !== operation.payeeName" class="raw">{{ operation.rawLabel }}</span>
             </td>
             <td>
               <CategoryPicker

@@ -5,6 +5,7 @@ use super::{NewOperation, Operation, OperationError, OperationRow, OperationUpda
 use crate::account::{AccountError, AccountType};
 use crate::error::AppResult;
 use crate::labeling::{memory, normalize_label};
+use crate::payee;
 
 pub async fn get(pool: &SqlitePool, id: i64) -> AppResult<Operation> {
     let mut conn = pool.acquire().await?;
@@ -25,17 +26,20 @@ pub async fn list(
         r#"SELECT id AS "id!", account_id AS "account_id!", date AS "date!: NaiveDate",
                   value_date AS "value_date: NaiveDate", amount_cents AS "amount_cents!",
                   raw_label AS "raw_label!", normalized_label AS "normalized_label!",
-                  import_batch_id, category_id,
+                  payee_id, payee_name AS "payee_name!: String", import_batch_id, category_id,
                   is_internal_transfer AS "is_internal_transfer!: bool",
                   balance_cents AS "balance_cents!: i64"
            FROM (
                SELECT o.id, o.account_id, o.date, o.value_date, o.amount_cents, o.raw_label,
-                      o.normalized_label, o.import_batch_id, s.category_id, o.is_internal_transfer,
+                      o.normalized_label, o.payee_id,
+                      COALESCE(p.name, o.normalized_label) AS payee_name,
+                      o.import_batch_id, s.category_id, o.is_internal_transfer,
                       a.opening_balance_cents
                           + SUM(o.amount_cents) OVER (ORDER BY o.date, o.id) AS balance_cents
                FROM operation o
                JOIN account a ON a.id = o.account_id
                LEFT JOIN operation_split s ON s.operation_id = o.id
+               LEFT JOIN payee p ON p.id = o.payee_id
                WHERE o.account_id = ?1
            )
            WHERE (?2 IS NULL OR date >= ?2) AND (?3 IS NULL OR date <= ?3)
@@ -58,6 +62,8 @@ pub async fn list(
                 amount_cents: row.amount_cents,
                 raw_label: row.raw_label,
                 normalized_label: row.normalized_label,
+                payee_id: row.payee_id,
+                payee_name: row.payee_name,
                 import_batch_id: row.import_batch_id,
                 category_id: row.category_id,
                 is_internal_transfer: row.is_internal_transfer,
@@ -76,19 +82,21 @@ pub async fn create(pool: &SqlitePool, new: NewOperation) -> AppResult<Operation
     check_account(&mut tx, new.account_id, new.date).await?;
     let is_internal_transfer = internal_transfer_flag(&mut tx, new.category_id).await?;
     let normalized_label = normalize_label(&label);
+    let payee_id = payee::resolve(&mut tx, &normalized_label).await?;
     let now = timestamp();
 
     let id = sqlx::query!(
         "INSERT INTO operation
-         (account_id, date, value_date, amount_cents, raw_label, normalized_label,
+         (account_id, date, value_date, amount_cents, raw_label, normalized_label, payee_id,
           is_internal_transfer, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?8)",
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)",
         new.account_id,
         new.date,
         new.value_date,
         new.amount_cents,
         label,
         normalized_label,
+        payee_id,
         is_internal_transfer,
         now
     )
@@ -137,10 +145,11 @@ pub async fn update(pool: &SqlitePool, id: i64, changes: OperationUpdate) -> App
         check_amount(changes.amount_cents)?;
         check_account(&mut tx, current.account_id, changes.date).await?;
         let normalized_label = normalize_label(&label);
+        let payee_id = payee::resolve(&mut tx, &normalized_label).await?;
         sqlx::query!(
             "UPDATE operation
              SET date = ?2, value_date = ?3, amount_cents = ?4, raw_label = ?5,
-                 normalized_label = ?6, updated_at = ?7
+                 normalized_label = ?6, payee_id = ?7, updated_at = ?8
              WHERE id = ?1",
             id,
             changes.date,
@@ -148,6 +157,7 @@ pub async fn update(pool: &SqlitePool, id: i64, changes: OperationUpdate) -> App
             changes.amount_cents,
             label,
             normalized_label,
+            payee_id,
             now
         )
         .execute(&mut *tx)
@@ -199,10 +209,13 @@ async fn fetch(conn: &mut SqliteConnection, id: i64) -> AppResult<Operation> {
         Operation,
         r#"SELECT o.id, o.account_id, o.date AS "date: NaiveDate",
                   o.value_date AS "value_date: NaiveDate", o.amount_cents, o.raw_label,
-                  o.normalized_label, o.import_batch_id, s.category_id,
+                  o.normalized_label, o.payee_id,
+                  COALESCE(p.name, o.normalized_label) AS "payee_name!: String",
+                  o.import_batch_id, s.category_id,
                   o.is_internal_transfer AS "is_internal_transfer: bool"
            FROM operation o
            LEFT JOIN operation_split s ON s.operation_id = o.id
+           LEFT JOIN payee p ON p.id = o.payee_id
            WHERE o.id = ?1"#,
         id
     )

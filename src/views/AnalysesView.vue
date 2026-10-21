@@ -26,7 +26,7 @@ import { ACCOUNT_TYPES } from "../utils/accounts";
 import { categorySlices, comparisonSlices, trendTotals } from "../utils/analyses";
 import { errorMessage, unwrap } from "../utils/commands";
 import CategoryPill from "../components/CategoryPill.vue";
-import { displayLabel, formatAmount, formatDate } from "../utils/format";
+import { formatAmount, formatDate } from "../utils/format";
 import {
   type AnalysisGranularity,
   type ComparisonMode,
@@ -265,9 +265,9 @@ watch([period, balanceAccount, comparing, comparisonMode], loadStats);
           <span class="muted">jusqu'à {{ lowerFirst(period.label) }}</span>
         </div>
         <ol v-if="topPayees.length > 0" class="payees">
-          <li v-for="payee in topPayees" :key="payee.normalizedLabel">
+          <li v-for="payee in topPayees" :key="payee.payeeName">
             <span class="payee-row">
-              <span class="payee-name">{{ displayLabel(payee.normalizedLabel) }}</span>
+              <span class="payee-name">{{ payee.payeeName }}</span>
               <CategoryPill
                 :label="categoryOf(payee.categoryId)?.name ?? 'À catégoriser'"
                 :color="categoryOf(payee.categoryId)?.color"
@@ -311,7 +311,7 @@ watch([period, balanceAccount, comparing, comparisonMode], loadStats);
         <span class="tile-meta">
           {{ formatDate(expense.date, "day-month") }} · {{ categoryOf(expense.categoryId)?.name ?? "À catégoriser" }}
         </span>
-        <span class="tile-label">{{ displayLabel(expense.normalizedLabel) }}</span>
+        <span class="tile-label">{{ expense.payeeName }}</span>
         <strong class="tile-amount">{{ formatAmount(expense.expenseCents) }}</strong>
       </div>
     </div>

@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT o.id, o.account_id, o.date AS \"date: NaiveDate\",\n                  o.value_date AS \"value_date: NaiveDate\", o.amount_cents, o.raw_label,\n                  o.normalized_label, o.import_batch_id, s.category_id,\n                  o.is_internal_transfer AS \"is_internal_transfer: bool\"\n           FROM operation o\n           LEFT JOIN operation_split s ON s.operation_id = o.id\n           WHERE o.id = ?1",
+  "query": "SELECT o.id, o.account_id, o.date AS \"date: NaiveDate\",\n                  o.value_date AS \"value_date: NaiveDate\", o.amount_cents, o.raw_label,\n                  o.normalized_label, o.payee_id,\n                  COALESCE(p.name, o.normalized_label) AS \"payee_name!: String\",\n                  o.import_batch_id, s.category_id,\n                  o.is_internal_transfer AS \"is_internal_transfer: bool\"\n           FROM operation o\n           LEFT JOIN operation_split s ON s.operation_id = o.id\n           LEFT JOIN payee p ON p.id = o.payee_id\n           WHERE o.id = ?1",
   "describe": {
     "columns": [
       {
@@ -81,8 +81,25 @@
         }
       },
       {
-        "name": "import_batch_id",
+        "name": "payee_id",
         "ordinal": 7,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "payee_id"
+          }
+        }
+      },
+      {
+        "name": "payee_name!: String",
+        "ordinal": 8,
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "name": "import_batch_id",
+        "ordinal": 9,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -93,7 +110,7 @@
       },
       {
         "name": "category_id",
-        "ordinal": 8,
+        "ordinal": 10,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -104,7 +121,7 @@
       },
       {
         "name": "is_internal_transfer: bool",
-        "ordinal": 9,
+        "ordinal": 11,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -126,9 +143,11 @@
       false,
       false,
       true,
+      false,
+      true,
       true,
       false
     ]
   },
-  "hash": "c7ddb59c9276bbdb2560212f985d83702c02de14bae1d5e96257ea83900e5496"
+  "hash": "809ee26b8de550ebb1a3f7e0b3de28e9d1ce22c21345369b2835da0e10b07058"
 }

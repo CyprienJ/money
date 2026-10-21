@@ -470,13 +470,13 @@ onMounted(load);
               <input
                 type="checkbox"
                 :checked="selected.has(index)"
-                :aria-label="`Inclure ${displayLabel(line.normalizedLabel)} du ${formatDate(line.line.date, 'day-month')}`"
+                :aria-label="`Inclure ${line.payeeName} du ${formatDate(line.line.date, 'day-month')}`"
                 @change="toggle(index)"
               />
             </td>
             <td class="col-date">{{ formatDate(line.line.date, "day-month") }}</td>
             <td>
-              <span class="label">{{ displayLabel(line.normalizedLabel) }}</span>
+              <span class="label">{{ line.payeeName }}</span>
               <span class="raw">{{ line.line.label }}</span>
               <span v-if="line.duplicate.status === 'ambiguous'" class="hint">
                 {{ ambiguityText(line, preview.matchedOperations) }}
@@ -486,7 +486,7 @@ onMounted(load);
               <CategoryPicker
                 :model-value="categoryOf(index)"
                 :categories="categories"
-                :label="`Catégorie de ${displayLabel(line.normalizedLabel)}`"
+                :label="`Catégorie de ${line.payeeName}`"
                 @update:model-value="choose(index, $event)"
               />
               <span v-if="isInternalTransfer(index)" class="category-hint">Exclu des statistiques</span>
@@ -510,7 +510,7 @@ onMounted(load);
         <ul>
           <li v-for="{ index, line } in groups.duplicates" :key="index">
             <span class="list-date">{{ formatDate(line.line.date, "day-month") }}</span>
-            <span class="list-label">{{ displayLabel(line.normalizedLabel) }}</span>
+            <span class="list-label">{{ line.payeeName }}</span>
             <span class="list-amount">{{ lineAmount(line) }}</span>
           </li>
         </ul>
@@ -525,7 +525,7 @@ onMounted(load);
         <ul>
           <li v-for="{ index, line } in groups.beforeOpening" :key="index">
             <span class="list-date">{{ formatDate(line.line.date, "day-month") }}</span>
-            <span class="list-label">{{ displayLabel(line.normalizedLabel) }}</span>
+            <span class="list-label">{{ line.payeeName }}</span>
             <span class="list-amount">{{ lineAmount(line) }}</span>
           </li>
         </ul>
