@@ -500,7 +500,17 @@ watch([() => selected.value?.account.id, allAccounts, period, categoryFilter, ad
             <td>
               <span class="label">{{ label(operation) }}</span>
               <span v-if="operation.rawLabel !== operation.payeeName" class="raw">{{ operation.rawLabel }}</span>
-              <span v-if="operation.tags.length > 0 || operation.note" class="annotations">
+              <span v-if="operation.tags.length > 0 || operation.note || operation.attachmentCount > 0" class="annotations">
+                <span
+                  v-if="operation.attachmentCount > 0"
+                  class="attachment-count"
+                  :title="`${operation.attachmentCount} pièce${operation.attachmentCount > 1 ? 's' : ''} jointe${operation.attachmentCount > 1 ? 's' : ''}`"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+                    <path d="M21 11.5l-8.6 8.6a5 5 0 0 1-7.1-7.1l8.6-8.6a3.5 3.5 0 0 1 5 5l-8.6 8.6a2 2 0 0 1-2.8-2.8l7.9-7.9" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                  {{ operation.attachmentCount }}
+                </span>
                 <span v-for="tag in operation.tags" :key="tag" class="tag">{{ tag }}</span>
                 <span v-if="operation.note" class="note" :title="operation.note">{{ operation.note }}</span>
               </span>
@@ -550,6 +560,7 @@ watch([() => selected.value?.account.id, allAccounts, period, categoryFilter, ad
       :operation="editedOperation"
       @close="modalOpen = false"
       @changed="onChanged"
+      @attachments-changed="reload()"
       @create-rule="openRule"
     />
     <RuleFormModal
@@ -847,6 +858,15 @@ td.col-balance {
   font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.attachment-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-muted);
 }
 
 .note {

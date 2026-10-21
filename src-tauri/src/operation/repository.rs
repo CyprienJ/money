@@ -158,7 +158,9 @@ async fn fetch(conn: &mut SqliteConnection, id: i64) -> AppResult<Operation> {
                   o.normalized_label, o.payee_id,
                   COALESCE(p.name, o.normalized_label) AS "payee_name!: String",
                   o.import_batch_id, s.category_id,
-                  o.is_internal_transfer AS "is_internal_transfer: bool", o.note
+                  o.is_internal_transfer AS "is_internal_transfer: bool", o.note,
+                  (SELECT COUNT(*) FROM attachment a WHERE a.operation_id = o.id)
+                      AS "attachment_count!: i64"
            FROM operation o
            LEFT JOIN operation_split s ON s.operation_id = o.id
            LEFT JOIN payee p ON p.id = o.payee_id
@@ -183,6 +185,7 @@ async fn fetch(conn: &mut SqliteConnection, id: i64) -> AppResult<Operation> {
         is_internal_transfer: row.is_internal_transfer,
         note: row.note,
         tags: tag::names_of(conn, id).await?,
+        attachment_count: row.attachment_count,
     })
 }
 

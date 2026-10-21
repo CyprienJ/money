@@ -1,4 +1,5 @@
 mod account;
+mod attachment;
 mod commands;
 mod db;
 mod error;
@@ -20,6 +21,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .invoke_handler(builder.invoke_handler())
         .setup(|app| {
             let data_dir = app.path().app_data_dir()?;
@@ -30,6 +32,8 @@ pub fn run() {
                 labeling::renormalize_all(&pool).await?;
                 // Gives a payee to operations recorded before payees existed.
                 payee::assign_missing(&pool).await?;
+                // Removes the files of attachments deleted with their operation.
+                attachment::sweep(&pool, &data_dir.join(attachment::ATTACHMENTS_DIR)).await?;
                 Ok::<_, error::AppError>(pool)
             })?;
             app.manage(pool);

@@ -3,6 +3,7 @@ import { computed, reactive, ref, watch } from "vue";
 import { commands, type Account, type Category, type Operation } from "../bindings";
 import { errorMessage, unwrap } from "../utils/commands";
 import { formatAmountInput, formatDate, parseAmount, todayIso } from "../utils/format";
+import AttachmentList from "./AttachmentList.vue";
 import BaseModal from "./BaseModal.vue";
 import CategorySelect from "./CategorySelect.vue";
 import TagInput from "./TagInput.vue";
@@ -19,6 +20,8 @@ const emit = defineEmits<{
   close: [];
   /** Emitted after a create, update or delete. */
   changed: [];
+  /** Emitted after an attachment is added or deleted, the form staying open. */
+  attachmentsChanged: [];
   /** Asks for a rule from the label of the operation, with the category in the form. */
   createRule: [operation: Operation, categoryId: number | null];
 }>();
@@ -44,6 +47,8 @@ const error = ref("");
 
 const isEdit = computed(() => props.operation !== null);
 const isImported = computed(() => props.operation?.importBatchId != null);
+/** Attachments of the edited operation, kept up to date by the attachment list. */
+const attachmentCount = ref(0);
 
 /** Unsigned amount typed by the user, in cents. */
 const amountCents = computed(() => {
@@ -77,6 +82,7 @@ watch(
     form.categoryId = operation?.categoryId ?? null;
     form.note = operation?.note ?? "";
     form.tags = [...(operation?.tags ?? [])];
+    attachmentCount.value = operation?.attachmentCount ?? 0;
     submitted.value = false;
     confirmingDelete.value = false;
     error.value = "";
@@ -248,6 +254,13 @@ async function remove() {
         <textarea v-model="form.note" rows="2" placeholder="Facultative"></textarea>
       </label>
 
+      <AttachmentList
+        v-if="operation"
+        :operation-id="operation.id"
+        @changed="(count) => { attachmentCount = count; emit('attachmentsChanged'); }"
+      />
+      <p v-else class="field-hint">Les pièces jointes s'ajoutent une fois l'opération enregistrée.</p>
+
       <p v-if="error" class="error-banner">{{ error }}</p>
 
       <footer class="actions">
@@ -267,7 +280,13 @@ async function remove() {
           :disabled="saving"
           @click="remove"
         >
-          {{ confirmingDelete ? "Confirmer la suppression" : "Supprimer" }}
+          {{
+            !confirmingDelete
+              ? "Supprimer"
+              : attachmentCount > 0
+                ? `Confirmer : supprimer avec ${attachmentCount} pièce${attachmentCount > 1 ? "s" : ""} jointe${attachmentCount > 1 ? "s" : ""}`
+                : "Confirmer la suppression"
+          }}
         </button>
         <button type="button" class="btn btn-secondary" @click="emit('close')">Annuler</button>
         <button type="submit" class="btn btn-primary" :disabled="saving">

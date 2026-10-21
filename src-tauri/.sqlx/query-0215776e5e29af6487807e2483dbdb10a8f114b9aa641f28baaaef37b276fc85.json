@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT stored_name FROM attachment",
+  "describe": {
+    "columns": [
+      {
+        "name": "stored_name",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "attachment",
+            "name": "stored_name"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "0215776e5e29af6487807e2483dbdb10a8f114b9aa641f28baaaef37b276fc85"
+}

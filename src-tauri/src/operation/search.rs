@@ -73,6 +73,8 @@ pub async fn search(pool: &SqlitePool, filter: &OperationFilter) -> AppResult<Ve
                   raw_label AS "raw_label!", normalized_label AS "normalized_label!",
                   payee_id, payee_name AS "payee_name!: String", import_batch_id, category_id,
                   is_internal_transfer AS "is_internal_transfer!: bool", note,
+                  (SELECT COUNT(*) FROM attachment WHERE operation_id = id)
+                      AS "attachment_count!: i64",
                   balance_cents AS "balance_cents!: i64"
            FROM (
                SELECT o.id, o.account_id, o.date, o.value_date, o.amount_cents, o.raw_label,
@@ -135,6 +137,7 @@ pub async fn search(pool: &SqlitePool, filter: &OperationFilter) -> AppResult<Ve
                 is_internal_transfer: row.is_internal_transfer,
                 note: row.note,
                 tags: tags.remove(&row.id).unwrap_or_default(),
+                attachment_count: row.attachment_count,
             },
             balance_cents: row.balance_cents,
         })

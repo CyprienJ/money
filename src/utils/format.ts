@@ -148,3 +148,17 @@ export function displayLabel(normalizedLabel: string): string {
     })
     .join(" ");
 }
+
+/** "820 o", "12 Ko", "3,4 Mo": sizes of attached files. */
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} o`;
+  const units = ["Ko", "Mo", "Go"];
+  let value = bytes / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  const digits = value < 10 && !Number.isInteger(value) ? 1 : 0;
+  return `${value.toLocaleString("fr-FR", { maximumFractionDigits: digits })} ${units[unit]}`;
+}

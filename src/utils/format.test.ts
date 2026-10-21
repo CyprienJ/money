@@ -4,6 +4,7 @@ import {
   formatAmount,
   formatAmountInput,
   formatDate,
+  formatFileSize,
   localDateOf,
   parseAmount,
 } from "./format";
@@ -123,5 +124,14 @@ describe("displayLabel", () => {
     expect(displayLabel("CAFE L'ARBRE")).toBe("Cafe L'Arbre");
     expect(displayLabel("RETRAIT DAB PARIS 11")).toBe("Retrait Dab Paris 11");
     expect(displayLabel("FNAC.COM")).toBe("Fnac.com");
+  });
+});
+
+describe("formatFileSize", () => {
+  it("picks a readable unit", () => {
+    expect(formatFileSize(820)).toBe("820 o");
+    expect(formatFileSize(12 * 1024)).toBe("12 Ko");
+    expect(formatFileSize(3.4 * 1024 * 1024)).toBe("3,4 Mo");
+    expect(formatFileSize(25 * 1024 * 1024)).toBe("25 Mo");
   });
 });

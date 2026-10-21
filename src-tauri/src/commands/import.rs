@@ -24,11 +24,13 @@ pub async fn list_import_batches(
     batch::list(&pool, account_id).await
 }
 
-/// Deletes an import and all its operations.
+/// Deletes an import and all its operations, with the files of their attachments.
 #[tauri::command]
 #[specta::specta]
-pub async fn cancel_import(pool: State<'_, SqlitePool>, id: i64) -> AppResult<()> {
-    batch::cancel(&pool, id).await
+pub async fn cancel_import(app: AppHandle, pool: State<'_, SqlitePool>, id: i64) -> AppResult<()> {
+    batch::cancel(&pool, id).await?;
+    crate::attachment::sweep(&pool, &super::app::attachments_dir(&app)?).await?;
+    Ok(())
 }
 
 /// First lines of the file at `path`, decoded with `encoding`.

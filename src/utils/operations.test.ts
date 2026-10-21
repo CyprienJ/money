@@ -18,6 +18,7 @@ function operation(fields: Partial<Operation>): Operation {
     isInternalTransfer: false,
     note: null,
     tags: [],
+    attachmentCount: 0,
     ...fields,
   };
 }

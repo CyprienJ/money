@@ -1,6 +1,7 @@
 use sqlx::SqlitePool;
-use tauri::State;
+use tauri::{AppHandle, State};
 
+use crate::attachment;
 use crate::error::AppResult;
 use crate::labeling::rules::{self, Rule, RuleInput};
 use crate::operation::category::{self, Category, CategoryInput};
@@ -73,10 +74,17 @@ pub async fn categorize_same_label(pool: State<'_, SqlitePool>, id: i64) -> AppR
     same_label::categorize_same_label(&pool, id).await
 }
 
+/// Deletes a manual entry, with the files of its attachments.
 #[tauri::command]
 #[specta::specta]
-pub async fn delete_operation(pool: State<'_, SqlitePool>, id: i64) -> AppResult<()> {
-    operation::delete(&pool, id).await
+pub async fn delete_operation(
+    app: AppHandle,
+    pool: State<'_, SqlitePool>,
+    id: i64,
+) -> AppResult<()> {
+    operation::delete(&pool, id).await?;
+    attachment::sweep(&pool, &super::app::attachments_dir(&app)?).await?;
+    Ok(())
 }
 
 #[tauri::command]

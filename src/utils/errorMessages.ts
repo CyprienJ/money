@@ -1,5 +1,6 @@
 import type {
   AccountError,
+  AttachmentError,
   CategoryError,
   CsvError,
   CsvMappingError,
@@ -13,7 +14,7 @@ import type {
   StatsError,
   TagError,
 } from "../bindings";
-import { formatDate } from "./format";
+import { formatDate, formatFileSize } from "./format";
 
 /**
  * French messages of the business errors. Each switch covers every code: a code added on the
@@ -150,6 +151,20 @@ function tag(error: TagError): string {
   return unreachable(error);
 }
 
+function attachment(error: AttachmentError): string {
+  switch (error.code) {
+    case "notFound":
+      return "Cette pièce jointe n'existe plus.";
+    case "notAFile":
+      return "Seul un fichier peut être joint.";
+    case "tooLarge":
+      return `Le fichier dépasse ${formatFileSize(error.params.maxBytes)}.`;
+    case "fileMissing":
+      return "Le fichier de cette pièce jointe a disparu du dossier des données.";
+  }
+  return unreachable(error);
+}
+
 function stats(error: StatsError): string {
   switch (error.code) {
     case "invalidPeriod":
@@ -253,6 +268,8 @@ export function businessMessage(detail: ErrorDetail): string {
       return payee(detail.error);
     case "tag":
       return tag(detail.error);
+    case "attachment":
+      return attachment(detail.error);
     case "stats":
       return stats(detail.error);
     case "csv":

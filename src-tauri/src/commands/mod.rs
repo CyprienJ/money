@@ -7,6 +7,7 @@ use crate::error::AppError;
 
 mod account;
 mod app;
+mod attachment;
 mod csv_mapping;
 mod import;
 mod operation;
@@ -65,6 +66,10 @@ pub fn builder() -> Builder<tauri::Wry> {
             tag::list_tags,
             tag::rename_tag,
             tag::delete_tag,
+            attachment::list_attachments,
+            attachment::add_attachment,
+            attachment::delete_attachment,
+            attachment::open_attachment,
             csv_mapping::list_csv_mappings,
             csv_mapping::get_csv_mapping,
             csv_mapping::create_csv_mapping,

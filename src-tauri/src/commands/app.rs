@@ -48,3 +48,8 @@ pub(super) fn data_dir(app: &AppHandle) -> AppResult<PathBuf> {
 pub(super) fn backups_dir(app: &AppHandle) -> AppResult<PathBuf> {
     Ok(data_dir(app)?.join("backups"))
 }
+
+/// `attachments/` in the application data directory.
+pub(super) fn attachments_dir(app: &AppHandle) -> AppResult<PathBuf> {
+    Ok(data_dir(app)?.join(crate::attachment::ATTACHMENTS_DIR))
+}

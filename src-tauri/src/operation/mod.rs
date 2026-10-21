@@ -45,6 +45,7 @@ pub struct Operation {
     pub note: Option<String>,
     /// Tag names, by name.
     pub tags: Vec<String>,
+    pub attachment_count: i64,
 }
 
 /// An operation in a listing, with the balance of its account after it.

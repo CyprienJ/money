@@ -53,6 +53,7 @@ export const commands = {
 	reorderRules: (ids: number[]) => typedError<null, AppError>(__TAURI_INVOKE("reorder_rules", { ids })),
 	/**  Gives the category of a rule to the operations to categorize it matches; returns their count. */
 	applyRule: (id: number) => typedError<number, AppError>(__TAURI_INVOKE("apply_rule", { id })),
+	/**  Deletes a manual entry, with the files of its attachments. */
 	deleteOperation: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_operation", { id })),
 	listCategories: () => typedError<Category[], AppError>(__TAURI_INVOKE("list_categories")),
 	createCategory: (category: CategoryInput) => typedError<Category, AppError>(__TAURI_INVOKE("create_category", { category })),
@@ -87,6 +88,14 @@ export const commands = {
 	renameTag: (id: number, name: string) => typedError<Tag, AppError>(__TAURI_INVOKE("rename_tag", { id, name })),
 	/**  Deletes a tag and removes it from its operations. */
 	deleteTag: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_tag", { id })),
+	/**  Attachments of an operation, oldest first. */
+	listAttachments: (operationId: number) => typedError<Attachment[], AppError>(__TAURI_INVOKE("list_attachments", { operationId })),
+	/**  Copies the file at `path` next to the data file and attaches it to an operation. */
+	addAttachment: (operationId: number, path: string) => typedError<Attachment, AppError>(__TAURI_INVOKE("add_attachment", { operationId, path })),
+	/**  Deletes an attachment and its file. */
+	deleteAttachment: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_attachment", { id })),
+	/**  Opens an attachment with the default application of the system. */
+	openAttachment: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("open_attachment", { id })),
 	listCsvMappings: () => typedError<SavedCsvMapping[], AppError>(__TAURI_INVOKE("list_csv_mappings")),
 	getCsvMapping: (id: number) => typedError<SavedCsvMapping, AppError>(__TAURI_INVOKE("get_csv_mapping", { id })),
 	createCsvMapping: (mapping: NewCsvMapping) => typedError<SavedCsvMapping, AppError>(__TAURI_INVOKE("create_csv_mapping", { mapping })),
@@ -116,7 +125,7 @@ export const commands = {
 } | null, AppError>(__TAURI_INVOKE("detect_csv_mapping", { path })),
 	/**  Imports of an account, most recent first. */
 	listImportBatches: (accountId: number) => typedError<ImportBatch[], AppError>(__TAURI_INVOKE("list_import_batches", { accountId })),
-	/**  Deletes an import and all its operations. */
+	/**  Deletes an import and all its operations, with the files of their attachments. */
 	cancelImport: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("cancel_import", { id })),
 	/**  First lines of the file at `path`, decoded with `encoding`. */
 	readFileHead: (path: string, encoding: CsvEncoding) => typedError<string[], AppError>(__TAURI_INVOKE("read_file_head", { path, encoding })),
@@ -228,6 +237,21 @@ export type AppError = {
 	message: string,
 	detail: ErrorDetail | null,
 };
+
+export type Attachment = {
+	id: number,
+	operationId: number,
+	/**  Original file name. */
+	fileName: string,
+	sizeBytes: number,
+	/**  `YYYY-MM-DDTHH:MM:SSZ`. */
+	addedAt: string,
+};
+
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type AttachmentError = { code: "notFound"; params: number } | { code: "notAFile"; params: string } | { code: "tooLarge"; params: {
+	maxBytes: number,
+} } | { code: "fileMissing"; params: number };
 
 export type BalanceCheck = {
 	status: BalanceCheckStatus,
@@ -398,7 +422,7 @@ export type DuplicateStatus = { status: "new" } | { status: "duplicate"; operati
 candidateIds: number[] };
 
 /**  Business error with its code and parameters, for a message in French on the frontend. */
-export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "rule"; error: RuleError } | { domain: "payee"; error: PayeeError } | { domain: "tag"; error: TagError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError };
+export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "rule"; error: RuleError } | { domain: "payee"; error: PayeeError } | { domain: "tag"; error: TagError } | { domain: "attachment"; error: AttachmentError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError };
 
 /**  Stable identifier the frontend can match on. */
 export type ErrorKind = "database" | "migration" | "io" | 
@@ -556,6 +580,7 @@ export type Operation = {
 	note: string | null,
 	/**  Tag names, by name. */
 	tags: string[],
+	attachmentCount: number,
 };
 
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
