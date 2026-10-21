@@ -338,7 +338,7 @@ watch([() => selected.value?.account.id, periodId], () => reload());
     <div class="filters">
       <label class="field search">
         Rechercher
-        <input v-model="search" type="search" placeholder="Libellé, tiers, montant…" />
+        <input v-model="search" type="search" placeholder="Libellé, tiers, montant, tag, note…" />
       </label>
       <label class="field">
         Période
@@ -387,6 +387,10 @@ watch([() => selected.value?.account.id, periodId], () => reload());
             <td>
               <span class="label">{{ label(operation) }}</span>
               <span v-if="operation.rawLabel !== operation.payeeName" class="raw">{{ operation.rawLabel }}</span>
+              <span v-if="operation.tags.length > 0 || operation.note" class="annotations">
+                <span v-for="tag in operation.tags" :key="tag" class="tag">{{ tag }}</span>
+                <span v-if="operation.note" class="note" :title="operation.note">{{ operation.note }}</span>
+              </span>
             </td>
             <td>
               <CategoryPicker
@@ -667,6 +671,35 @@ td.col-balance {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
   color: var(--color-text-muted);
+}
+
+.annotations {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin-top: 6px;
+}
+
+.tag {
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--cat-neutral-bg);
+  color: var(--cat-neutral-fg);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.note {
+  flex: 1 1 160px;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .excluded {
