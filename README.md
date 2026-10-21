@@ -73,6 +73,7 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 ### V2 — Automatiser et enrichir
 
 #### Catégorisation et tiers
+- **Suggestion de catégorie par classifieur local** : un classifieur (TF-IDF + régression logistique, crate **linfa**) apprend sur les opérations déjà catégorisées et propose une catégorie, avec un indice de confiance, pour les libellés qu'aucune règle ni la mémoire des libellés ne couvrent. Il tourne entièrement en local, sans réseau ni modèle téléchargé. Priorité : règle, puis mémoire, puis suggestion ; une suggestion n'est jamais appliquée sans validation.
 - **Gestion des tiers** : fusion de plusieurs libellés normalisés en un seul tiers (alias) et renommage.
 - **Appariement automatique des virements internes** : le débit sur le compte A et le crédit correspondant sur le compte B sont liés.
 
@@ -101,7 +102,7 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 
 - Import OFX / QIF
 - Synchronisation bancaire automatique (agrégateur DSP2)
-- Catégorisation par apprentissage / IA
+- Catégorisation par embeddings ou LLM local
 - Opérations ventilées (une opération répartie sur plusieurs catégories)
 - Rapports personnalisables exportables (PDF, CSV, Excel)
 - Export complet des données dans un format ouvert
@@ -260,6 +261,7 @@ L'application est une **application de bureau Tauri**. L'interface est écrite e
 | Empreinte des fichiers importés | crate **sha2** | SHA-256 du fichier source (`source_file_hash`), pour signaler un fichier déjà importé |
 | Import PDF | **pdfium-render** | Texte avec positions via PDFium ; bibliothèque PDFium embarquée dans le bundle. Version épinglée (binaires `bblanchon/pdfium-binaries`, `chromium/7881`, vérifiés par SHA-256), téléchargée dans `src-tauri/pdfium/` par `tools/fetch_pdfium.sh`, à lancer une fois avant de compiler |
 | Normalisation des libellés | crate **regex** | |
+| Suggestion de catégorie (V2) | **linfa** (`linfa-preprocessing`, `linfa-logistic`) | TF-IDF + régression logistique multiclasse, entraînée en local sur les opérations catégorisées |
 | Frontend | **Vue 3 + TypeScript + Vite** | |
 | Navigation | **Vue Router** | Un écran par entrée de la barre latérale |
 | Police | **Plus Jakarta Sans** | Fichiers `.woff2` (licence OFL) commités dans `src/assets/fonts/`, aucun chargement réseau |
@@ -272,7 +274,7 @@ L'application est une **application de bureau Tauri**. L'interface est écrite e
 
 #### Pistes pour l'IA (versions ultérieures)
 
-- **Catégorisation** : classifieur local (TF-IDF + régression logistique avec **linfa**), ou embeddings (**fastembed-rs** / **ort**, c'est-à-dire ONNX Runtime) + plus proches voisins sur les opérations déjà catégorisées.
+- **Catégorisation** : le classifieur local (TF-IDF + régression logistique avec **linfa**) est prévu en V2. Plus tard, éventuellement : embeddings (**fastembed-rs** / **ort**, c'est-à-dire ONNX Runtime) + plus proches voisins sur les opérations déjà catégorisées.
 - **Assistant** : LLM local via **Ollama** (crate **ollama-rs**). Le modèle appelle les fonctions de statistiques existantes (*tool calling*) au lieu de générer du SQL.
 - L'IA reste **optionnelle** : elle est activée seulement si Ollama est détecté sur la machine.
 

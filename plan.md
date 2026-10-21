@@ -300,8 +300,14 @@ Ordre indicatif : catégorisation et tiers d'abord (gain quotidien), puis opéra
 
 ### Catégorisation et tiers
 
-#### V2-01 · Règles de catégorisation — L
-Avancé en V1 (V1-03.8, décision du 21/10/2026), avec la seule condition « libellé contient X ». Rien à prévoir en V2 sans nouvelle décision.
+#### V2-01 · Suggestion de catégorie par classifieur local — M
+Les règles de catégorisation prévues initialement ici ont été avancées en V1 (V1-03.8, décision du 21/10/2026). Ticket remplacé le 21/10/2026 par le classifieur local, avancé depuis « Plus tard ».
+- [ ] Dépendances `linfa-preprocessing` et `linfa-logistic` (validées le 21/10/2026).
+- [ ] Module `labeling/classifier` : TF-IDF sur le libellé normalisé (mots et n-grammes de caractères) plus le sens du montant, régression logistique multiclasse ; entraînement en mémoire sur les opérations catégorisées, au démarrage et après un import ou une catégorisation en masse.
+- [ ] Seuils : pas de suggestion sous un minimum d'opérations catégorisées, ni sous un indice de confiance minimal.
+- [ ] Aperçu d'import : suggestion pour les lignes sans règle ni mémoire, avec indice « Suggestion (xx %) » ; jamais appliquée sans validation.
+- [ ] Écran Opérations : suggestion proposée pour les opérations à catégoriser.
+- [ ] Tests : apprentissage sur un jeu anonymisé, libellé inconnu proche d'un connu, seuils.
 
 #### V2-02 · Gestion des tiers — L
 - [ ] Tables `payee` et `payee_alias` ; exploitation de `operation.payee_id`.
