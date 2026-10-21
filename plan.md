@@ -130,7 +130,7 @@ Ajouté le 21/10/2026 (retour de recette sur un export Revolut).
 Ajouté le 21/10/2026 (export Revolut : colonnes « Fee » et « State »).
 - [x] Colonne de frais facultative, déduite du montant (le compte perd montant + frais) ; frais vides comptés à zéro.
 - [x] Colonne d'état facultative et valeur à garder (ex. `COMPLETED`, sans tenir compte de la casse) : les autres lignes (`PENDING`, `REVERTED`, `DECLINED`) sont ignorées avant lecture de la date et du montant.
-- [x] Colonnes ajoutées à `csv_mapping` par une nouvelle migration (`0002`), pour garder les données de recette ; modèle de données du README mis à jour.
+- [x] Colonnes ajoutées à `csv_mapping` dans la migration initiale (règle du README maintenue le 21/10/2026) ; modèle de données du README mis à jour.
 - [x] Détection automatique des colonnes « Fee » / « Frais » et « State » / « État » / « Statut » (valeur la plus fréquente gardée).
 - [x] Champs « Colonnes facultatives » dans la fenêtre du format.
 - 🟡 Valider sur quelques lignes anonymisées d'un vrai export Revolut (en-tête, ligne avec frais, ligne non `COMPLETED`).
@@ -181,7 +181,7 @@ Ajouté le 21/10/2026.
 
 #### V1-03.8 · Règles de catégorisation — M
 Avancé de la V2 le 21/10/2026. Une seule condition : « libellé normalisé contient X », sans tenir compte des majuscules ni des accents.
-- [ ] Table `categorization_rule` (nouvelle migration), CRUD et réordonnancement ; la première règle qui correspond l'emporte.
+- [ ] Table `categorization_rule` (migration initiale), CRUD et réordonnancement ; la première règle qui correspond l'emporte.
 - [ ] À l'import, règles appliquées avant la reprise automatique, avec l'indice « Règle « … » ».
 - [ ] Application d'une règle aux opérations existantes encore à catégoriser, avec le nombre d'opérations concernées.
 - [ ] Écran de gestion des règles (section de l'écran Catégories) ; création rapide depuis une opération.

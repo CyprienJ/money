@@ -102,8 +102,14 @@ CREATE TABLE csv_mapping (
     column_debit      INTEGER,
     column_credit     INTEGER,
     skip_lines        INTEGER NOT NULL DEFAULT 0 CHECK (skip_lines >= 0),
+    -- Optional fee column, taken off the amount (exports such as Revolut's).
+    column_fee        INTEGER CHECK (column_fee >= 0),
+    -- Optional state column: only lines whose state equals `state_keep` are read.
+    column_state      INTEGER CHECK (column_state >= 0),
+    state_keep        TEXT,
     -- Either a single signed amount column, or separate debit and credit columns.
-    CHECK (column_amount IS NOT NULL OR (column_debit IS NOT NULL AND column_credit IS NOT NULL))
+    CHECK (column_amount IS NOT NULL OR (column_debit IS NOT NULL AND column_credit IS NOT NULL)),
+    CHECK ((column_state IS NULL) = (state_keep IS NULL))
 );
 
 -- Automatic category reuse: last category given to a normalized label.
