@@ -83,7 +83,7 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 - **Recherche et filtres avancés** : montant, période, tiers, catégorie, tag, compte *(décisions du 21/10/2026)*. Dans l'écran Opérations : un onglet « Tous les comptes » (comptes archivés exclus, colonne Compte à la place du solde), une période personnalisée en plus des périodes prédéfinies, et un panneau « Plus de filtres » : sens (dépenses, recettes) et fourchette de montant en valeur absolue, tiers, tag. Une seule valeur par filtre ; les filtres se combinent (ET). Une catégorie principale inclut ses sous-catégories.
 
 #### Suivi
-- **Rapprochement échéancier ↔ import** : une opération importée est associée à l'échéance prévue (même montant à une tolérance près, date à ± N jours), qui passe alors en « réalisée ».
+- **Rapprochement échéancier ↔ import** : une opération importée est associée à l'échéance prévue (même montant à une tolérance près, date à ± N jours), qui passe alors en « réalisée » *(décisions du 21/10/2026)*. Candidats : même compte, même sens, montant à ± 10 % de l'échéance, date à ± 5 jours de l'occurrence, opération pas encore associée, proposition pas ignorée. Une association sûre (candidat unique dans les deux sens) est faite automatiquement après chaque import et à la demande ; les autres sont proposées dans l'écran Échéancier (Associer / Ignorer). L'échéancier montre les occurrences des 60 derniers jours avec leur statut (réalisée ou en attente) ; on peut associer à la main (même compte et même sens, à 15 jours près, montant libre) ou dissocier. Modifier une échéance oublie les associations qui ne tombent plus sur une de ses occurrences.
 - **Détection automatique des abonnements** : repérage des opérations récurrentes non déclarées dans l'échéancier.
 - **Alertes** : solde projeté négatif, dépense inhabituelle pour une catégorie, échéance manquante.
 - **Prévision de trésorerie** : solde projeté à partir du solde actuel et de l'échéancier.
@@ -189,6 +189,12 @@ scheduled_operation      -- schedule (display only in V1)
   id, account_id, label, amount_cents, category_id,
   frequency (WEEKLY | MONTHLY | QUARTERLY | SEMIANNUAL | YEARLY), day_of_period, start_date, end_date
 
+schedule_match           -- V2 operation realizing an occurrence (occurrences are computed, keyed by date)
+  scheduled_operation_id, occurrence_date, operation_id (unique)
+
+schedule_match_dismissal -- V2 proposed matches the user dismissed
+  scheduled_operation_id, occurrence_date, operation_id
+
 tag                      -- V2 free labels, created on first use, unique ignoring case
   id, name
 
@@ -229,6 +235,7 @@ File (CSV / PDF)
   → Automatic backup of the data file
   → Insert as a new import_batch
   → Internal transfer pairing (certain pairs linked, the others proposed)
+  → Schedule matching (certain matches made, the others proposed)
 ```
 
 Un import peut être annulé à tout moment en supprimant son lot.

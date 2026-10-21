@@ -357,7 +357,10 @@ Décisions du 21/10/2026 : recherche dans l'écran Opérations, avec un onglet �
 ### Suivi
 
 #### V2-07 · Rapprochement échéancier ↔ import — M
-- [ ] Association d'une opération importée à une échéance (montant à une tolérance près, date à ± N jours) ; statut « réalisée ».
+Décisions du 21/10/2026 : montant à ± 10 %, date à ± 5 jours ; associations sûres automatiques (après import et à la demande), les autres proposées ; occurrences des 60 derniers jours affichées avec leur statut.
+- [x] Association d'une opération importée à une échéance (montant à une tolérance près, date à ± N jours) ; statut « réalisée ».
+- [x] Propositions à valider (Associer / Ignorer), association et dissociation à la main depuis l'échéancier.
+- [x] Échéances récentes (60 jours) avec statut, échéances à venir déjà réalisées marquées (échéancier et tableau de bord).
 
 #### V2-08 · Détection automatique des abonnements — M
 - [ ] Repérage des opérations récurrentes absentes de l'échéancier, proposition d'ajout.
