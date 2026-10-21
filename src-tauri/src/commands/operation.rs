@@ -3,6 +3,7 @@ use sqlx::SqlitePool;
 use tauri::State;
 
 use crate::error::AppResult;
+use crate::labeling::rules::{self, Rule, RuleInput};
 use crate::operation::category::{self, Category, CategoryInput};
 use crate::operation::same_label::{self, SameLabel};
 use crate::operation::schedule::{
@@ -161,4 +162,51 @@ pub async fn upcoming_operations(
 ) -> AppResult<Vec<UpcomingOperation>> {
     let today = chrono::Local::now().date_naive();
     schedule::upcoming(&pool, today, days).await
+}
+
+/// Categorization rules, in order, each with the count of operations to categorize it matches.
+#[tauri::command]
+#[specta::specta]
+pub async fn list_rules(pool: State<'_, SqlitePool>) -> AppResult<Vec<Rule>> {
+    rules::list(&pool).await
+}
+
+/// Operations to categorize whose label contains `pattern`, to preview a rule.
+#[tauri::command]
+#[specta::specta]
+pub async fn count_rule_matches(pool: State<'_, SqlitePool>, pattern: String) -> AppResult<u32> {
+    rules::count_pending(&pool, &pattern).await
+}
+
+/// Adds a rule at the end of the list.
+#[tauri::command]
+#[specta::specta]
+pub async fn create_rule(pool: State<'_, SqlitePool>, rule: RuleInput) -> AppResult<Rule> {
+    rules::create(&pool, rule).await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn update_rule(pool: State<'_, SqlitePool>, id: i64, rule: RuleInput) -> AppResult<Rule> {
+    rules::update(&pool, id, rule).await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn delete_rule(pool: State<'_, SqlitePool>, id: i64) -> AppResult<()> {
+    rules::delete(&pool, id).await
+}
+
+/// Puts the rules in the order of `ids`: the first matching rule wins.
+#[tauri::command]
+#[specta::specta]
+pub async fn reorder_rules(pool: State<'_, SqlitePool>, ids: Vec<i64>) -> AppResult<()> {
+    rules::reorder(&pool, &ids).await
+}
+
+/// Gives the category of a rule to the operations to categorize it matches; returns their count.
+#[tauri::command]
+#[specta::specta]
+pub async fn apply_rule(pool: State<'_, SqlitePool>, id: i64) -> AppResult<u32> {
+    rules::apply(&pool, id).await
 }

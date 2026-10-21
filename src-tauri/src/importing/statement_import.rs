@@ -17,6 +17,7 @@ use super::duplicates::{self, DuplicateStatus, ExistingOperation};
 use super::pdf::{self, PdfError};
 use crate::account;
 use crate::error::AppResult;
+use crate::labeling::rules::Rules;
 use crate::labeling::{memory, normalize_label};
 
 /// A statement line in the import preview.
@@ -31,8 +32,11 @@ pub struct PreviewLine {
     pub before_opening: bool,
     /// Checked in the preview unless the user unchecks it: new lines only.
     pub included_by_default: bool,
-    /// Category remembered for this label, given at import; `None`: unknown label.
+    /// Category given at import: by the first matching rule, or else remembered for this
+    /// label; `None`: unknown label.
     pub category_id: Option<i64>,
+    /// Text of the rule that gave the category; `None` when remembered or unknown.
+    pub rule_pattern: Option<String>,
 }
 
 /// How to read a statement file.
@@ -149,10 +153,13 @@ pub async fn preview(pool: &SqlitePool, file: StatementFile<'_>) -> AppResult<Im
         .iter()
         .map(|l| normalize_label(&l.label))
         .collect();
-    let remembered = {
+    let (rules, remembered) = {
         let labels: Vec<&str> = normalized.iter().map(String::as_str).collect();
         let mut conn = pool.acquire().await?;
-        memory::recall(&mut conn, &labels).await?
+        (
+            Rules::load(&mut conn).await?,
+            memory::recall(&mut conn, &labels).await?,
+        )
     };
     let lines = raw_lines
         .into_iter()
@@ -160,8 +167,12 @@ pub async fn preview(pool: &SqlitePool, file: StatementFile<'_>) -> AppResult<Im
         .zip(normalized)
         .map(|((line, duplicate), normalized_label)| {
             let before_opening = line.date < account.opening_date;
+            let rule = rules.find(&normalized_label);
             PreviewLine {
-                category_id: remembered.get(&normalized_label).copied(),
+                category_id: rule
+                    .map(|(category_id, _)| category_id)
+                    .or_else(|| remembered.get(&normalized_label).copied()),
+                rule_pattern: rule.map(|(_, pattern)| pattern.to_owned()),
                 normalized_label,
                 before_opening,
                 included_by_default: !before_opening && duplicate.included_by_default(),

@@ -12,6 +12,7 @@ import {
 } from "../bindings";
 import CategoryPicker from "../components/CategoryPicker.vue";
 import OperationFormModal from "../components/OperationFormModal.vue";
+import RuleFormModal from "../components/RuleFormModal.vue";
 import { ACCOUNT_TYPES } from "../utils/accounts";
 import { categoryTree } from "../utils/categories";
 import { errorMessage, unwrap } from "../utils/commands";
@@ -44,6 +45,10 @@ const spreadDone = ref("");
 
 const modalOpen = ref(false);
 const editedOperation = ref<Operation | null>(null);
+
+/** Rule created from an operation: its label and category prefill the form. */
+const ruleModalOpen = ref(false);
+const rulePrefill = ref<{ pattern: string; categoryId: number | null }>({ pattern: "", categoryId: null });
 
 const selected = computed(() => {
   const id = Number(route.query.account);
@@ -201,6 +206,19 @@ function openEdit(operation: Operation) {
 async function onChanged() {
   modalOpen.value = false;
   await reload(true);
+}
+
+function openRule(operation: Operation, categoryId: number | null) {
+  modalOpen.value = false;
+  rulePrefill.value = { pattern: displayLabel(operation.normalizedLabel), categoryId };
+  ruleModalOpen.value = true;
+}
+
+async function onRuleChanged(message: string) {
+  ruleModalOpen.value = false;
+  spread.value = null;
+  spreadDone.value = message;
+  await reload();
 }
 
 onMounted(() => reload(true));
@@ -414,6 +432,16 @@ watch([() => selected.value?.account.id, periodId], () => reload());
       :operation="editedOperation"
       @close="modalOpen = false"
       @changed="onChanged"
+      @create-rule="openRule"
+    />
+    <RuleFormModal
+      :open="ruleModalOpen"
+      :categories="categories"
+      :rule="null"
+      :initial-pattern="rulePrefill.pattern"
+      :initial-category-id="rulePrefill.categoryId"
+      @close="ruleModalOpen = false"
+      @changed="onRuleChanged"
     />
   </template>
 </template>

@@ -181,11 +181,11 @@ Ajouté le 21/10/2026.
 
 #### V1-03.8 · Règles de catégorisation — M
 Avancé de la V2 le 21/10/2026. Une seule condition : « libellé normalisé contient X », sans tenir compte des majuscules ni des accents.
-- [ ] Table `categorization_rule` (migration initiale), CRUD et réordonnancement ; la première règle qui correspond l'emporte.
-- [ ] À l'import, règles appliquées avant la reprise automatique, avec l'indice « Règle « … » ».
-- [ ] Application d'une règle aux opérations existantes encore à catégoriser, avec le nombre d'opérations concernées.
-- [ ] Écran de gestion des règles (section de l'écran Catégories) ; création rapide depuis une opération.
-- [ ] Tests unitaires.
+- [x] Table `categorization_rule` (migration initiale), CRUD et réordonnancement ; la première règle qui correspond l'emporte.
+- [x] À l'import, règles appliquées avant la reprise automatique, avec l'indice « Règle « … » ».
+- [x] Application d'une règle aux opérations existantes encore à catégoriser, avec le nombre d'opérations concernées.
+- [x] Écran de gestion des règles (section de l'écran Catégories, ordre modifiable, bouton « Classer ») ; création rapide depuis la fenêtre d'une opération. Une règle suit la catégorie qui reprend les opérations d'une catégorie supprimée, et disparaît sinon.
+- [x] Tests unitaires.
 
 ---
 
@@ -301,8 +301,7 @@ Ordre indicatif : catégorisation et tiers d'abord (gain quotidien), puis opéra
 ### Catégorisation et tiers
 
 #### V2-01 · Règles de catégorisation — L
-- [ ] Table `categorization_rule` : conditions « libellé contient X », « montant entre A et B », compte ; priorité.
-- [ ] Application à l'import avant la mémoire de libellés ; écran de gestion et test d'une règle sur l'historique.
+Avancé en V1 (V1-03.8, décision du 21/10/2026), avec la seule condition « libellé contient X ». Rien à prévoir en V2 sans nouvelle décision.
 
 #### V2-02 · Gestion des tiers — L
 - [ ] Tables `payee` et `payee_alias` ; exploitation de `operation.payee_id`.

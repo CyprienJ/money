@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE categorization_rule SET category_id = ?2 WHERE category_id = ?1 AND ?2 IS NOT NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "e9eff576029bac60b3c45bfd461125fb9330eb4f1222fc1cb2ef0c2062687759"
+}

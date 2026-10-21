@@ -194,6 +194,14 @@ pub async fn delete(pool: &SqlitePool, id: i64, reassign_to: Option<i64>) -> App
     )
     .execute(&mut *tx)
     .await?;
+    // Rules follow the operations; without a target, they go with the category.
+    sqlx::query!(
+        "UPDATE categorization_rule SET category_id = ?2 WHERE category_id = ?1 AND ?2 IS NOT NULL",
+        id,
+        reassign_to
+    )
+    .execute(&mut *tx)
+    .await?;
     sqlx::query!("DELETE FROM category WHERE id = ?1", id)
         .execute(&mut *tx)
         .await?;

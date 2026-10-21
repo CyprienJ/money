@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE categorization_rule SET pattern = ?2, category_id = ?3 WHERE id = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "30a2d7650da953b6fd434ba7315c2291c610be156af12a3ade1513eb22a32bf1"
+}

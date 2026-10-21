@@ -20,6 +20,7 @@ function line(overrides: Partial<PreviewLine> = {}): PreviewLine {
     beforeOpening: false,
     includedByDefault: true,
     categoryId: null,
+    rulePattern: null,
     ...overrides,
   };
 }

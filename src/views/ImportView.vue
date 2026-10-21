@@ -221,6 +221,7 @@ function categoryHint(index: number): string {
       ? "Choisie à la main, retenue pour ce libellé"
       : "Choisie sur une autre ligne de ce libellé";
   }
+  if (line.rulePattern !== null) return `Règle « ${line.rulePattern} »`;
   return `Reprise de « ${displayLabel(line.normalizedLabel)} »`;
 }
 

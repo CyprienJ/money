@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT o.normalized_label\n         FROM operation o\n         JOIN operation_split s ON s.operation_id = o.id\n         WHERE s.category_id IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "normalized_label",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "normalized_label"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "4c5510c850533af2780402d25f538a1cdb53c71644e1fc0b0fe5d6a786df7902"
+}

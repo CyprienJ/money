@@ -119,6 +119,15 @@ CREATE TABLE label_category_memory (
     last_used_at     TEXT    NOT NULL
 );
 
+-- Categorization rules: "normalized label contains `pattern`" (ignoring case and accents)
+-- gives `category_id`. The first rule by position wins, before the label memory.
+CREATE TABLE categorization_rule (
+    id          INTEGER PRIMARY KEY,
+    pattern     TEXT    NOT NULL CHECK (pattern <> ''),
+    category_id INTEGER NOT NULL REFERENCES category (id) ON DELETE CASCADE,
+    position    INTEGER NOT NULL
+);
+
 -- Value history of INVESTMENT / ASSET accounts, and outstanding capital of LIABILITY accounts
 -- (stored as a positive amount, subtracted in net worth).
 CREATE TABLE valuation (

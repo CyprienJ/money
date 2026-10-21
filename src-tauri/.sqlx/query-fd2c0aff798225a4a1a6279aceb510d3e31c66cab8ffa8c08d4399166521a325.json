@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT pattern, category_id FROM categorization_rule ORDER BY position, id",
+  "describe": {
+    "columns": [
+      {
+        "name": "pattern",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "categorization_rule",
+            "name": "pattern"
+          }
+        }
+      },
+      {
+        "name": "category_id",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "categorization_rule",
+            "name": "category_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "fd2c0aff798225a4a1a6279aceb510d3e31c66cab8ffa8c08d4399166521a325"
+}

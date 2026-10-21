@@ -328,6 +328,55 @@ fn proposes_and_applies_remembered_categories() {
 }
 
 #[test]
+fn rules_come_before_remembered_categories() {
+    run(|setup| async move {
+        let categories = crate::operation::category::list(&setup.pool).await.unwrap();
+        let id = |name: &str| categories.iter().find(|c| c.name == name).unwrap().id;
+        let (salary, other_income, restaurants) =
+            (id("Salaire"), id("Autres revenus"), id("Restaurants"));
+        let earlier = enter(
+            &setup.pool,
+            setup.account_id,
+            "2026-09-01",
+            245_000,
+            "VIR SALAIRE 01/09",
+        )
+        .await;
+        crate::operation::set_category(&setup.pool, earlier, Some(salary))
+            .await
+            .unwrap();
+        for (pattern, category_id) in [("salaire", other_income), ("restau", restaurants)] {
+            crate::labeling::rules::create(
+                &setup.pool,
+                crate::labeling::rules::RuleInput {
+                    pattern: pattern.to_owned(),
+                    category_id,
+                },
+            )
+            .await
+            .unwrap();
+        }
+
+        let preview = preview(&setup.pool, setup.file()).await.unwrap();
+        let proposed: Vec<(Option<i64>, Option<&str>)> = preview
+            .lines
+            .iter()
+            .map(|l| (l.category_id, l.rule_pattern.as_deref()))
+            .collect();
+        assert_eq!(
+            proposed,
+            vec![
+                (None, None),
+                (None, None),
+                (Some(restaurants), Some("restau")),
+                // The rule wins over the category remembered for the label.
+                (Some(other_income), Some("salaire")),
+            ]
+        );
+    });
+}
+
+#[test]
 fn remembers_categories_chosen_in_the_preview() {
     run(|setup| async move {
         let categories = crate::operation::category::list(&setup.pool).await.unwrap();

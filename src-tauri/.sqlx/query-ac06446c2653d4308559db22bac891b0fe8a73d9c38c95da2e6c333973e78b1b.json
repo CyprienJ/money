@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO categorization_rule (pattern, category_id, position)\n         VALUES (?1, ?2, (SELECT COALESCE(MAX(position), -1) + 1 FROM categorization_rule))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "ac06446c2653d4308559db22bac891b0fe8a73d9c38c95da2e6c333973e78b1b"
+}

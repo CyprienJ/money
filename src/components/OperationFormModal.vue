@@ -18,6 +18,8 @@ const emit = defineEmits<{
   close: [];
   /** Emitted after a create, update or delete. */
   changed: [];
+  /** Asks for a rule from the label of the operation, with the category in the form. */
+  createRule: [operation: Operation, categoryId: number | null];
 }>();
 
 type Direction = "debit" | "credit";
@@ -214,6 +216,15 @@ async function remove() {
       <p v-if="error" class="error-banner">{{ error }}</p>
 
       <footer class="actions">
+        <button
+          v-if="operation"
+          type="button"
+          class="btn btn-link"
+          title="Classer automatiquement les opérations au libellé semblable"
+          @click="emit('createRule', operation, form.categoryId)"
+        >
+          Créer une règle
+        </button>
         <button
           v-if="operation && !isImported"
           type="button"

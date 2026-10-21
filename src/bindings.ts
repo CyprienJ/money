@@ -38,6 +38,18 @@ export const commands = {
 	 *  returns their count.
 	 */
 	categorizeSameLabel: (id: number) => typedError<number, AppError>(__TAURI_INVOKE("categorize_same_label", { id })),
+	/**  Categorization rules, in order, each with the count of operations to categorize it matches. */
+	listRules: () => typedError<Rule[], AppError>(__TAURI_INVOKE("list_rules")),
+	/**  Operations to categorize whose label contains `pattern`, to preview a rule. */
+	countRuleMatches: (pattern: string) => typedError<number, AppError>(__TAURI_INVOKE("count_rule_matches", { pattern })),
+	/**  Adds a rule at the end of the list. */
+	createRule: (rule: RuleInput) => typedError<Rule, AppError>(__TAURI_INVOKE("create_rule", { rule })),
+	updateRule: (id: number, rule: RuleInput) => typedError<Rule, AppError>(__TAURI_INVOKE("update_rule", { id, rule })),
+	deleteRule: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_rule", { id })),
+	/**  Puts the rules in the order of `ids`: the first matching rule wins. */
+	reorderRules: (ids: number[]) => typedError<null, AppError>(__TAURI_INVOKE("reorder_rules", { ids })),
+	/**  Gives the category of a rule to the operations to categorize it matches; returns their count. */
+	applyRule: (id: number) => typedError<number, AppError>(__TAURI_INVOKE("apply_rule", { id })),
 	deleteOperation: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_operation", { id })),
 	listCategories: () => typedError<Category[], AppError>(__TAURI_INVOKE("list_categories")),
 	createCategory: (category: CategoryInput) => typedError<Category, AppError>(__TAURI_INVOKE("create_category", { category })),
@@ -355,7 +367,7 @@ export type DuplicateStatus = { status: "new" } | { status: "duplicate"; operati
 candidateIds: number[] };
 
 /**  Business error with its code and parameters, for a message in French on the frontend. */
-export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError };
+export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "rule"; error: RuleError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError };
 
 /**  Stable identifier the frontend can match on. */
 export type ErrorKind = "database" | "migration" | "io" | 
@@ -557,8 +569,13 @@ export type PreviewLine = {
 	beforeOpening: boolean,
 	/**  Checked in the preview unless the user unchecks it: new lines only. */
 	includedByDefault: boolean,
-	/**  Category remembered for this label, given at import; `None`: unknown label. */
+	/**
+	 *  Category given at import: by the first matching rule, or else remembered for this
+	 *  label; `None`: unknown label.
+	 */
 	categoryId: number | null,
+	/**  Text of the rule that gave the category; `None` when remembered or unknown. */
+	rulePattern: string | null,
 };
 
 /**
@@ -572,6 +589,24 @@ export type RawLine = {
 	label: string,
 	/**  Negative for a debit, positive for a credit. */
 	amountCents: number,
+};
+
+export type Rule = {
+	id: number,
+	/**  Text looked for in the normalized label, ignoring case and accents. */
+	pattern: string,
+	categoryId: number,
+	/**  Operations still to categorize that the rule matches. */
+	pendingCount: number,
+};
+
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type RuleError = { code: "notFound"; params: number } | { code: "emptyPattern" } | { code: "categoryNotFound"; params: number } | { code: "invalidOrder" };
+
+/**  Fields of a rule to create or update. */
+export type RuleInput = {
+	pattern: string,
+	categoryId: number,
 };
 
 /**  Other operations with the same normalized label as an operation, all accounts included. */

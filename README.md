@@ -306,7 +306,7 @@ finances-perso/
 │       ├── importing/            # import batches, duplicates, balance check, backup
 │       │   ├── csv/              # CSV parser + column mappings
 │       │   └── pdf/              # StatementParser trait, one impl per bank
-│       ├── labeling/             # label normalization, category memory
+│       ├── labeling/             # label normalization, category memory, rules
 │       └── stats/                # aggregation queries for charts (future AI tools)
 ├── tests/fixtures/               # anonymized real statements + expected results
 ├── tools/                        # dev scripts (anonymize_pdf.py: PDF anonymization; fetch_pdfium.sh: PDFium library)

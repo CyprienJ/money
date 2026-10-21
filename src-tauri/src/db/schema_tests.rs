@@ -48,10 +48,11 @@ fn creates_all_v1_tables() {
             &pool,
             "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN (
                 'account', 'operation', 'operation_split', 'category', 'import_batch',
-                'csv_mapping', 'label_category_memory', 'valuation', 'scheduled_operation')",
+                'csv_mapping', 'label_category_memory', 'categorization_rule', 'valuation',
+                'scheduled_operation')",
         )
         .await;
-        assert_eq!(tables, 9);
+        assert_eq!(tables, 10);
     });
 }
 

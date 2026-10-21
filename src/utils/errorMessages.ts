@@ -7,6 +7,7 @@ import type {
   ImportError,
   OperationError,
   PdfError,
+  RuleError,
   ScheduleError,
   StatsError,
 } from "../bindings";
@@ -99,6 +100,20 @@ function schedule(error: ScheduleError): string {
       return "Une échéance se rattache à un compte courant, d'épargne ou à une carte.";
     case "categoryNotFound":
       return "Cette catégorie n'existe plus.";
+  }
+  return unreachable(error);
+}
+
+function rule(error: RuleError): string {
+  switch (error.code) {
+    case "notFound":
+      return "Cette règle n'existe plus.";
+    case "emptyPattern":
+      return "Indique le texte que le libellé doit contenir.";
+    case "categoryNotFound":
+      return "Cette catégorie n'existe plus.";
+    case "invalidOrder":
+      return "La liste des règles a changé entre-temps : recharge l'écran.";
   }
   return unreachable(error);
 }
@@ -200,6 +215,8 @@ export function businessMessage(detail: ErrorDetail): string {
       return category(detail.error);
     case "schedule":
       return schedule(detail.error);
+    case "rule":
+      return rule(detail.error);
     case "stats":
       return stats(detail.error);
     case "csv":

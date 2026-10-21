@@ -6,6 +6,7 @@ use crate::account::AccountError;
 use crate::importing::batch::ImportError;
 use crate::importing::csv::{CsvError, CsvMappingError};
 use crate::importing::pdf::PdfError;
+use crate::labeling::rules::RuleError;
 use crate::operation::OperationError;
 use crate::operation::category::CategoryError;
 use crate::operation::schedule::ScheduleError;
@@ -34,6 +35,9 @@ pub enum AppError {
 
     #[error(transparent)]
     Schedule(#[from] ScheduleError),
+
+    #[error(transparent)]
+    Rule(#[from] RuleError),
 
     #[error(transparent)]
     Stats(#[from] StatsError),
@@ -72,6 +76,7 @@ enum ErrorDetail {
     Operation(OperationError),
     Category(CategoryError),
     Schedule(ScheduleError),
+    Rule(RuleError),
     Stats(StatsError),
     Csv(CsvError),
     CsvMapping(CsvMappingError),
@@ -99,6 +104,7 @@ impl AppError {
             AppError::Operation(error) => error.kind(),
             AppError::Category(error) => error.kind(),
             AppError::Schedule(error) => error.kind(),
+            AppError::Rule(error) => error.kind(),
             AppError::Stats(error) => error.kind(),
             AppError::Csv(error) => error.kind(),
             AppError::CsvMapping(error) => error.kind(),
@@ -116,6 +122,7 @@ impl AppError {
             AppError::Operation(error) => ErrorDetail::Operation(error.clone()),
             AppError::Category(error) => ErrorDetail::Category(error.clone()),
             AppError::Schedule(error) => ErrorDetail::Schedule(error.clone()),
+            AppError::Rule(error) => ErrorDetail::Rule(error.clone()),
             AppError::Stats(error) => ErrorDetail::Stats(error.clone()),
             AppError::Csv(error) => ErrorDetail::Csv(error.clone()),
             AppError::CsvMapping(error) => ErrorDetail::CsvMapping(error.clone()),
