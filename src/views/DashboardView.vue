@@ -289,7 +289,8 @@ watch(offset, load);
             </span>
             <span class="details">
               <span class="name">{{ item.label }}</span>
-              <span class="sub">{{ item.categoryId !== null ? categoriesById.get(item.categoryId)?.name : "" }}</span>
+              <span v-if="item.realizedBy" class="sub realized">Réalisée le {{ formatDate(item.realizedBy.date, "day-month") }}</span>
+              <span v-else class="sub">{{ item.categoryId !== null ? categoriesById.get(item.categoryId)?.name : "" }}</span>
             </span>
             <strong :class="{ positive: item.amountCents > 0 }">
               {{ formatAmount(item.amountCents, { signed: true }) }}
@@ -624,6 +625,11 @@ a.list-row:hover {
 .sub {
   font-size: 12px;
   color: var(--color-text-muted);
+}
+
+.sub.realized {
+  color: var(--cat-transport-fg);
+  font-weight: 600;
 }
 
 .list-row strong {

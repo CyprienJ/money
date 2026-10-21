@@ -261,6 +261,7 @@ async function runImport() {
     );
     const query: Record<string, string> = { account: String(accountId.value) };
     if (outcome.linkedTransfers > 0) query.linkedTransfers = String(outcome.linkedTransfers);
+    if (outcome.matchedOccurrences > 0) query.matchedOccurrences = String(outcome.matchedOccurrences);
     await router.push({ name: "operations", query });
   } catch (e) {
     error.value = errorMessage(e);

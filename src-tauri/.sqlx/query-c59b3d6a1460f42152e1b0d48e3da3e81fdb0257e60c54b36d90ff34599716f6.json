@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR IGNORE INTO schedule_match_dismissal\n         (scheduled_operation_id, occurrence_date, operation_id) VALUES (?1, ?2, ?3)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "c59b3d6a1460f42152e1b0d48e3da3e81fdb0257e60c54b36d90ff34599716f6"
+}

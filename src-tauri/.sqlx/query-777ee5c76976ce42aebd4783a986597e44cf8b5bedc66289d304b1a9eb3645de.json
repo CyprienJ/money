@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT o.id AS \"id!\", o.date AS \"date!: NaiveDate\", o.amount_cents\n               FROM operation o\n               WHERE o.account_id = ?1 AND o.date BETWEEN ?2 AND ?3\n                 AND NOT EXISTS (SELECT 1 FROM schedule_match m WHERE m.operation_id = o.id)",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "date!: NaiveDate",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "name": "amount_cents",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "amount_cents"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "777ee5c76976ce42aebd4783a986597e44cf8b5bedc66289d304b1a9eb3645de"
+}

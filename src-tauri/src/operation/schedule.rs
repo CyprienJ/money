@@ -1,6 +1,6 @@
-//! Scheduled operations (rent, salary, subscriptions): display only in V1. Their upcoming
-//! occurrences are computed on the fly and never create operations; real operations come
-//! from imports.
+//! Scheduled operations (rent, salary, subscriptions). Their occurrences are computed on the
+//! fly and never create operations; real operations come from imports, and realize an
+//! occurrence once matched with it (`matching`).
 //!
 //! `day_of_period` is the weekday for weekly schedules (1 = Monday … 7 = Sunday) and the day
 //! of the month otherwise (1 to 31, moved to the last day of shorter months). Quarterly,
@@ -13,6 +13,8 @@ use sqlx::SqlitePool;
 
 use crate::account;
 use crate::error::{AppResult, ErrorKind};
+
+pub mod matching;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type, sqlx::Type)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -67,7 +69,7 @@ pub struct ScheduledOperationInput {
     pub end_date: Option<NaiveDate>,
 }
 
-/// An upcoming occurrence of a scheduled operation.
+/// An occurrence of a scheduled operation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct UpcomingOperation {
@@ -77,6 +79,19 @@ pub struct UpcomingOperation {
     pub label: String,
     pub amount_cents: i64,
     pub category_id: Option<i64>,
+    /// The operation that realized the occurrence, once matched.
+    pub realized_by: Option<MatchedOperation>,
+}
+
+/// An operation matched, or to match, with an occurrence.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct MatchedOperation {
+    pub operation_id: i64,
+    pub date: NaiveDate,
+    pub amount_cents: i64,
+    /// Payee name, or the normalized label when the operation has no payee.
+    pub payee_name: String,
 }
 
 /// Serialized for the frontend as `{ code, params }`, to show a message in French.
@@ -110,6 +125,18 @@ pub enum ScheduleError {
 
     #[error("category {0} not found")]
     CategoryNotFound(i64),
+
+    #[error("{0} is not an occurrence of the scheduled operation")]
+    NotAnOccurrence(NaiveDate),
+
+    #[error("the operation is not on the account of the scheduled operation")]
+    OtherAccount,
+
+    #[error("the occurrence is already realized by another operation")]
+    AlreadyRealized,
+
+    #[error("operation {0} already realizes another occurrence")]
+    OperationAlreadyMatched(i64),
 }
 
 impl ScheduleError {
@@ -183,7 +210,7 @@ pub async fn list(pool: &SqlitePool) -> AppResult<Vec<ScheduledOperation>> {
     Ok(schedules)
 }
 
-async fn get(pool: &SqlitePool, id: i64) -> AppResult<ScheduledOperation> {
+pub(crate) async fn get(pool: &SqlitePool, id: i64) -> AppResult<ScheduledOperation> {
     let schedule = sqlx::query_as!(
         ScheduledOperation,
         r#"SELECT id AS "id!", account_id, label, amount_cents, category_id,
@@ -246,7 +273,9 @@ pub async fn update(
     )
     .execute(pool)
     .await?;
-    get(pool, id).await
+    let schedule = get(pool, id).await?;
+    matching::prune(pool, &schedule).await?;
+    Ok(schedule)
 }
 
 pub async fn delete(pool: &SqlitePool, id: i64) -> AppResult<()> {
@@ -269,22 +298,26 @@ pub async fn upcoming(
     let to = from
         .checked_add_days(Days::new(u64::from(days.max(1)) - 1))
         .unwrap_or(from);
-    let mut upcoming: Vec<UpcomingOperation> = list(pool)
-        .await?
-        .iter()
-        .flat_map(|schedule| {
-            occurrences(schedule, from, to)
-                .into_iter()
-                .map(|date| UpcomingOperation {
-                    scheduled_operation_id: schedule.id,
-                    date,
-                    account_id: schedule.account_id,
-                    label: schedule.label.clone(),
-                    amount_cents: schedule.amount_cents,
-                    category_id: schedule.category_id,
-                })
-        })
-        .collect();
+    occurrences_between(pool, from, to).await
+}
+
+/// Occurrences of every schedule between `from` and `to` (included), by date, with the
+/// operation that realized each one.
+pub async fn occurrences_between(
+    pool: &SqlitePool,
+    from: NaiveDate,
+    to: NaiveDate,
+) -> AppResult<Vec<UpcomingOperation>> {
+    let mut realized = matching::realized_between(pool, from, to).await?;
+    let mut upcoming = Vec::new();
+    for schedule in list(pool).await? {
+        for date in occurrences(&schedule, from, to) {
+            upcoming.push(UpcomingOperation {
+                realized_by: realized.remove(&(schedule.id, date)),
+                ..matching::occurrence(&schedule, date)
+            });
+        }
+    }
     upcoming.sort_by(|a, b| a.date.cmp(&b.date).then_with(|| a.label.cmp(&b.label)));
     Ok(upcoming)
 }

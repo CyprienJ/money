@@ -96,6 +96,23 @@ export const commands = {
 	 *  operation is created.
 	 */
 	upcomingOperations: (days: number) => typedError<UpcomingOperation[], AppError>(__TAURI_INVOKE("upcoming_operations", { days })),
+	/**
+	 *  Occurrences of the scheduled operations between `from` and `to` (included), with the
+	 *  operation that realized each one.
+	 */
+	scheduleOccurrences: (from: string, to: string) => typedError<UpcomingOperation[], AppError>(__TAURI_INVOKE("schedule_occurrences", { from, to })),
+	/**  Detected matches between occurrences and operations to confirm. */
+	listScheduleMatchProposals: () => typedError<ScheduleMatchProposal[], AppError>(__TAURI_INVOKE("list_schedule_match_proposals")),
+	/**  Makes the certain matches of the whole history; returns their count. */
+	detectScheduleMatches: () => typedError<number, AppError>(__TAURI_INVOKE("detect_schedule_matches")),
+	/**  Records that an operation realizes an occurrence of a scheduled operation. */
+	matchScheduleOccurrence: (scheduledOperationId: number, occurrenceDate: string, operationId: number) => typedError<null, AppError>(__TAURI_INVOKE("match_schedule_occurrence", { scheduledOperationId, occurrenceDate, operationId })),
+	/**  Forgets the operation that realized an occurrence. */
+	unmatchScheduleOccurrence: (scheduledOperationId: number, occurrenceDate: string) => typedError<null, AppError>(__TAURI_INVOKE("unmatch_schedule_occurrence", { scheduledOperationId, occurrenceDate })),
+	/**  Dismisses a proposed match, which is not proposed again. */
+	dismissScheduleMatch: (scheduledOperationId: number, occurrenceDate: string, operationId: number) => typedError<null, AppError>(__TAURI_INVOKE("dismiss_schedule_match", { scheduledOperationId, occurrenceDate, operationId })),
+	/**  Operations that can be matched by hand with an occurrence, the closest dates first. */
+	scheduleMatchCandidates: (scheduledOperationId: number, occurrenceDate: string) => typedError<MatchedOperation[], AppError>(__TAURI_INVOKE("schedule_match_candidates", { scheduledOperationId, occurrenceDate })),
 	/**  Payees that have operations, by name, with their labels. */
 	listPayees: () => typedError<Payee[], AppError>(__TAURI_INVOKE("list_payees")),
 	/**  Renames a payee; refused when another payee already has this name. */
@@ -158,7 +175,7 @@ export const commands = {
 	previewImport: (path: string, accountId: number, format: ImportFormat) => typedError<ImportPreview, AppError>(__TAURI_INVOKE("preview_import", { path, accountId, format })),
 	/**
 	 *  Imports the selected lines of the statement file at `path`, with their categories, then
-	 *  links the certain internal transfers of the new operations.
+	 *  links the certain internal transfers and schedule occurrences of the new operations.
 	 *  `file_hash` comes from the preview and guards against a file changed in between.
 	 */
 	importStatement: (path: string, accountId: number, format: ImportFormat, fileHash: string, selections: ImportSelection[]) => typedError<ImportOutcome, AppError>(__TAURI_INVOKE("import_statement", { path, accountId, format, fileHash, selections })),
@@ -497,6 +514,8 @@ export type ImportOutcome = {
 	batch: ImportBatch,
 	/**  Internal transfers linked automatically with operations of other accounts. */
 	linkedTransfers: number,
+	/**  Occurrences of scheduled operations realized automatically by the new operations. */
+	matchedOccurrences: number,
 };
 
 export type ImportPreview = {
@@ -544,6 +563,15 @@ export type MappingSuggestion = {
 	mapping: SavedCsvMapping,
 	/**  Statement lines read from the file with this mapping. */
 	lineCount: number,
+};
+
+/**  An operation matched, or to match, with an occurrence. */
+export type MatchedOperation = {
+	operationId: number,
+	date: string,
+	amountCents: number,
+	/**  Payee name, or the normalized label when the operation has no payee. */
+	payeeName: string,
 };
 
 export type NetWorth = {
@@ -772,7 +800,13 @@ export type SavedCsvMapping = {
 };
 
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
-export type ScheduleError = { code: "notFound"; params: number } | { code: "emptyLabel" } | { code: "zeroAmount" } | { code: "invalidDay" } | { code: "endBeforeStart" } | { code: "accountWithoutOperations" } | { code: "categoryNotFound"; params: number };
+export type ScheduleError = { code: "notFound"; params: number } | { code: "emptyLabel" } | { code: "zeroAmount" } | { code: "invalidDay" } | { code: "endBeforeStart" } | { code: "accountWithoutOperations" } | { code: "categoryNotFound"; params: number } | { code: "notAnOccurrence"; params: string } | { code: "otherAccount" } | { code: "alreadyRealized" } | { code: "operationAlreadyMatched"; params: number };
+
+/**  A detected match the user has to confirm. */
+export type ScheduleMatchProposal = {
+	occurrence: UpcomingOperation,
+	operation: MatchedOperation,
+};
 
 export type ScheduledOperation = {
 	id: number,
@@ -850,7 +884,7 @@ export type TransferSide = {
 	payeeName: string,
 };
 
-/**  An upcoming occurrence of a scheduled operation. */
+/**  An occurrence of a scheduled operation. */
 export type UpcomingOperation = {
 	scheduledOperationId: number,
 	date: string,
@@ -858,6 +892,8 @@ export type UpcomingOperation = {
 	label: string,
 	amountCents: number,
 	categoryId: number | null,
+	/**  The operation that realized the occurrence, once matched. */
+	realizedBy: MatchedOperation | null,
 };
 
 export type Valuation = {

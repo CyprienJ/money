@@ -1,3 +1,4 @@
+use chrono::NaiveDate;
 use sqlx::SqlitePool;
 use tauri::{AppHandle, State};
 
@@ -6,8 +7,9 @@ use crate::error::AppResult;
 use crate::labeling::rules::{self, Rule, RuleInput};
 use crate::operation::category::{self, Category, CategoryInput};
 use crate::operation::same_label::{self, SameLabel};
+use crate::operation::schedule::matching::{self, ScheduleMatchProposal};
 use crate::operation::schedule::{
-    self, ScheduledOperation, ScheduledOperationInput, UpcomingOperation,
+    self, MatchedOperation, ScheduledOperation, ScheduledOperationInput, UpcomingOperation,
 };
 use crate::operation::search::{self, OperationFilter};
 use crate::operation::transfer::{self, TransferProposal, TransferSide};
@@ -168,8 +170,7 @@ pub async fn upcoming_operations(
     pool: State<'_, SqlitePool>,
     days: u32,
 ) -> AppResult<Vec<UpcomingOperation>> {
-    let today = chrono::Local::now().date_naive();
-    schedule::upcoming(&pool, today, days).await
+    schedule::upcoming(&pool, today(), days).await
 }
 
 /// Categorization rules, in order, each with the count of operations to categorize it matches.
@@ -278,4 +279,83 @@ pub async fn transfer_link_candidates(
     id: i64,
 ) -> AppResult<Vec<TransferSide>> {
     transfer::link_candidates(&pool, id).await
+}
+
+/// Occurrences of the scheduled operations between `from` and `to` (included), with the
+/// operation that realized each one.
+#[tauri::command]
+#[specta::specta]
+pub async fn schedule_occurrences(
+    pool: State<'_, SqlitePool>,
+    from: NaiveDate,
+    to: NaiveDate,
+) -> AppResult<Vec<UpcomingOperation>> {
+    schedule::occurrences_between(&pool, from, to).await
+}
+
+/// Detected matches between occurrences and operations to confirm.
+#[tauri::command]
+#[specta::specta]
+pub async fn list_schedule_match_proposals(
+    pool: State<'_, SqlitePool>,
+) -> AppResult<Vec<ScheduleMatchProposal>> {
+    matching::proposals(&pool, today()).await
+}
+
+/// Makes the certain matches of the whole history; returns their count.
+#[tauri::command]
+#[specta::specta]
+pub async fn detect_schedule_matches(pool: State<'_, SqlitePool>) -> AppResult<u32> {
+    matching::match_certain(&pool, today(), None).await
+}
+
+/// Records that an operation realizes an occurrence of a scheduled operation.
+#[tauri::command]
+#[specta::specta]
+pub async fn match_schedule_occurrence(
+    pool: State<'_, SqlitePool>,
+    scheduled_operation_id: i64,
+    occurrence_date: NaiveDate,
+    operation_id: i64,
+) -> AppResult<()> {
+    matching::match_occurrence(&pool, scheduled_operation_id, occurrence_date, operation_id).await
+}
+
+/// Forgets the operation that realized an occurrence.
+#[tauri::command]
+#[specta::specta]
+pub async fn unmatch_schedule_occurrence(
+    pool: State<'_, SqlitePool>,
+    scheduled_operation_id: i64,
+    occurrence_date: NaiveDate,
+) -> AppResult<()> {
+    matching::unmatch(&pool, scheduled_operation_id, occurrence_date).await
+}
+
+/// Dismisses a proposed match, which is not proposed again.
+#[tauri::command]
+#[specta::specta]
+pub async fn dismiss_schedule_match(
+    pool: State<'_, SqlitePool>,
+    scheduled_operation_id: i64,
+    occurrence_date: NaiveDate,
+    operation_id: i64,
+) -> AppResult<()> {
+    matching::dismiss(&pool, scheduled_operation_id, occurrence_date, operation_id).await
+}
+
+/// Operations that can be matched by hand with an occurrence, the closest dates first.
+#[tauri::command]
+#[specta::specta]
+pub async fn schedule_match_candidates(
+    pool: State<'_, SqlitePool>,
+    scheduled_operation_id: i64,
+    occurrence_date: NaiveDate,
+) -> AppResult<Vec<MatchedOperation>> {
+    matching::match_candidates(&pool, scheduled_operation_id, occurrence_date).await
+}
+
+/// Today in the local time zone.
+pub(super) fn today() -> NaiveDate {
+    chrono::Local::now().date_naive()
 }

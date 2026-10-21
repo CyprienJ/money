@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT scheduled_operation_id, occurrence_date AS \"occurrence_date: NaiveDate\",\n                  operation_id\n           FROM schedule_match_dismissal",
+  "describe": {
+    "columns": [
+      {
+        "name": "scheduled_operation_id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "schedule_match_dismissal",
+            "name": "scheduled_operation_id"
+          }
+        }
+      },
+      {
+        "name": "occurrence_date: NaiveDate",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "schedule_match_dismissal",
+            "name": "occurrence_date"
+          }
+        }
+      },
+      {
+        "name": "operation_id",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "schedule_match_dismissal",
+            "name": "operation_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "efa949d0b41830365aa07c8b11827cdd1ba20a9ad072543843f681c96eb8ec85"
+}

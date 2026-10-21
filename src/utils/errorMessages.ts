@@ -104,6 +104,14 @@ function schedule(error: ScheduleError): string {
       return "Une échéance se rattache à un compte courant, d'épargne ou à une carte.";
     case "categoryNotFound":
       return "Cette catégorie n'existe plus.";
+    case "notAnOccurrence":
+      return `Le ${formatDate(error.params)} n'est pas une date de cette échéance.`;
+    case "otherAccount":
+      return "L'opération n'est pas sur le compte de l'échéance.";
+    case "alreadyRealized":
+      return "Cette échéance est déjà réalisée par une autre opération.";
+    case "operationAlreadyMatched":
+      return "Cette opération réalise déjà une autre échéance.";
   }
   return unreachable(error);
 }

@@ -12,6 +12,7 @@ use crate::importing::pdf::{self, SupportedBank};
 use crate::importing::statement_import::{
     self, ImportFormat, ImportPreview, ImportSelection, StatementFile,
 };
+use crate::operation::schedule::matching;
 use crate::operation::transfer;
 
 /// Lines shown when defining a CSV mapping.
@@ -68,10 +69,12 @@ pub struct ImportOutcome {
     pub batch: ImportBatch,
     /// Internal transfers linked automatically with operations of other accounts.
     pub linked_transfers: u32,
+    /// Occurrences of scheduled operations realized automatically by the new operations.
+    pub matched_occurrences: u32,
 }
 
 /// Imports the selected lines of the statement file at `path`, with their categories, then
-/// links the certain internal transfers of the new operations.
+/// links the certain internal transfers and schedule occurrences of the new operations.
 /// `file_hash` comes from the preview and guards against a file changed in between.
 #[tauri::command]
 #[specta::specta]
@@ -96,9 +99,12 @@ pub async fn import_statement(
     )
     .await?;
     let linked_transfers = transfer::link_certain(&pool, Some(batch.id)).await?;
+    let matched_occurrences =
+        matching::match_certain(&pool, super::operation::today(), Some(batch.id)).await?;
     Ok(ImportOutcome {
         batch,
         linked_transfers,
+        matched_occurrences,
     })
 }
 

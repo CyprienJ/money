@@ -64,6 +64,8 @@ const transferProposalCount = ref(0);
 const transfersOpen = ref(false);
 /** Internal transfers linked by the import that led here (`?linkedTransfers=`). */
 const linkedTransfers = ref(0);
+/** Scheduled occurrences realized by the import that led here (`?matchedOccurrences=`). */
+const matchedOccurrences = ref(0);
 
 const modalOpen = ref(false);
 const editedOperation = ref<Operation | null>(null);
@@ -275,8 +277,9 @@ async function onTransfersChanged(remaining: number) {
 
 onMounted(() => {
   linkedTransfers.value = Number(route.query.linkedTransfers ?? 0);
-  if (linkedTransfers.value > 0) {
-    const { linkedTransfers: _, ...query } = route.query;
+  matchedOccurrences.value = Number(route.query.matchedOccurrences ?? 0);
+  if (linkedTransfers.value > 0 || matchedOccurrences.value > 0) {
+    const { linkedTransfers: _, matchedOccurrences: __, ...query } = route.query;
     router.replace({ query });
   }
   reload(true);
@@ -389,6 +392,15 @@ watch([() => selected.value?.account.id, allAccounts, period, categoryFilter, ad
         sur un autre compte. Ouvre une opération pour la délier si besoin.
       </span>
       <button type="button" class="banner-action" @click="linkedTransfers = 0">Fermer</button>
+    </div>
+
+    <div v-if="matchedOccurrences > 0" class="banner done">
+      <span class="banner-text">
+        {{ matchedOccurrences }} échéance{{ matchedOccurrences > 1 ? "s" : "" }}
+        réalisée{{ matchedOccurrences > 1 ? "s" : "" }} par cet import.
+        <RouterLink to="/schedule">Voir l'échéancier</RouterLink>
+      </span>
+      <button type="button" class="banner-action" @click="matchedOccurrences = 0">Fermer</button>
     </div>
 
     <div v-if="transferProposalCount > 0" class="banner">

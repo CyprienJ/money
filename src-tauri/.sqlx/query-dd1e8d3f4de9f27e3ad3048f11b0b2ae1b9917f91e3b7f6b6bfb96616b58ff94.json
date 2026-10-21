@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM schedule_match WHERE scheduled_operation_id = ?1 AND occurrence_date = ?2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "dd1e8d3f4de9f27e3ad3048f11b0b2ae1b9917f91e3b7f6b6bfb96616b58ff94"
+}

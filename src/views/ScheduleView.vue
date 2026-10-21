@@ -7,13 +7,14 @@ import {
   type ScheduledOperation,
   type UpcomingOperation,
 } from "../bindings";
-import CategoryPill from "../components/CategoryPill.vue";
+import OccurrenceList from "../components/OccurrenceList.vue";
 import PageHeader from "../components/PageHeader.vue";
 import ScheduleFormModal from "../components/ScheduleFormModal.vue";
+import ScheduleMatchesModal from "../components/ScheduleMatchesModal.vue";
 import { ACCOUNT_TYPES } from "../utils/accounts";
 import { errorMessage, unwrap } from "../utils/commands";
-import { formatAmount, formatDate } from "../utils/format";
-import { describeSchedule } from "../utils/schedule";
+import { formatAmount, formatDate, todayIso } from "../utils/format";
+import { RECENT_DAYS, describeSchedule, recentRange } from "../utils/schedule";
 
 /** Days of upcoming occurrences shown. */
 const UPCOMING_DAYS = 30;
@@ -22,6 +23,11 @@ const accounts = ref<Account[]>([]);
 const categories = ref<Category[]>([]);
 const schedules = ref<ScheduledOperation[]>([]);
 const upcoming = ref<UpcomingOperation[]>([]);
+/** Past occurrences, the most recent first. */
+const recent = ref<UpcomingOperation[]>([]);
+/** Detected matches waiting for a validation. */
+const proposalCount = ref(0);
+const matchesOpen = ref(false);
 const loaded = ref(false);
 const error = ref("");
 
@@ -47,6 +53,9 @@ async function load() {
     categories.value = await unwrap(commands.listCategories());
     schedules.value = await unwrap(commands.listScheduledOperations());
     upcoming.value = await unwrap(commands.upcomingOperations(UPCOMING_DAYS));
+    const range = recentRange(todayIso());
+    recent.value = (await unwrap(commands.scheduleOccurrences(range.from, range.to))).reverse();
+    proposalCount.value = (await unwrap(commands.listScheduleMatchProposals())).length;
   } catch (e) {
     error.value = errorMessage(e);
   } finally {
@@ -64,6 +73,14 @@ function openEdit(schedule: ScheduledOperation) {
   modalOpen.value = true;
 }
 
+/** Past occurrences not realized yet. */
+const pendingCount = computed(() => recent.value.filter((o) => o.realizedBy === null).length);
+
+async function onMatchesChanged(remaining: number) {
+  proposalCount.value = remaining;
+  await load();
+}
+
 async function onChanged() {
   modalOpen.value = false;
   await load();
@@ -75,6 +92,9 @@ onMounted(load);
 <template>
   <PageHeader title="Échéancier" subtitle="Patrimoine">
     <template #actions>
+      <button type="button" class="btn btn-secondary" :disabled="accounts.length === 0" @click="matchesOpen = true">
+        Rapprocher<template v-if="proposalCount > 0"> ({{ proposalCount }})</template>
+      </button>
       <button type="button" class="btn btn-primary" :disabled="accounts.length === 0" @click="openCreate">
         + Nouvelle échéance
       </button>
@@ -91,30 +111,47 @@ onMounted(load);
     </p>
   </section>
 
-  <div v-else-if="loaded" class="grid">
+  <div v-else-if="loaded && proposalCount > 0" class="banner">
+    <span class="banner-text">
+      {{ proposalCount }} échéance{{ proposalCount > 1 ? "s" : "" }} à valider : plusieurs opérations
+      importées peuvent {{ proposalCount > 1 ? "les" : "la" }} réaliser.
+    </span>
+    <button type="button" class="banner-action" @click="matchesOpen = true">Valider</button>
+  </div>
+
+  <div v-if="loaded && accounts.length > 0" class="grid">
     <section class="card">
       <div class="card-header">
         <h2 class="card-title">Prochaines échéances</h2>
         <span class="muted">{{ UPCOMING_DAYS }} jours</span>
       </div>
-      <ul v-if="upcoming.length > 0" class="list">
-        <li v-for="item in upcoming" :key="`${item.scheduledOperationId}-${item.date}`">
-          <span class="date">{{ formatDate(item.date, "day-month") }}</span>
-          <span class="details">
-            <span class="label">{{ item.label }}</span>
-            <span class="sub">{{ accountNames.get(item.accountId) }}</span>
-          </span>
-          <CategoryPill
-            v-if="item.categoryId !== null && categoriesById.has(item.categoryId)"
-            :label="categoriesById.get(item.categoryId)!.name"
-            :color="categoriesById.get(item.categoryId)!.color"
-          />
-          <strong class="amount" :class="{ positive: item.amountCents > 0 }">
-            {{ formatAmount(item.amountCents, { signed: true }) }}
-          </strong>
-        </li>
-      </ul>
+      <OccurrenceList
+        v-if="upcoming.length > 0"
+        :occurrences="upcoming"
+        :account-names="accountNames"
+        :categories-by-id="categoriesById"
+        :past="false"
+        @changed="load"
+      />
       <p v-else class="muted">Aucune échéance dans les {{ UPCOMING_DAYS }} prochains jours.</p>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <h2 class="card-title">Échéances récentes</h2>
+        <span class="muted">
+          {{ RECENT_DAYS }} jours<template v-if="pendingCount > 0"> · {{ pendingCount }} en attente</template>
+        </span>
+      </div>
+      <OccurrenceList
+        v-if="recent.length > 0"
+        :occurrences="recent"
+        :account-names="accountNames"
+        :categories-by-id="categoriesById"
+        :past="true"
+        @changed="load"
+      />
+      <p v-else class="muted">Aucune échéance dans les {{ RECENT_DAYS }} derniers jours.</p>
     </section>
 
     <section class="card">
@@ -148,6 +185,13 @@ onMounted(load);
     </section>
   </div>
 
+  <ScheduleMatchesModal
+    :open="matchesOpen"
+    :account-names="accountNames"
+    @close="matchesOpen = false"
+    @changed="onMatchesChanged"
+  />
+
   <ScheduleFormModal
     :open="modalOpen"
     :accounts="accounts"
@@ -159,6 +203,34 @@ onMounted(load);
 </template>
 
 <style scoped>
+.banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: var(--cat-groceries-bg);
+  color: var(--cat-groceries-fg);
+  font-size: 14px;
+}
+
+.banner-text {
+  flex: 1 1 320px;
+}
+
+.banner-action {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
