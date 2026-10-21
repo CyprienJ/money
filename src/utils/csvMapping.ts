@@ -38,6 +38,8 @@ export function defaultMapping(): CsvMapping {
     columnLabel: 1,
     amountColumns: { kind: "debitCredit", debit: 2, credit: 3 },
     skipLines: 1,
+    columnFee: null,
+    stateFilter: null,
   };
 }
 

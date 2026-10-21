@@ -37,6 +37,8 @@ function describeMapping({ mapping }: SavedCsvMapping): string {
     label(ENCODINGS, mapping.encoding),
     label(DATE_FORMATS, mapping.dateFormat),
     mapping.amountColumns.kind === "signed" ? "montant signé" : "débit et crédit",
+    ...(mapping.columnFee === null ? [] : ["frais"]),
+    ...(mapping.stateFilter ? [`état ${mapping.stateFilter.keep}`] : []),
   ].join(" · ");
 }
 

@@ -85,6 +85,15 @@ pub enum AmountColumns {
     DebitCredit { debit: u32, credit: u32 },
 }
 
+/// Lines kept according to a state column, e.g. only `COMPLETED` operations.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct StateFilter {
+    pub column: u32,
+    /// Value of the lines to read, compared without case; the other lines are skipped.
+    pub keep: String,
+}
+
 /// How to read the CSV export of a bank. Column indexes are zero-based.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
@@ -99,6 +108,10 @@ pub struct CsvMapping {
     pub amount_columns: AmountColumns,
     /// Lines ignored at the top of the file, column headers included.
     pub skip_lines: u32,
+    /// Fees charged on top of the amount: the operation is the amount minus the fee.
+    pub column_fee: Option<u32>,
+    /// Only the lines in this state are read (pending or reverted ones are skipped).
+    pub state_filter: Option<StateFilter>,
 }
 
 impl CsvMapping {
@@ -115,6 +128,13 @@ impl CsvMapping {
             .any(|item| matches!(item, chrono::format::Item::Error));
         if invalid {
             return Err(CsvError::InvalidDateFormat(self.date_format.clone()));
+        }
+        if self
+            .state_filter
+            .as_ref()
+            .is_some_and(|filter| filter.keep.trim().is_empty())
+        {
+            return Err(CsvError::EmptyStateValue);
         }
         Ok(delimiter)
     }
@@ -137,6 +157,9 @@ pub enum CsvError {
 
     #[error("invalid date format {0:?}")]
     InvalidDateFormat(String),
+
+    #[error("the state to keep cannot be empty")]
+    EmptyStateValue,
 
     #[error("the file is not valid {0}")]
     InvalidEncoding(&'static str),

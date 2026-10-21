@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id AS \"id!\", name, delimiter, encoding, date_format, decimal_separator,\n                  column_date, column_label, column_amount, column_debit, column_credit, skip_lines\n           FROM csv_mapping\n           ORDER BY name COLLATE NOCASE",
+  "query": "SELECT id AS \"id!\", name, delimiter, encoding, date_format, decimal_separator,\n                  column_date, column_label, column_amount, column_debit, column_credit, skip_lines,\n                  column_fee, column_state, state_keep\n           FROM csv_mapping\n           ORDER BY name COLLATE NOCASE",
   "describe": {
     "columns": [
       {
@@ -134,6 +134,39 @@
             "name": "skip_lines"
           }
         }
+      },
+      {
+        "name": "column_fee",
+        "ordinal": 12,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "csv_mapping",
+            "name": "column_fee"
+          }
+        }
+      },
+      {
+        "name": "column_state",
+        "ordinal": 13,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "csv_mapping",
+            "name": "column_state"
+          }
+        }
+      },
+      {
+        "name": "state_keep",
+        "ordinal": 14,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "csv_mapping",
+            "name": "state_keep"
+          }
+        }
       }
     ],
     "parameters": {
@@ -151,8 +184,11 @@
       true,
       true,
       true,
-      false
+      false,
+      true,
+      true,
+      true
     ]
   },
-  "hash": "8c5e926db49e74d4237f4dd0a0f8fadd044578d14c872caaa6d69c6607657b47"
+  "hash": "76018f4afbd178378e390367ea2d004ecf64aae5d4b1f4af6471b805b8e15638"
 }

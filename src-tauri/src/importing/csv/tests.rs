@@ -36,6 +36,8 @@ fn debit_credit_mapping() -> CsvMapping {
             credit: 3,
         },
         skip_lines: 5,
+        column_fee: None,
+        state_filter: None,
     }
 }
 
@@ -49,6 +51,8 @@ fn signed_mapping() -> CsvMapping {
         column_label: 1,
         amount_columns: AmountColumns::Signed { amount: 3 },
         skip_lines: 1,
+        column_fee: None,
+        state_filter: None,
     }
 }
 
@@ -313,6 +317,8 @@ fn ignores_a_time_after_the_date() {
         column_label: 4,
         amount_columns: AmountColumns::Signed { amount: 5 },
         skip_lines: 1,
+        column_fee: None,
+        state_filter: None,
     };
     let text = "Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance\n\
                 CARD_PAYMENT,Current,2025-04-01 13:58:02,2025-04-02 09:12:44,Boulangerie,-4.20,0.00,EUR,COMPLETED,120.30\n\
@@ -352,4 +358,72 @@ fn flags_amounts_written_with_the_other_decimal_separator() {
         matches!(error, CsvError::InvalidAmount { line: 1, .. }),
         "{error:?}"
     );
+}
+
+/// Revolut export: a fee column and a state column.
+fn revolut_mapping() -> CsvMapping {
+    CsvMapping {
+        delimiter: ',',
+        encoding: CsvEncoding::Utf8,
+        date_format: "%Y-%m-%d".to_owned(),
+        decimal_separator: DecimalSeparator::Dot,
+        column_date: 3,
+        column_label: 4,
+        amount_columns: AmountColumns::Signed { amount: 5 },
+        skip_lines: 1,
+        column_fee: Some(6),
+        state_filter: Some(StateFilter {
+            column: 8,
+            keep: "COMPLETED".to_owned(),
+        }),
+    }
+}
+
+const REVOLUT: &str = "Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance
+ATM,Current,2025-04-01 10:00:00,2025-04-01 10:00:05,Cash at ATM,-100.00,2.00,EUR,COMPLETED,398.00
+CARD_PAYMENT,Current,2025-04-02 12:00:00,,Hotel,-80.00,0.00,EUR,PENDING,
+CARD_PAYMENT,Current,2025-04-03 12:00:00,2025-04-04 08:00:00,Shop,-15.00,0.00,EUR,REVERTED,
+CARD_PAYMENT,Current,2025-04-05 12:00:00,,Declined,-30.00,0.00,EUR,DECLINED,
+EXCHANGE,Current,2025-04-06 09:00:00,2025-04-06 09:00:00,Exchanged to USD,-50.00,0.25,EUR,completed,347.75
+";
+
+#[test]
+fn takes_fees_off_and_keeps_completed_lines_only() {
+    let lines = parse_text(REVOLUT, &revolut_mapping()).unwrap();
+    assert_eq!(
+        lines,
+        vec![
+            // 100 € withdrawn plus 2 € of fees.
+            line("2025-04-01", "Cash at ATM", -10_200),
+            // The state is compared without case.
+            line("2025-04-06", "Exchanged to USD", -5_025),
+        ]
+    );
+}
+
+#[test]
+fn fees_and_state_are_optional() {
+    let mapping = CsvMapping {
+        column_fee: None,
+        state_filter: None,
+        column_date: 2,
+        ..revolut_mapping()
+    };
+    // Every line, fees ignored: the pending ones too.
+    assert_eq!(parse_text(REVOLUT, &mapping).unwrap().len(), 5);
+}
+
+#[test]
+fn rejects_an_empty_state_to_keep() {
+    let mapping = CsvMapping {
+        state_filter: Some(StateFilter {
+            column: 8,
+            keep: " ".to_owned(),
+        }),
+        ..revolut_mapping()
+    };
+    assert!(matches!(
+        parse_text(REVOLUT, &mapping),
+        Err(CsvError::EmptyStateValue)
+    ));
 }

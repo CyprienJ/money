@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use sqlx::SqlitePool;
 
-use super::{AmountColumns, CsvEncoding, CsvMapping, DecimalSeparator, parse};
+use super::{AmountColumns, CsvEncoding, CsvMapping, DecimalSeparator, StateFilter, parse};
 use crate::error::{AppResult, ErrorKind};
 
 /// A mapping saved under a name, e.g. "Banque X - export CSV".
@@ -79,6 +79,9 @@ struct Row {
     column_debit: Option<i64>,
     column_credit: Option<i64>,
     skip_lines: i64,
+    column_fee: Option<i64>,
+    column_state: Option<i64>,
+    state_keep: Option<String>,
 }
 
 impl Row {
@@ -110,6 +113,15 @@ impl Row {
             column_label: column(self.column_label)?,
             amount_columns,
             skip_lines: column(self.skip_lines)?,
+            column_fee: self.column_fee.map(column).transpose()?,
+            state_filter: match (self.column_state, self.state_keep) {
+                (Some(state), Some(keep)) => Some(StateFilter {
+                    column: column(state)?,
+                    keep,
+                }),
+                (None, None) => None,
+                _ => return Err(CsvMappingError::Corrupt(self.id)),
+            },
         };
         Ok(SavedCsvMapping {
             id: self.id,
@@ -155,7 +167,8 @@ pub async fn list(pool: &SqlitePool) -> AppResult<Vec<SavedCsvMapping>> {
     let rows = sqlx::query_as!(
         Row,
         r#"SELECT id AS "id!", name, delimiter, encoding, date_format, decimal_separator,
-                  column_date, column_label, column_amount, column_debit, column_credit, skip_lines
+                  column_date, column_label, column_amount, column_debit, column_credit, skip_lines,
+                  column_fee, column_state, state_keep
            FROM csv_mapping
            ORDER BY name COLLATE NOCASE"#
     )
@@ -171,7 +184,8 @@ pub async fn get(pool: &SqlitePool, id: i64) -> AppResult<SavedCsvMapping> {
     let row = sqlx::query_as!(
         Row,
         r#"SELECT id AS "id!", name, delimiter, encoding, date_format, decimal_separator,
-                  column_date, column_label, column_amount, column_debit, column_credit, skip_lines
+                  column_date, column_label, column_amount, column_debit, column_credit, skip_lines,
+                  column_fee, column_state, state_keep
            FROM csv_mapping
            WHERE id = ?1"#,
         id
@@ -187,8 +201,8 @@ pub async fn create(pool: &SqlitePool, new: NewCsvMapping) -> AppResult<SavedCsv
     let id = sqlx::query!(
         "INSERT INTO csv_mapping (name, delimiter, encoding, date_format, decimal_separator,
                                   column_date, column_label, column_amount, column_debit,
-                                  column_credit, skip_lines)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                                  column_credit, skip_lines, column_fee, column_state, state_keep)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
         values.name,
         values.delimiter,
         values.encoding,
@@ -199,7 +213,10 @@ pub async fn create(pool: &SqlitePool, new: NewCsvMapping) -> AppResult<SavedCsv
         values.column_amount,
         values.column_debit,
         values.column_credit,
-        new.mapping.skip_lines
+        new.mapping.skip_lines,
+        new.mapping.column_fee,
+        values.column_state,
+        values.state_keep
     )
     .execute(pool)
     .await
@@ -218,7 +235,8 @@ pub async fn update(
         "UPDATE csv_mapping
          SET name = ?2, delimiter = ?3, encoding = ?4, date_format = ?5, decimal_separator = ?6,
              column_date = ?7, column_label = ?8, column_amount = ?9, column_debit = ?10,
-             column_credit = ?11, skip_lines = ?12
+             column_credit = ?11, skip_lines = ?12, column_fee = ?13, column_state = ?14,
+             state_keep = ?15
          WHERE id = ?1",
         id,
         values.name,
@@ -231,7 +249,10 @@ pub async fn update(
         values.column_amount,
         values.column_debit,
         values.column_credit,
-        changes.mapping.skip_lines
+        changes.mapping.skip_lines,
+        changes.mapping.column_fee,
+        values.column_state,
+        values.state_keep
     )
     .execute(pool)
     .await
@@ -282,6 +303,8 @@ struct Values {
     column_amount: Option<u32>,
     column_debit: Option<u32>,
     column_credit: Option<u32>,
+    column_state: Option<u32>,
+    state_keep: Option<String>,
 }
 
 impl Values {
@@ -303,6 +326,16 @@ impl Values {
             column_amount,
             column_debit,
             column_credit,
+            column_state: new
+                .mapping
+                .state_filter
+                .as_ref()
+                .map(|filter| filter.column),
+            state_keep: new
+                .mapping
+                .state_filter
+                .as_ref()
+                .map(|filter| filter.keep.trim().to_owned()),
         })
     }
 }
@@ -343,6 +376,8 @@ mod tests {
                 credit: 3,
             },
             skip_lines,
+            column_fee: None,
+            state_filter: None,
         }
     }
 
@@ -356,6 +391,8 @@ mod tests {
             column_label: 1,
             amount_columns: AmountColumns::Signed { amount: 2 },
             skip_lines: 1,
+            column_fee: None,
+            state_filter: None,
         }
     }
 
@@ -377,6 +414,56 @@ mod tests {
             assert_eq!(a.mapping, debit_credit(5));
             assert_eq!(b.mapping, signed());
             assert_eq!(list(&pool).await.unwrap(), vec![a, b]);
+        });
+    }
+
+    #[test]
+    fn round_trips_fees_and_state() {
+        run(|pool| async move {
+            let mapping = CsvMapping {
+                column_fee: Some(3),
+                state_filter: Some(StateFilter {
+                    column: 4,
+                    keep: " COMPLETED ".to_owned(),
+                }),
+                ..signed()
+            };
+            let saved = create(&pool, named("Revolut", mapping.clone()))
+                .await
+                .unwrap();
+            // The value to keep is stored trimmed.
+            assert_eq!(
+                saved.mapping.state_filter,
+                Some(StateFilter {
+                    column: 4,
+                    keep: "COMPLETED".to_owned(),
+                })
+            );
+            assert_eq!(saved.mapping.column_fee, Some(3));
+            assert_eq!(get(&pool, saved.id).await.unwrap(), saved);
+
+            // Back to no fees and every state.
+            let updated = update(&pool, saved.id, named("Revolut", signed()))
+                .await
+                .unwrap();
+            assert_eq!(updated.mapping, signed());
+            assert!(matches!(
+                create(
+                    &pool,
+                    named(
+                        "Vide",
+                        CsvMapping {
+                            state_filter: Some(StateFilter {
+                                column: 4,
+                                keep: String::new(),
+                            }),
+                            ..signed()
+                        }
+                    )
+                )
+                .await,
+                Err(AppError::Csv(CsvError::EmptyStateValue))
+            ));
         });
     }
 

@@ -119,6 +119,8 @@ function csv(error: CsvError): string {
       return "Le format des dates est obligatoire.";
     case "invalidDateFormat":
       return `Le format de date « ${error.params} » n'est pas valide.`;
+    case "emptyStateValue":
+      return "Indique l'état des opérations à importer (par exemple COMPLETED).";
     case "invalidEncoding":
       return `Le fichier n'est pas encodé en ${error.params} : choisis un autre encodage dans le format.`;
     case "malformed":

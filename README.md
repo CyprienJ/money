@@ -167,7 +167,9 @@ import_batch
 
 csv_mapping
   id, name, delimiter, encoding, date_format, decimal_separator,
-  column_date, column_label, column_amount, column_debit, column_credit, skip_lines
+  column_date, column_label, column_amount, column_debit, column_credit, skip_lines,
+  column_fee,                 -- optional, subtracted from the amount
+  column_state, state_keep    -- optional, lines in another state are skipped
 
 label_category_memory    -- V1 automatic category reuse
   normalized_label, category_id, last_used_at

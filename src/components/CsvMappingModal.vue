@@ -40,6 +40,10 @@ const form = reactive({
   columnAmount: 3,
   columnDebit: 3,
   columnCredit: 4,
+  /** Optional columns: empty fields (`""` from `v-model.number`) mean none. */
+  columnFee: "" as number | "",
+  columnState: "" as number | "",
+  stateKeep: "",
 });
 const head = ref<string[]>([]);
 const submitted = ref(false);
@@ -56,6 +60,14 @@ const columnsError = computed(() => {
   return columns.every((c) => Number.isInteger(c) && c >= 1)
     ? ""
     : "Les numéros de colonne commencent à 1.";
+});
+const optionalError = computed(() => {
+  const columns = [form.columnFee, form.columnState].filter((c) => c !== "");
+  if (!columns.every((c) => Number.isInteger(c) && c >= 1)) return "Les numéros de colonne commencent à 1.";
+  if (form.columnState !== "" && form.stateKeep.trim() === "")
+    return "Indique l'état des opérations à importer.";
+  if (form.columnState === "" && form.stateKeep.trim() !== "") return "Indique la colonne de l'état.";
+  return "";
 });
 const skipError = computed(() =>
   Number.isInteger(form.skipLines) && form.skipLines >= 0 ? "" : "Nombre de lignes invalide.",
@@ -83,6 +95,8 @@ const roles = computed(() => {
     roles.set(form.columnDebit, "Débit");
     roles.set(form.columnCredit, "Crédit");
   }
+  if (form.columnFee !== "") roles.set(form.columnFee, "Frais");
+  if (form.columnState !== "") roles.set(form.columnState, "État");
   return roles;
 });
 
@@ -102,6 +116,9 @@ function fill(mapping: CsvMapping, name: string) {
     form.columnDebit = mapping.amountColumns.debit + 1;
     form.columnCredit = mapping.amountColumns.credit + 1;
   }
+  form.columnFee = mapping.columnFee === null ? "" : mapping.columnFee + 1;
+  form.columnState = mapping.stateFilter ? mapping.stateFilter.column + 1 : "";
+  form.stateKeep = mapping.stateFilter?.keep ?? "";
 }
 
 function toMapping(): CsvMapping {
@@ -117,6 +134,9 @@ function toMapping(): CsvMapping {
         ? { kind: "signed", amount: form.columnAmount - 1 }
         : { kind: "debitCredit", debit: form.columnDebit - 1, credit: form.columnCredit - 1 },
     skipLines: form.skipLines,
+    columnFee: form.columnFee === "" ? null : form.columnFee - 1,
+    stateFilter:
+      form.columnState === "" ? null : { column: form.columnState - 1, keep: form.stateKeep.trim() },
   };
 }
 
@@ -175,7 +195,7 @@ watch(() => form.encoding, loadHead);
 async function save() {
   submitted.value = true;
   error.value = "";
-  if (nameError.value || columnsError.value || skipError.value) return;
+  if (nameError.value || columnsError.value || optionalError.value || skipError.value) return;
 
   saving.value = true;
   try {
@@ -305,6 +325,31 @@ async function remove() {
         </template>
       </fieldset>
       <span v-if="submitted && columnsError" class="field-error">{{ columnsError }}</span>
+
+      <fieldset class="columns">
+        <legend>Colonnes facultatives</legend>
+        <label class="field">
+          Frais
+          <input v-model.number="form.columnFee" type="number" min="1" step="1" placeholder="Aucune" />
+          <span class="field-hint">Déduits du montant.</span>
+        </label>
+        <label class="field">
+          État
+          <input v-model.number="form.columnState" type="number" min="1" step="1" placeholder="Aucune" />
+        </label>
+        <label class="field">
+          État à importer
+          <input
+            v-model="form.stateKeep"
+            type="text"
+            autocomplete="off"
+            placeholder="COMPLETED"
+            :disabled="form.columnState === ''"
+          />
+          <span class="field-hint">Les autres lignes sont ignorées.</span>
+        </label>
+      </fieldset>
+      <span v-if="submitted && optionalError" class="field-error">{{ optionalError }}</span>
 
       <div v-if="rows.length > 0" class="file">
         <div class="file-title">Début du fichier</div>

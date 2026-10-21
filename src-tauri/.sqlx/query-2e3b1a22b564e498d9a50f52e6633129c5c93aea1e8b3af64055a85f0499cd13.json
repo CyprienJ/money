@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE csv_mapping\n         SET name = ?2, delimiter = ?3, encoding = ?4, date_format = ?5, decimal_separator = ?6,\n             column_date = ?7, column_label = ?8, column_amount = ?9, column_debit = ?10,\n             column_credit = ?11, skip_lines = ?12, column_fee = ?13, column_state = ?14,\n             state_keep = ?15\n         WHERE id = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 15
+    },
+    "nullable": []
+  },
+  "hash": "2e3b1a22b564e498d9a50f52e6633129c5c93aea1e8b3af64055a85f0499cd13"
+}

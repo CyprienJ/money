@@ -22,6 +22,8 @@ fn detects_the_debit_credit_windows_1252_export() {
             },
             // Account details, a blank line and the column titles.
             skip_lines: 5,
+            column_fee: None,
+            state_filter: None,
         })
     );
 }
@@ -39,6 +41,8 @@ fn detects_the_signed_utf8_export() {
             column_label: 1,
             amount_columns: AmountColumns::Signed { amount: 3 },
             skip_lines: 1,
+            column_fee: None,
+            state_filter: None,
         })
     );
 }
@@ -61,6 +65,11 @@ fn detects_a_revolut_like_export() {
             // "Amount", not "Fee" nor "Balance".
             amount_columns: AmountColumns::Signed { amount: 5 },
             skip_lines: 1,
+            column_fee: Some(6),
+            state_filter: Some(StateFilter {
+                column: 8,
+                keep: "COMPLETED".to_owned(),
+            }),
         })
     );
 }
@@ -83,6 +92,8 @@ fn uses_the_content_without_column_titles() {
                 credit: 3
             },
             skip_lines: 0,
+            column_fee: None,
+            state_filter: None,
         })
     );
 }

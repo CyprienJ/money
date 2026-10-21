@@ -72,6 +72,8 @@ fn run<F: Future<Output = ()>>(test: impl FnOnce(Setup) -> F) {
                     column_label: 1,
                     amount_columns: AmountColumns::Signed { amount: 2 },
                     skip_lines: 0,
+                    column_fee: None,
+                    state_filter: None,
                 },
             },
         )

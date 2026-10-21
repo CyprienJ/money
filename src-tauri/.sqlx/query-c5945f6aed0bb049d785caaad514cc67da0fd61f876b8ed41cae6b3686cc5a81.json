@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO csv_mapping (name, delimiter, encoding, date_format, decimal_separator,\n                                  column_date, column_label, column_amount, column_debit,\n                                  column_credit, skip_lines, column_fee, column_state, state_keep)\n         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 14
+    },
+    "nullable": []
+  },
+  "hash": "c5945f6aed0bb049d785caaad514cc67da0fd61f876b8ed41cae6b3686cc5a81"
+}

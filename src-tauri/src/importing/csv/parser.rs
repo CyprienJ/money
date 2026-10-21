@@ -109,6 +109,13 @@ fn read_line(
         })
     };
 
+    // Lines in another state (pending, reverted, declined) are skipped before being read.
+    if let Some(filter) = &mapping.state_filter
+        && !field(filter.column)?.eq_ignore_ascii_case(filter.keep.trim())
+    {
+        return Ok(None);
+    }
+
     let date_text = field(mapping.column_date)?;
     let date =
         parse_date(date_text, &mapping.date_format).ok_or_else(|| CsvError::InvalidDate {
@@ -137,6 +144,11 @@ fn read_line(
                 (None, None) => 0,
             }
         }
+    };
+    // Fees are charged on top of the amount: the account loses both.
+    let amount_cents = match mapping.column_fee {
+        Some(column) => amount_cents - amount(column)?.unwrap_or(0).abs(),
+        None => amount_cents,
     };
     // A zero amount (a declined card payment, for instance) changes no balance: skipped.
     if amount_cents == 0 {

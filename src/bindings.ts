@@ -70,6 +70,10 @@ export const commands = {
 	amountColumns: AmountColumns,
 	/**  Lines ignored at the top of the file, column headers included. */
 	skipLines: number,
+	/**  Fees charged on top of the amount: the operation is the amount minus the fee. */
+	columnFee: number | null,
+	/**  Only the lines in this state are read (pending or reverted ones are skipped). */
+	stateFilter: StateFilter | null,
 } | null, AppError>(__TAURI_INVOKE("detect_csv_mapping", { path })),
 	/**  Imports of an account, most recent first. */
 	listImportBatches: (accountId: number) => typedError<ImportBatch[], AppError>(__TAURI_INVOKE("list_import_batches", { accountId })),
@@ -269,7 +273,7 @@ export type CategoryLevel =
 export type CsvEncoding = "UTF-8" | "ISO-8859-1" | "WINDOWS-1252";
 
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
-export type CsvError = { code: "invalidDelimiter"; params: string } | { code: "emptyDateFormat" } | { code: "invalidDateFormat"; params: string } | { code: "invalidEncoding"; params: string } | { code: "malformed"; params: {
+export type CsvError = { code: "invalidDelimiter"; params: string } | { code: "emptyDateFormat" } | { code: "invalidDateFormat"; params: string } | { code: "emptyStateValue" } | { code: "invalidEncoding"; params: string } | { code: "malformed"; params: {
 	line: number,
 	message: string,
 } } | { code: "missingColumn"; params: {
@@ -304,6 +308,10 @@ export type CsvMapping = {
 	amountColumns: AmountColumns,
 	/**  Lines ignored at the top of the file, column headers included. */
 	skipLines: number,
+	/**  Fees charged on top of the amount: the operation is the amount minus the fee. */
+	columnFee: number | null,
+	/**  Only the lines in this state are read (pending or reverted ones are skipped). */
+	stateFilter: StateFilter | null,
 };
 
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
@@ -587,6 +595,13 @@ export type ScheduledOperationInput = {
 };
 
 export type SourceType = "CSV" | "PDF";
+
+/**  Lines kept according to a state column, e.g. only `COMPLETED` operations. */
+export type StateFilter = {
+	column: number,
+	/**  Value of the lines to read, compared without case; the other lines are skipped. */
+	keep: string,
+};
 
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
 export type StatsError = { code: "invalidPeriod"; params: {

@@ -8,7 +8,7 @@
 
 use super::amount::parse_cents;
 use super::parser::parse_date;
-use super::{AmountColumns, CsvEncoding, CsvMapping, DecimalSeparator, parse};
+use super::{AmountColumns, CsvEncoding, CsvMapping, DecimalSeparator, StateFilter, parse};
 
 /// Lines analysed at the start of the file.
 const SAMPLE_LINES: usize = 200;
@@ -33,6 +33,8 @@ const DEBIT_TITLES: [&str; 2] = ["debit", "sortie"];
 const CREDIT_TITLES: [&str; 2] = ["credit", "entree"];
 /// Numeric columns that are not the operation amount.
 const OTHER_NUMBER_TITLES: [&str; 4] = ["solde", "balance", "fee", "frais"];
+const FEE_TITLES: [&str; 2] = ["fee", "frais"];
+const STATE_TITLES: [&str; 3] = ["state", "etat", "statut"];
 
 /// The mapping that reads the file, or `None` when no consistent format is found.
 pub fn detect(bytes: &[u8]) -> Option<CsvMapping> {
@@ -64,10 +66,17 @@ pub fn detect(bytes: &[u8]) -> Option<CsvMapping> {
         .filter(|&column| column != date_column && is_numeric(&data, column, decimal_separator))
         .collect();
     let amount_columns = detect_amounts(&data, header.as_deref(), &numeric, decimal_separator)?;
-    let used: Vec<usize> = match amount_columns {
+    let mut used: Vec<usize> = match amount_columns {
         AmountColumns::Signed { amount } => vec![amount as usize],
         AmountColumns::DebitCredit { debit, credit } => vec![debit as usize, credit as usize],
     };
+    let column_fee = numeric
+        .iter()
+        .copied()
+        .find(|&c| !used.contains(&c) && has_title(header.as_deref(), c, &FEE_TITLES));
+    let state_filter = detect_state(&data, header.as_deref(), width, date_column, &numeric);
+    used.extend(column_fee);
+    used.extend(state_filter.as_ref().map(|filter| filter.column as usize));
     let column_label = detect_label(
         &data,
         header.as_deref(),
@@ -86,6 +95,8 @@ pub fn detect(bytes: &[u8]) -> Option<CsvMapping> {
         column_label: column_label as u32,
         amount_columns,
         skip_lines: first_data as u32,
+        column_fee: column_fee.map(|c| c as u32),
+        state_filter,
     };
     // Kept only when it reads the whole file.
     let lines = parse(bytes, &mapping).ok()?;
@@ -301,6 +312,28 @@ fn detect_amounts(
         .or_else(|| candidates.first().copied())?;
     Some(AmountColumns::Signed {
         amount: signed as u32,
+    })
+}
+
+/// A state column, found by its title, keeping its most frequent value (`COMPLETED`).
+fn detect_state(
+    data: &[&Vec<String>],
+    header: Option<&[String]>,
+    width: usize,
+    date_column: usize,
+    numeric: &[usize],
+) -> Option<StateFilter> {
+    let column = (0..width).find(|&c| {
+        c != date_column && !numeric.contains(&c) && has_title(header, c, &STATE_TITLES)
+    })?;
+    let mut counts = std::collections::BTreeMap::new();
+    for row in data.iter().filter(|row| !row[column].is_empty()) {
+        *counts.entry(row[column].as_str()).or_insert(0usize) += 1;
+    }
+    let (keep, _) = counts.into_iter().max_by_key(|&(_, count)| count)?;
+    Some(StateFilter {
+        column: column as u32,
+        keep: keep.to_owned(),
     })
 }
 
