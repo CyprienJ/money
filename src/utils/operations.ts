@@ -36,7 +36,8 @@ export function summarize(operations: Operation[]): OperationTotals {
   return totals;
 }
 
-function simplify(text: string): string {
+/** Lowercase text without accents nor repeated spaces, for searches. */
+export function simplify(text: string): string {
   return text
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")

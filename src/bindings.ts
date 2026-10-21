@@ -557,8 +557,11 @@ export type Payee = {
 	/**  Normalized labels merged into this payee, alphabetically. */
 	labels: string[],
 	operationCount: number,
-	/**  Sum of the operation amounts, internal transfers excluded. */
-	totalCents: number,
+	/**
+	 *  Sum of the operation amounts, internal transfers excluded; `None` when all its
+	 *  operations are internal transfers.
+	 */
+	totalCents: number | null,
 	lastDate: string | null,
 };
 

@@ -45,6 +45,11 @@ const wealthItems: NavItem[] = [
     label: "Catégories",
     icon: '<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9-9-9z" stroke-linejoin="round"/><circle cx="8" cy="8" r="1.5"/>',
   },
+  {
+    to: "/payees",
+    label: "Tiers",
+    icon: '<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M16 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3" stroke-linecap="round"/>',
+  },
 ];
 
 const settingsItem: NavItem = {

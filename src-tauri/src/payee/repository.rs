@@ -275,8 +275,8 @@ async fn summaries(conn: &mut SqliteConnection, id: Option<i64>) -> AppResult<Ve
     let rows = sqlx::query!(
         r#"SELECT p.id AS "id!", p.name AS "name!",
                   COUNT(o.id) AS "operation_count!: i64",
-                  COALESCE(SUM(CASE WHEN o.is_internal_transfer = 0 THEN o.amount_cents END), 0)
-                      AS "total_cents!: i64",
+                  SUM(CASE WHEN o.is_internal_transfer = 0 THEN o.amount_cents END)
+                      AS "total_cents: i64",
                   MAX(o.date) AS "last_date: NaiveDate"
            FROM payee p
            LEFT JOIN operation o ON o.payee_id = p.id

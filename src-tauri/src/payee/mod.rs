@@ -24,8 +24,9 @@ pub struct Payee {
     /// Normalized labels merged into this payee, alphabetically.
     pub labels: Vec<String>,
     pub operation_count: i64,
-    /// Sum of the operation amounts, internal transfers excluded.
-    pub total_cents: i64,
+    /// Sum of the operation amounts, internal transfers excluded; `None` when all its
+    /// operations are internal transfers.
+    pub total_cents: Option<i64>,
     pub last_date: Option<NaiveDate>,
 }
 

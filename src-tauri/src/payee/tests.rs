@@ -124,7 +124,7 @@ fn every_label_gets_a_payee() {
             ]
         );
         assert_eq!(payees[0].operation_count, 2);
-        assert_eq!(payees[0].total_cents, -1_500);
+        assert_eq!(payees[0].total_cents, Some(-1_500));
         assert_eq!(payees[0].last_date, Some(date("2026-10-02")));
     });
 }
@@ -309,5 +309,35 @@ fn renormalized_operations_keep_their_payee() {
         let operation = operation::get(&pool, operation.id).await.unwrap();
         assert_eq!(operation.normalized_label, "FNAC");
         assert_eq!(operation.payee_name, "Fnac Darty");
+    });
+}
+
+#[test]
+fn internal_transfers_stay_out_of_payee_totals() {
+    tauri::async_runtime::block_on(async {
+        let pool = memory_pool().await;
+        let account_id = checking_account(&pool).await;
+        let transfer = operation::category::list(&pool)
+            .await
+            .unwrap()
+            .into_iter()
+            .find(|c| c.is_internal_transfer)
+            .unwrap()
+            .id;
+        let saving = enter(
+            &pool,
+            account_id,
+            "2026-10-01",
+            "VIR VERS LIVRET A",
+            -30_000,
+        )
+        .await;
+        operation::set_category(&pool, saving.id, Some(transfer))
+            .await
+            .unwrap();
+
+        let payees = list(&pool).await.unwrap();
+        assert_eq!(payees[0].operation_count, 1);
+        assert_eq!(payees[0].total_cents, None);
     });
 }

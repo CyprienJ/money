@@ -322,9 +322,9 @@ Les règles de catégorisation prévues initialement ici ont été avancées en 
 
 #### V2-02 · Gestion des tiers — L
 Décisions du 21/10/2026 : chaque libellé normalisé reçoit automatiquement un tiers, nommé par défaut avec sa forme lisible (« Carrefour Mkt ») ; les tiers se gèrent dans un nouvel écran « Tiers » ; les écrans affichent le nom du tiers à la place du libellé normalisé.
-- [ ] Tables `payee` et `payee_alias` ; exploitation de `operation.payee_id`.
-- [ ] Fusion de plusieurs libellés normalisés en un tiers, renommage.
-- [ ] Top tiers et analyses basés sur les tiers.
+- [x] Tables `payee` et `payee_alias` ; exploitation de `operation.payee_id`.
+- [x] Fusion de plusieurs libellés normalisés en un tiers, renommage, détachement d'un libellé.
+- [x] Top tiers et analyses basés sur les tiers.
 
 #### V2-03 · Appariement des virements internes — M
 - [ ] Liaison automatique débit compte A ↔ crédit compte B (montant opposé, dates proches) via `transfer_pair_id`.
