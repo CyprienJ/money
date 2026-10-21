@@ -28,6 +28,16 @@ export const commands = {
 	createOperation: (operation: NewOperation) => typedError<Operation, AppError>(__TAURI_INVOKE("create_operation", { operation })),
 	updateOperation: (id: number, changes: OperationUpdate) => typedError<Operation, AppError>(__TAURI_INVOKE("update_operation", { id, changes })),
 	setOperationCategory: (id: number, categoryId: number | null) => typedError<Operation, AppError>(__TAURI_INVOKE("set_operation_category", { id, categoryId })),
+	/**
+	 *  Other operations sharing the label of an operation: those still to categorize, and those
+	 *  in another category.
+	 */
+	sameLabelOperations: (id: number) => typedError<SameLabel, AppError>(__TAURI_INVOKE("same_label_operations", { id })),
+	/**
+	 *  Gives the category of an operation to the others of its label still to categorize;
+	 *  returns their count.
+	 */
+	categorizeSameLabel: (id: number) => typedError<number, AppError>(__TAURI_INVOKE("categorize_same_label", { id })),
 	deleteOperation: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_operation", { id })),
 	listCategories: () => typedError<Category[], AppError>(__TAURI_INVOKE("list_categories")),
 	createCategory: (category: CategoryInput) => typedError<Category, AppError>(__TAURI_INVOKE("create_category", { category })),
@@ -239,6 +249,11 @@ export type CategoryComparison = {
 	currentCents: number,
 	/**  Net expenses of the compared period. */
 	previousCents: number,
+};
+
+export type CategoryCount = {
+	categoryId: number,
+	count: number,
 };
 
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
@@ -557,6 +572,15 @@ export type RawLine = {
 	label: string,
 	/**  Negative for a debit, positive for a credit. */
 	amountCents: number,
+};
+
+/**  Other operations with the same normalized label as an operation, all accounts included. */
+export type SameLabel = {
+	normalizedLabel: string,
+	/**  Others still to categorize. */
+	uncategorized: number,
+	/**  Others in another category than the operation, by category, the largest first. */
+	otherCategories: CategoryCount[],
 };
 
 /**  A mapping saved under a name, e.g. "Banque X - export CSV". */

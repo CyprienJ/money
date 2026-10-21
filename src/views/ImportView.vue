@@ -49,6 +49,8 @@ const preview = ref<ImportPreview | null>(null);
 const selected = ref(new Set<number>());
 /** Categories chosen by the user in the preview, by line index. */
 const chosen = ref(new Map<number, number | null>());
+/** Last category chosen for each normalized label, applied to the other lines of the label. */
+const spread = ref(new Map<string, number | null>());
 const busy = ref(false);
 const error = ref("");
 
@@ -86,7 +88,7 @@ const ambiguousCount = computed(
 const categoriesById = computed(() => new Map(categories.value.map((c) => [c.id, c])));
 const counts = computed(() =>
   preview.value
-    ? categoryCounts(preview.value, selected.value, chosen.value)
+    ? categoryCounts(preview.value, selected.value, chosen.value, spread.value)
     : { automatic: 0, toCategorize: 0 },
 );
 /** No balance mismatch: balances checked, or not available (CSV). */
@@ -186,6 +188,7 @@ async function showPreview() {
     preview.value = await unwrap(commands.previewImport(path.value, accountId.value, format.value));
     selected.value = defaultSelection(preview.value);
     chosen.value = new Map();
+    spread.value = new Map();
     step.value = "preview";
   } catch (e) {
     error.value = errorMessage(e);
@@ -196,11 +199,15 @@ async function showPreview() {
 
 function categoryOf(index: number): number | null {
   const current = preview.value;
-  return current ? lineCategory(current.lines[index], index, chosen.value) : null;
+  return current ? lineCategory(current.lines[index], index, chosen.value, spread.value) : null;
 }
 
+/** Chooses the category of a line, and of the other lines of its label not chosen by hand. */
 function choose(index: number, categoryId: number | null) {
+  const line = preview.value?.lines[index];
+  if (!line) return;
   chosen.value = new Map(chosen.value).set(index, categoryId);
+  spread.value = new Map(spread.value).set(line.normalizedLabel, categoryId);
 }
 
 /** Hint under the category: where it comes from. */
@@ -209,7 +216,11 @@ function categoryHint(index: number): string {
   if (!line) return "";
   const category = categoryOf(index);
   if (category === null) return line.categoryId === null ? "Libellé inconnu" : "";
-  if (category !== line.categoryId) return "Choisie à la main, retenue pour ce libellé";
+  if (category !== line.categoryId) {
+    return chosen.value.has(index)
+      ? "Choisie à la main, retenue pour ce libellé"
+      : "Choisie sur une autre ligne de ce libellé";
+  }
   return `Reprise de « ${displayLabel(line.normalizedLabel)} »`;
 }
 
@@ -243,7 +254,7 @@ async function runImport() {
         current.fileHash,
         [...selected.value].map((index) => ({
           index,
-          categoryId: lineCategory(current.lines[index], index, chosen.value),
+          categoryId: lineCategory(current.lines[index], index, chosen.value, spread.value),
         })),
       ),
     );

@@ -144,3 +144,24 @@ describe("balanceGap", () => {
     expect(balanceGap(mismatch)).toBe(8000);
   });
 });
+
+describe("lineCategory with a category spread to the label", () => {
+  it("applies the category chosen on a line to the other lines of its label, except those chosen by hand", () => {
+    const lines = [
+      line({ normalizedLabel: "CARREFOUR" }),
+      line({ normalizedLabel: "CARREFOUR", categoryId: 4 }),
+      line({ normalizedLabel: "CARREFOUR" }),
+      line({ normalizedLabel: "FNAC" }),
+    ];
+    const chosen = new Map<number, number | null>([
+      [0, 5],
+      [2, 6],
+    ]);
+    const spread = new Map<string, number | null>([["CARREFOUR", 5]]);
+    expect(lines.map((l, i) => lineCategory(l, i, chosen, spread))).toEqual([5, 5, 6, null]);
+    expect(categoryCounts(preview(lines), new Set([0, 1, 2, 3]), chosen, spread)).toEqual({
+      automatic: 0,
+      toCategorize: 1,
+    });
+  });
+});

@@ -2,6 +2,7 @@
 
 pub mod category;
 mod repository;
+pub mod same_label;
 pub mod schedule;
 #[cfg(test)]
 mod tests;

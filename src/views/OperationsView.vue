@@ -8,6 +8,7 @@ import {
   type ImportBatch,
   type Operation,
   type OperationRow,
+  type SameLabel,
 } from "../bindings";
 import CategoryPicker from "../components/CategoryPicker.vue";
 import OperationFormModal from "../components/OperationFormModal.vue";
@@ -35,6 +36,11 @@ const periodId = ref(periods[0].id);
 /** "all", "none" (to categorize) or a category id. */
 const categoryFilter = ref<"all" | "none" | number>("all");
 const search = ref("");
+
+/** Offer to give the category just chosen to the other operations of the same label. */
+const spread = ref<{ operation: Operation; categoryId: number; sameLabel: SameLabel } | null>(null);
+/** Result of the last spread, shown until the next categorization. */
+const spreadDone = ref("");
 
 const modalOpen = ref(false);
 const editedOperation = ref<Operation | null>(null);
@@ -133,15 +139,53 @@ function amountClass(operation: Operation): string {
   return operation.amountCents > 0 ? "positive" : "";
 }
 
-/** Categorizes an operation from the table; the choice is remembered for its label. */
+/**
+ * Categorizes an operation from the table; the choice is remembered for its label. Then offers
+ * to categorize the other operations of the label, and warns about those in another category.
+ */
 async function setCategory(operation: Operation, categoryId: number | null) {
   error.value = "";
+  spread.value = null;
+  spreadDone.value = "";
   try {
     await unwrap(commands.setOperationCategory(operation.id, categoryId));
+    if (categoryId !== null) {
+      const sameLabel = await unwrap(commands.sameLabelOperations(operation.id));
+      if (sameLabel.uncategorized > 0 || sameLabel.otherCategories.length > 0) {
+        spread.value = { operation, categoryId, sameLabel };
+      }
+    }
   } catch (e) {
     error.value = errorMessage(e);
   }
   await reload();
+}
+
+async function spreadCategory() {
+  const current = spread.value;
+  if (!current) return;
+  error.value = "";
+  try {
+    const count = await unwrap(commands.categorizeSameLabel(current.operation.id));
+    spreadDone.value = `${operationCount(count)} « ${displayLabel(current.sameLabel.normalizedLabel)} » classée${count > 1 ? "s" : ""} dans ${categoryName(current.categoryId)}.`;
+    spread.value = null;
+  } catch (e) {
+    error.value = errorMessage(e);
+  }
+  await reload();
+}
+
+function categoryName(id: number): string {
+  return categories.value.find((c) => c.id === id)?.name ?? "une catégorie supprimée";
+}
+
+/** "Restaurants (2), Loisirs (1)". */
+function otherCategoriesText(sameLabel: SameLabel): string {
+  return sameLabel.otherCategories.map((c) => `${categoryName(c.categoryId)} (${c.count})`).join(", ");
+}
+
+function otherCount(sameLabel: SameLabel): number {
+  return sameLabel.otherCategories.reduce((sum, c) => sum + c.count, 0);
 }
 
 function openCreate() {
@@ -222,11 +266,11 @@ watch([() => selected.value?.account.id, periodId], () => reload());
       </button>
     </div>
 
-    <div v-if="lastImport" class="import-banner" :class="{ mismatch: lastImport.balanceCheckStatus === 'MISMATCH' }">
+    <div v-if="lastImport" class="banner" :class="{ mismatch: lastImport.balanceCheckStatus === 'MISMATCH' }">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
         <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z M14 3v5h5" stroke-linejoin="round" />
       </svg>
-      <span class="import-text">
+      <span class="banner-text">
         Dernier import : <strong>{{ lastImport.sourceFileName }}</strong>
         le {{ formatDate(localDateOf(lastImport.importedAt), "day-month") }}
         · {{ operationCount(lastImport.operationCount) }}
@@ -235,9 +279,43 @@ watch([() => selected.value?.account.id, periodId], () => reload());
           : saisis l'opération manquante, ou annule l'import.
         </template>
       </span>
-      <button type="button" class="import-cancel" @click="cancelLastImport">
+      <button type="button" class="banner-action" @click="cancelLastImport">
         {{ confirmingCancel ? `Confirmer : supprimer ${operationCount(lastImport.operationCount)}` : "Annuler cet import" }}
       </button>
+    </div>
+
+    <template v-if="spread">
+      <div v-if="spread.sameLabel.uncategorized > 0" class="banner">
+        <span class="banner-text">
+          {{ operationCount(spread.sameLabel.uncategorized) }}
+          « {{ displayLabel(spread.sameLabel.normalizedLabel) }} »
+          {{ spread.sameLabel.uncategorized > 1 ? "sont" : "est" }} encore à catégoriser.
+        </span>
+        <button type="button" class="banner-action" @click="spreadCategory">
+          Les classer dans {{ categoryName(spread.categoryId) }}
+        </button>
+        <button type="button" class="banner-action" @click="spread = null">Ignorer</button>
+      </div>
+      <div v-if="spread.sameLabel.otherCategories.length > 0" class="banner mismatch">
+        <span class="banner-text">
+          Attention : {{ operationCount(otherCount(spread.sameLabel)) }}
+          « {{ displayLabel(spread.sameLabel.normalizedLabel) }} »
+          {{ otherCount(spread.sameLabel) > 1 ? "sont" : "est" }} dans une autre catégorie :
+          {{ otherCategoriesText(spread.sameLabel) }}.
+        </span>
+        <button
+          v-if="spread.sameLabel.uncategorized === 0"
+          type="button"
+          class="banner-action"
+          @click="spread = null"
+        >
+          Fermer
+        </button>
+      </div>
+    </template>
+    <div v-else-if="spreadDone" class="banner done">
+      <span class="banner-text">{{ spreadDone }}</span>
+      <button type="button" class="banner-action" @click="spreadDone = ''">Fermer</button>
     </div>
 
     <div class="filters">
@@ -406,7 +484,7 @@ h1 {
   color: var(--color-on-primary);
 }
 
-.import-banner {
+.banner {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -418,16 +496,21 @@ h1 {
   font-size: 14px;
 }
 
-.import-banner.mismatch {
+.banner.mismatch {
   background: var(--cat-restaurants-bg);
   color: var(--cat-restaurants-fg);
 }
 
-.import-text {
+.banner.done {
+  background: var(--cat-transport-bg);
+  color: var(--cat-transport-fg);
+}
+
+.banner-text {
   flex: 1 1 320px;
 }
 
-.import-cancel {
+.banner-action {
   padding: 0;
   border: 0;
   background: transparent;

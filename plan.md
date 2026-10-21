@@ -175,9 +175,9 @@ Ajouté le 21/10/2026 (retour de recette : « Intérêts nets versés pour Compt
 
 #### V1-03.7 · Propagation de la catégorie — S
 Ajouté le 21/10/2026.
-- [ ] Aperçu d'import : une catégorie choisie sur une ligne s'applique aux autres lignes du même libellé normalisé, sauf celles choisies à la main.
-- [ ] Écran Opérations : après une catégorisation, bandeau « Classer aussi les N autres « … » dans … ? » pour les opérations du même libellé encore à catégoriser ; avertissement si d'autres opérations du même libellé sont dans une autre catégorie.
-- [ ] Commandes fines : compte des opérations concernées, catégorisation groupée (une requête, mémoire mise à jour) ; tests unitaires.
+- [x] Aperçu d'import : une catégorie choisie sur une ligne s'applique aux autres lignes du même libellé normalisé, sauf celles choisies à la main.
+- [x] Écran Opérations : après une catégorisation, bandeau « Classer aussi les N autres « … » dans … ? » pour les opérations du même libellé encore à catégoriser ; avertissement si d'autres opérations du même libellé sont dans une autre catégorie.
+- [x] Commandes fines : compte des opérations concernées, catégorisation groupée (une requête, mémoire mise à jour) ; tests unitaires.
 
 #### V1-03.8 · Règles de catégorisation — M
 Avancé de la V2 le 21/10/2026. Une seule condition : « libellé normalisé contient X », sans tenir compte des majuscules ni des accents.

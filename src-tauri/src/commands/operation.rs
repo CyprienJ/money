@@ -4,6 +4,7 @@ use tauri::State;
 
 use crate::error::AppResult;
 use crate::operation::category::{self, Category, CategoryInput};
+use crate::operation::same_label::{self, SameLabel};
 use crate::operation::schedule::{
     self, ScheduledOperation, ScheduledOperationInput, UpcomingOperation,
 };
@@ -54,6 +55,22 @@ pub async fn set_operation_category(
     category_id: Option<i64>,
 ) -> AppResult<Operation> {
     operation::set_category(&pool, id, category_id).await
+}
+
+/// Other operations sharing the label of an operation: those still to categorize, and those
+/// in another category.
+#[tauri::command]
+#[specta::specta]
+pub async fn same_label_operations(pool: State<'_, SqlitePool>, id: i64) -> AppResult<SameLabel> {
+    same_label::same_label(&pool, id).await
+}
+
+/// Gives the category of an operation to the others of its label still to categorize;
+/// returns their count.
+#[tauri::command]
+#[specta::specta]
+pub async fn categorize_same_label(pool: State<'_, SqlitePool>, id: i64) -> AppResult<u32> {
+    same_label::categorize_same_label(&pool, id).await
 }
 
 #[tauri::command]

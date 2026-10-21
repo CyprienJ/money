@@ -37,6 +37,8 @@ pub fn builder() -> Builder<tauri::Wry> {
             operation::create_operation,
             operation::update_operation,
             operation::set_operation_category,
+            operation::same_label_operations,
+            operation::categorize_same_label,
             operation::delete_operation,
             operation::list_categories,
             operation::create_category,

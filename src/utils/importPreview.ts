@@ -76,13 +76,19 @@ export function lineAmount(line: PreviewLine): string {
   return formatAmount(line.line.amountCents, { signed: true });
 }
 
-/** Category of a line: the one chosen by the user, or else the remembered one. */
+/**
+ * Category of a line: the one chosen by the user on this line, or else the last one chosen on
+ * another line of the same normalized label (`spread`), or else the remembered one.
+ */
 export function lineCategory(
   line: PreviewLine,
   index: number,
   chosen: Map<number, number | null>,
+  spread: Map<string, number | null> = new Map(),
 ): number | null {
-  return chosen.has(index) ? (chosen.get(index) ?? null) : line.categoryId;
+  if (chosen.has(index)) return chosen.get(index) ?? null;
+  if (spread.has(line.normalizedLabel)) return spread.get(line.normalizedLabel) ?? null;
+  return line.categoryId;
 }
 
 /**
@@ -93,11 +99,12 @@ export function categoryCounts(
   preview: ImportPreview,
   selected: Set<number>,
   chosen: Map<number, number | null> = new Map(),
+  spread: Map<string, number | null> = new Map(),
 ): { automatic: number; toCategorize: number } {
   const counts = { automatic: 0, toCategorize: 0 };
   preview.lines.forEach((line, index) => {
     if (!selected.has(index)) return;
-    const category = lineCategory(line, index, chosen);
+    const category = lineCategory(line, index, chosen, spread);
     if (category === null) counts.toCategorize++;
     else if (category === line.categoryId) counts.automatic++;
   });
