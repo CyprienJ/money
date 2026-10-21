@@ -333,7 +333,11 @@ Décisions du 21/10/2026 : chaque libellé normalisé reçoit automatiquement un
 ### Opérations
 
 #### V2-04 · Tags et notes — M
-- [ ] Tables `tag` et `operation_tag` ; exploitation de `operation.note`.
+Décisions du 21/10/2026 : note et tags modifiables sur toutes les opérations, importées comprises ; tags créés à la volée depuis la fiche d'une opération, gérés (renommage, suppression) dans une carte « Tags » de l'écran Catégories ; pas de couleur de tag ; affichage sous le libellé dans la liste des opérations.
+- [x] Tables `tag` et `operation_tag` ; exploitation de `operation.note`.
+- [x] Note et tags dans la fiche d'une opération, avec suggestion des tags existants.
+- [x] Tags et note affichés dans la liste des opérations et couverts par la recherche libre (le filtre par tag reste pour V2-06).
+- [x] Renommage et suppression des tags dans l'écran Catégories.
 
 #### V2-05 · Pièces jointes — M
 - [ ] Table `attachment` ; fichiers copiés à côté du fichier de données ; ouverture depuis l'opération.

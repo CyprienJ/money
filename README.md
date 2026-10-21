@@ -78,7 +78,7 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 - **Appariement automatique des virements internes** : le débit sur le compte A et le crédit correspondant sur le compte B sont liés.
 
 #### Opérations
-- **Tags et notes** libres.
+- **Tags et notes** libres *(décisions du 21/10/2026)* : un tag se crée en le tapant sur une opération, sans tenir compte des majuscules pour retrouver un tag existant, et se renomme ou se supprime depuis l'écran Catégories. Les tags n'ont pas de couleur (pastille neutre). Tags et note s'affichent sous le libellé dans la liste des opérations et sont couverts par la recherche libre ; ils sont modifiables sur toutes les opérations, importées comprises.
 - **Pièces jointes** (factures, justificatifs), copiées à côté du fichier de données.
 - **Recherche et filtres avancés** : montant, période, tiers, catégorie, tag, compte.
 
@@ -134,7 +134,7 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 
 - **Comptes concernés** : seuls les comptes courants, d'épargne et les cartes à débit différé ont des opérations. Les placements, actifs et dettes sont suivis par leurs valorisations.
 - **Date** : une opération ne peut pas être antérieure à la date d'ouverture de son compte, puisqu'elle serait déjà comprise dans le solde d'ouverture.
-- **Opération importée** : sa date, son montant et son libellé brut viennent de la banque et ne sont pas modifiables (détection des doublons, contrôle des soldes). Seules sa catégorie et sa date de valeur le sont. Elle ne se supprime pas seule : on annule le lot d'import entier.
+- **Opération importée** : sa date, son montant et son libellé brut viennent de la banque et ne sont pas modifiables (détection des doublons, contrôle des soldes). Seules sa catégorie, sa date de valeur, sa note et ses tags le sont. Elle ne se supprime pas seule : on annule le lot d'import entier.
 - **Opération saisie à la main** : entièrement modifiable et supprimable. Le texte saisi devient son libellé brut.
 
 ---
@@ -157,7 +157,7 @@ operation
   import_batch_id      -- null for manual entries
   is_internal_transfer -- derived from category in V1, explicit pairing in V2
   transfer_pair_id (prévu)
-  note (prévu), created_at, updated_at
+  note, created_at, updated_at
 
 operation_split          -- one row per operation in V1; several rows once splitting is supported
   id, operation_id, category_id, amount_cents
@@ -189,7 +189,13 @@ scheduled_operation      -- schedule (display only in V1)
   id, account_id, label, amount_cents, category_id,
   frequency (WEEKLY | MONTHLY | QUARTERLY | SEMIANNUAL | YEARLY), day_of_period, start_date, end_date
 
--- Prévus (V2+) : payee, payee_alias, tag, operation_tag, attachment,
+tag                      -- V2 free labels, created on first use, unique ignoring case
+  id, name
+
+operation_tag
+  operation_id, tag_id
+
+-- Prévus (V2+) : payee, payee_alias, attachment,
 --               security, security_price, investment_transaction
 ```
 
