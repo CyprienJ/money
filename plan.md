@@ -296,7 +296,18 @@ Maquette : `Dashboard.dc.html`.
 
 ## V2 — Automatiser et enrichir
 
-Ordre indicatif : catégorisation et tiers d'abord (gain quotidien), puis opérations, suivi, placements, technique. À re-prioriser à la fin de la V1.
+Ordre validé le 21/10/2026, à la fin de la V1 :
+
+1. V2-02 · Gestion des tiers (socle des filtres, des analyses et de la détection des abonnements)
+2. V2-04, V2-06, V2-05 · Notes et tags, recherche et filtres avancés, pièces jointes
+3. V2-03 · Appariement des virements internes
+4. V2-07 à V2-10 · Suivi : rapprochement, prévision, abonnements, alertes
+5. V2-01 · Classifieur local (il apprend mieux avec plus d'opérations catégorisées)
+6. V2-17 · Mode clair et mode sombre (indépendant, peut être intercalé)
+7. V2-11 à V2-13 · Placements détaillés
+8. V2-16, V2-15, V2-14 · Technique : sauvegarde complète, chiffrement, multi-devises
+
+Depuis la release 1.0.0, chaque évolution du schéma est une nouvelle migration.
 
 ### Catégorisation et tiers
 
@@ -310,6 +321,7 @@ Les règles de catégorisation prévues initialement ici ont été avancées en 
 - [ ] Tests : apprentissage sur un jeu anonymisé, libellé inconnu proche d'un connu, seuils.
 
 #### V2-02 · Gestion des tiers — L
+Décisions du 21/10/2026 : chaque libellé normalisé reçoit automatiquement un tiers, nommé par défaut avec sa forme lisible (« Carrefour Mkt ») ; les tiers se gèrent dans un nouvel écran « Tiers » ; les écrans affichent le nom du tiers à la place du libellé normalisé.
 - [ ] Tables `payee` et `payee_alias` ; exploitation de `operation.payee_id`.
 - [ ] Fusion de plusieurs libellés normalisés en un tiers, renommage.
 - [ ] Top tiers et analyses basés sur les tiers.
@@ -354,6 +366,12 @@ Les règles de catégorisation prévues initialement ici ont été avancées en 
 
 #### V2-13 · Performance et plus-values — M
 - [ ] Plus-values latentes et réalisées, performance ; patrimoine net basé sur la valorisation du portefeuille.
+
+### Interface
+
+#### V2-17 · Mode clair et mode sombre — M
+- [ ] Choix « clair », « sombre » ou « système » (par défaut), mémorisé dans les préférences.
+- [ ] Thème sombre : variables de `src/styles/tokens.css` redéfinies, couleurs des catégories comprises (pastilles et graphiques ECharts).
 
 ### Technique
 
