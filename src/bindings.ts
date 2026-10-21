@@ -270,8 +270,6 @@ export type CsvError = { code: "invalidDelimiter"; params: string } | { code: "e
 	value: string,
 } } | { code: "missingAmount"; params: {
 	line: number,
-} } | { code: "zeroAmount"; params: {
-	line: number,
 } } | { code: "bothDebitAndCredit"; params: {
 	line: number,
 } } | { code: "emptyLabel"; params: {

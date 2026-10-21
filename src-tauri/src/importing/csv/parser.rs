@@ -11,8 +11,9 @@ pub fn head(bytes: &[u8], encoding: CsvEncoding, count: usize) -> Vec<String> {
     text.lines().take(count).map(str::to_owned).collect()
 }
 
-/// Reads the statement lines of a CSV file with the given mapping. Blank lines are ignored;
-/// any other line that cannot be read fails the whole file, with its line number.
+/// Reads the statement lines of a CSV file with the given mapping. Blank lines and lines with a
+/// zero amount are ignored; any other line that cannot be read fails the whole file, with its
+/// line number.
 pub fn parse(bytes: &[u8], mapping: &CsvMapping) -> Result<Vec<RawLine>, CsvError> {
     let delimiter = mapping.validate()?;
 
@@ -39,7 +40,7 @@ pub fn parse(bytes: &[u8], mapping: &CsvMapping) -> Result<Vec<RawLine>, CsvErro
             continue;
         }
         let line = file_line(data, mapping.skip_lines, record.position());
-        lines.push(read_line(&record, line, mapping)?);
+        lines.extend(read_line(&record, line, mapping)?);
     }
     Ok(lines)
 }
@@ -88,7 +89,7 @@ fn read_line(
     record: &csv::StringRecord,
     line: u64,
     mapping: &CsvMapping,
-) -> Result<RawLine, CsvError> {
+) -> Result<Option<RawLine>, CsvError> {
     let field = |column: u32| {
         record
             .get(column as usize)
@@ -125,24 +126,27 @@ fn read_line(
             amount(column)?.ok_or(CsvError::MissingAmount { line })?
         }
         AmountColumns::DebitCredit { debit, credit } => {
-            let debit = amount(debit)?.filter(|&cents| cents != 0);
-            let credit = amount(credit)?.filter(|&cents| cents != 0);
-            match (debit, credit) {
+            let (debit, credit) = (amount(debit)?, amount(credit)?);
+            if debit.is_none() && credit.is_none() {
+                return Err(CsvError::MissingAmount { line });
+            }
+            match (debit.filter(|&c| c != 0), credit.filter(|&c| c != 0)) {
                 (Some(debit), None) => -debit.abs(),
                 (None, Some(credit)) => credit.abs(),
                 (Some(_), Some(_)) => return Err(CsvError::BothDebitAndCredit { line }),
-                (None, None) => return Err(CsvError::MissingAmount { line }),
+                (None, None) => 0,
             }
         }
     };
+    // A zero amount (a declined card payment, for instance) changes no balance: skipped.
     if amount_cents == 0 {
-        return Err(CsvError::ZeroAmount { line });
+        return Ok(None);
     }
 
-    Ok(RawLine {
+    Ok(Some(RawLine {
         date,
         value_date: None,
         label: label.to_owned(),
         amount_cents,
-    })
+    }))
 }

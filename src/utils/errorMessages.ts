@@ -133,8 +133,6 @@ function csv(error: CsvError): string {
       return `Ligne ${error.params.line} : le montant « ${error.params.value} » utilise l'autre séparateur décimal : change le « Séparateur décimal » du format.`;
     case "missingAmount":
       return `Ligne ${error.params.line} : aucun montant.`;
-    case "zeroAmount":
-      return `Ligne ${error.params.line} : montant nul.`;
     case "bothDebitAndCredit":
       return `Ligne ${error.params.line} : un débit et un crédit à la fois.`;
     case "emptyLabel":

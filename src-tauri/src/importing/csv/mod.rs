@@ -157,9 +157,6 @@ pub enum CsvError {
     #[error("line {line}: no amount")]
     MissingAmount { line: u64 },
 
-    #[error("line {line}: zero amount")]
-    ZeroAmount { line: u64 },
-
     #[error("line {line}: both a debit and a credit")]
     BothDebitAndCredit { line: u64 },
 

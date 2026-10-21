@@ -138,7 +138,6 @@ fn rejects_lines_without_usable_amount() {
     };
     let cases = [
         ("01/09/2026;X;;", "missing"),
-        ("01/09/2026;X;0,00;0,00", "missing"),
         ("01/09/2026;X;1,00;2,00", "both"),
         ("01/09/2026;X;1,0O;", "invalid"),
         ("01/09/2026;X", "column"),
@@ -170,13 +169,20 @@ fn debit_and_credit_signs_come_from_the_column() {
 }
 
 #[test]
-fn rejects_zero_signed_amount() {
+fn skips_zero_amounts() {
     let mapping = CsvMapping {
         skip_lines: 0,
         ..signed_mapping()
     };
-    let error = parse_text("2026-09-01;X;;0.00", &mapping).unwrap_err();
-    assert!(matches!(error, CsvError::ZeroAmount { line: 1 }));
+    let lines = parse_text("2026-09-01;X;;0.00\n2026-09-02;Y;;-1.00\n", &mapping).unwrap();
+    assert_eq!(lines, vec![line("2026-09-02", "Y", -100)]);
+
+    let mapping = CsvMapping {
+        skip_lines: 0,
+        ..debit_credit_mapping()
+    };
+    let lines = parse_text("01/09/2026;X;0,00;0,00\n", &mapping).unwrap();
+    assert!(lines.is_empty());
 }
 
 #[test]
