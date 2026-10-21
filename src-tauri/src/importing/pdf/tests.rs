@@ -165,6 +165,29 @@ fn parses_the_fortuneo_statement() {
 }
 
 #[test]
+fn reads_the_fortuneo_lines_sharing_a_baseline_with_the_margin() {
+    // The last operation and the closing balance are on the baseline of the margin text
+    // ("Réf : MRELPAR", issue date).
+    let document = fixture("fortuneo_2.pdf");
+    let parser = detect(&document).expect("Fortuneo recognized");
+    let statement = parser.parse(&document).unwrap();
+    assert_eq!(statement.lines.len(), 21);
+    assert_eq!(
+        statement.lines.last(),
+        Some(&raw(
+            "2025-04-30",
+            Some("2025-04-30"),
+            "CARTE 28/04 SC-M'SUSHI PARIS",
+            -1_590
+        ))
+    );
+    assert_eq!(statement.start_balance_cents, Some(0));
+    assert_eq!(statement.end_balance_cents, Some(14_013));
+    let total: i64 = statement.lines.iter().map(|l| l.amount_cents).sum();
+    assert_eq!(total, 14_013);
+}
+
+#[test]
 fn parses_the_current_account_of_the_trade_republic_statement() {
     let document = fixture("trade_republic.pdf");
     let parser = detect(&document).expect("Trade Republic recognized");
