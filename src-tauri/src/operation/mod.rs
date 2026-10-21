@@ -4,11 +4,14 @@ pub mod category;
 mod repository;
 pub mod same_label;
 pub mod schedule;
+pub mod search;
 #[cfg(test)]
 mod tests;
 
 pub(crate) use repository::{check_account, internal_transfer_flag, timestamp};
-pub use repository::{create, delete, get, list, set_category, update};
+pub use repository::{create, delete, get, set_category, update};
+#[cfg(test)]
+pub use search::list;
 
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
@@ -44,7 +47,7 @@ pub struct Operation {
     pub tags: Vec<String>,
 }
 
-/// An operation in an account listing, with the account balance after it.
+/// An operation in a listing, with the balance of its account after it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct OperationRow {

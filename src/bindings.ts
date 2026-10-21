@@ -22,8 +22,11 @@ export const commands = {
 	createValuation: (accountId: number, valuation: ValuationInput) => typedError<Valuation, AppError>(__TAURI_INVOKE("create_valuation", { accountId, valuation })),
 	updateValuation: (id: number, valuation: ValuationInput) => typedError<Valuation, AppError>(__TAURI_INVOKE("update_valuation", { id, valuation })),
 	deleteValuation: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_valuation", { id })),
-	/**  Operations of an account, most recent first, with the balance after each one. */
-	listOperations: (accountId: number, from: string | null, to: string | null) => typedError<OperationRow[], AppError>(__TAURI_INVOKE("list_operations", { accountId, from, to })),
+	/**
+	 *  Operations matching every filter, most recent first, with the balance of their account
+	 *  after each one.
+	 */
+	searchOperations: (filter: OperationFilter) => typedError<OperationRow[], AppError>(__TAURI_INVOKE("search_operations", { filter })),
 	getOperation: (id: number) => typedError<Operation, AppError>(__TAURI_INVOKE("get_operation", { id })),
 	createOperation: (operation: NewOperation) => typedError<Operation, AppError>(__TAURI_INVOKE("create_operation", { operation })),
 	updateOperation: (id: number, changes: OperationUpdate) => typedError<Operation, AppError>(__TAURI_INVOKE("update_operation", { id, changes })),
@@ -292,6 +295,13 @@ export type CategoryExpense = {
 	expenseCents: number,
 };
 
+/**  Category of the operations to keep. */
+export type CategoryFilter = 
+/**  Operations still to categorize. */
+{ kind: "uncategorized" } | 
+/**  Operations of the category, or of one of its subcategories. */
+{ kind: "category"; id: number };
+
 /**
  *  Fields of a category to create or update. For a subcategory, `color` and `is_income` are
  *  ignored: they come from the parent.
@@ -375,6 +385,13 @@ export type DateRange = {
 
 /**  Decimal separator of the amounts. */
 export type DecimalSeparator = "," | ".";
+
+/**  Sign of the operations to keep. */
+export type Direction = 
+/**  Negative amounts. */
+"debit" | 
+/**  Positive amounts. */
+"credit";
 
 export type DuplicateStatus = { status: "new" } | { status: "duplicate"; operationId: number } | { status: "ambiguous"; reason: AmbiguityReason; 
 /**  Existing operations the line may duplicate. */
@@ -544,7 +561,25 @@ export type Operation = {
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
 export type OperationError = { code: "notFound"; params: number } | { code: "categoryNotFound"; params: number } | { code: "emptyLabel" } | { code: "zeroAmount" } | { code: "accountWithoutOperations" } | { code: "dateBeforeOpening"; params: string } | { code: "importedFieldsLocked" } | { code: "importedOperationNotDeletable" };
 
-/**  An operation in an account listing, with the account balance after it. */
+/**  Filters combined with AND; a `None` filter keeps everything. Bounds are included. */
+export type OperationFilter = {
+	/**  `None` for every account. */
+	accountId: number | null,
+	/**  Whether archived accounts are searched when `account_id` is `None`. */
+	includeArchived: boolean,
+	from: string | null,
+	to: string | null,
+	direction: Direction | null,
+	/**  Lowest amount, in absolute value. */
+	minCents: number | null,
+	/**  Highest amount, in absolute value. */
+	maxCents: number | null,
+	payeeId: number | null,
+	category: CategoryFilter | null,
+	tagId: number | null,
+};
+
+/**  An operation in a listing, with the balance of its account after it. */
 export type OperationRow = {
 	operation: Operation,
 	balanceCents: number,

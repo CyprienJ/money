@@ -1,7 +1,7 @@
 use chrono::{NaiveDate, Utc};
 use sqlx::{SqliteConnection, SqlitePool};
 
-use super::{NewOperation, Operation, OperationError, OperationRow, OperationUpdate};
+use super::{NewOperation, Operation, OperationError, OperationUpdate};
 use crate::account::{AccountError, AccountType};
 use crate::error::AppResult;
 use crate::labeling::{memory, normalize_label};
@@ -11,70 +11,6 @@ use crate::tag;
 pub async fn get(pool: &SqlitePool, id: i64) -> AppResult<Operation> {
     let mut conn = pool.acquire().await?;
     fetch(&mut conn, id).await
-}
-
-/// Operations of an account, most recent first, optionally restricted to a period (bounds
-/// included). Each row carries the account balance right after the operation.
-pub async fn list(
-    pool: &SqlitePool,
-    account_id: i64,
-    from: Option<NaiveDate>,
-    to: Option<NaiveDate>,
-) -> AppResult<Vec<OperationRow>> {
-    // The running balance is computed over the whole account history, then filtered.
-    // V1 has a single split per operation, so the join does not duplicate rows.
-    let rows = sqlx::query!(
-        r#"SELECT id AS "id!", account_id AS "account_id!", date AS "date!: NaiveDate",
-                  value_date AS "value_date: NaiveDate", amount_cents AS "amount_cents!",
-                  raw_label AS "raw_label!", normalized_label AS "normalized_label!",
-                  payee_id, payee_name AS "payee_name!: String", import_batch_id, category_id,
-                  is_internal_transfer AS "is_internal_transfer!: bool", note,
-                  balance_cents AS "balance_cents!: i64"
-           FROM (
-               SELECT o.id, o.account_id, o.date, o.value_date, o.amount_cents, o.raw_label,
-                      o.normalized_label, o.payee_id,
-                      COALESCE(p.name, o.normalized_label) AS payee_name,
-                      o.import_batch_id, s.category_id, o.is_internal_transfer, o.note,
-                      a.opening_balance_cents
-                          + SUM(o.amount_cents) OVER (ORDER BY o.date, o.id) AS balance_cents
-               FROM operation o
-               JOIN account a ON a.id = o.account_id
-               LEFT JOIN operation_split s ON s.operation_id = o.id
-               LEFT JOIN payee p ON p.id = o.payee_id
-               WHERE o.account_id = ?1
-           )
-           WHERE (?2 IS NULL OR date >= ?2) AND (?3 IS NULL OR date <= ?3)
-           ORDER BY date DESC, id DESC"#,
-        account_id,
-        from,
-        to
-    )
-    .fetch_all(pool)
-    .await?;
-    let mut tags = tag::names_by_operation(pool, account_id).await?;
-
-    Ok(rows
-        .into_iter()
-        .map(|row| OperationRow {
-            operation: Operation {
-                id: row.id,
-                account_id: row.account_id,
-                date: row.date,
-                value_date: row.value_date,
-                amount_cents: row.amount_cents,
-                raw_label: row.raw_label,
-                normalized_label: row.normalized_label,
-                payee_id: row.payee_id,
-                payee_name: row.payee_name,
-                import_batch_id: row.import_batch_id,
-                category_id: row.category_id,
-                is_internal_transfer: row.is_internal_transfer,
-                note: row.note,
-                tags: tags.remove(&row.id).unwrap_or_default(),
-            },
-            balance_cents: row.balance_cents,
-        })
-        .collect())
 }
 
 /// Records a manual entry.

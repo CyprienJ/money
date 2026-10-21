@@ -111,17 +111,18 @@ pub(crate) async fn names_of(
     Ok(names)
 }
 
-/// Tag names of the operations of an account, by operation, each list by name.
+/// Tag names of the operations of an account (of every account with `None`), by operation,
+/// each list by name.
 pub(crate) async fn names_by_operation(
     pool: &SqlitePool,
-    account_id: i64,
+    account_id: Option<i64>,
 ) -> AppResult<HashMap<i64, Vec<String>>> {
     let rows = sqlx::query!(
         "SELECT ot.operation_id, t.name
          FROM operation_tag ot
          JOIN tag t ON t.id = ot.tag_id
          JOIN operation o ON o.id = ot.operation_id
-         WHERE o.account_id = ?1
+         WHERE ?1 IS NULL OR o.account_id = ?1
          ORDER BY t.name COLLATE NOCASE",
         account_id
     )

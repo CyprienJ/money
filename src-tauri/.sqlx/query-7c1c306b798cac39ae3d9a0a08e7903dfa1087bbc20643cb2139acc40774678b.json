@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id AS \"id!\", account_id AS \"account_id!\", date AS \"date!: NaiveDate\",\n                  value_date AS \"value_date: NaiveDate\", amount_cents AS \"amount_cents!\",\n                  raw_label AS \"raw_label!\", normalized_label AS \"normalized_label!\",\n                  payee_id, payee_name AS \"payee_name!: String\", import_batch_id, category_id,\n                  is_internal_transfer AS \"is_internal_transfer!: bool\", note,\n                  balance_cents AS \"balance_cents!: i64\"\n           FROM (\n               SELECT o.id, o.account_id, o.date, o.value_date, o.amount_cents, o.raw_label,\n                      o.normalized_label, o.payee_id,\n                      COALESCE(p.name, o.normalized_label) AS payee_name,\n                      o.import_batch_id, s.category_id, o.is_internal_transfer, o.note,\n                      a.opening_balance_cents\n                          + SUM(o.amount_cents) OVER (ORDER BY o.date, o.id) AS balance_cents\n               FROM operation o\n               JOIN account a ON a.id = o.account_id\n               LEFT JOIN operation_split s ON s.operation_id = o.id\n               LEFT JOIN payee p ON p.id = o.payee_id\n               WHERE o.account_id = ?1\n           )\n           WHERE (?2 IS NULL OR date >= ?2) AND (?3 IS NULL OR date <= ?3)\n           ORDER BY date DESC, id DESC",
+  "query": "SELECT id AS \"id!\", account_id AS \"account_id!\", date AS \"date!: NaiveDate\",\n                  value_date AS \"value_date: NaiveDate\", amount_cents AS \"amount_cents!\",\n                  raw_label AS \"raw_label!\", normalized_label AS \"normalized_label!\",\n                  payee_id, payee_name AS \"payee_name!: String\", import_batch_id, category_id,\n                  is_internal_transfer AS \"is_internal_transfer!: bool\", note,\n                  balance_cents AS \"balance_cents!: i64\"\n           FROM (\n               SELECT o.id, o.account_id, o.date, o.value_date, o.amount_cents, o.raw_label,\n                      o.normalized_label, o.payee_id,\n                      COALESCE(p.name, o.normalized_label) AS payee_name,\n                      o.import_batch_id, s.category_id, o.is_internal_transfer, o.note,\n                      a.archived,\n                      a.opening_balance_cents + SUM(o.amount_cents)\n                          OVER (PARTITION BY o.account_id ORDER BY o.date, o.id) AS balance_cents\n               FROM operation o\n               JOIN account a ON a.id = o.account_id\n               LEFT JOIN operation_split s ON s.operation_id = o.id\n               LEFT JOIN payee p ON p.id = o.payee_id\n               WHERE ?1 IS NULL OR o.account_id = ?1\n           )\n           WHERE (?1 IS NOT NULL OR ?2 OR NOT archived)\n             AND (?3 IS NULL OR date >= ?3) AND (?4 IS NULL OR date <= ?4)\n             AND (?5 IS NULL OR (?5 = 'debit' AND amount_cents < 0)\n                             OR (?5 = 'credit' AND amount_cents > 0))\n             AND (?6 IS NULL OR ABS(amount_cents) >= ?6)\n             AND (?7 IS NULL OR ABS(amount_cents) <= ?7)\n             AND (?8 IS NULL OR payee_id = ?8)\n             AND (NOT ?9 OR category_id IS NULL)\n             AND (?10 IS NULL OR category_id IN\n                     (SELECT c.id FROM category c WHERE c.id = ?10 OR c.parent_id = ?10))\n             AND (?11 IS NULL OR EXISTS\n                     (SELECT 1 FROM operation_tag ot WHERE ot.operation_id = id AND ot.tag_id = ?11))\n           ORDER BY date DESC, id DESC",
   "describe": {
     "columns": [
       {
@@ -149,7 +149,7 @@
       }
     ],
     "parameters": {
-      "Right": 3
+      "Right": 11
     },
     "nullable": [
       false,
@@ -168,5 +168,5 @@
       false
     ]
   },
-  "hash": "57ae79c46cd2ff5e2f4796a586d2bb75f47692d01a26b338731993060d48af3d"
+  "hash": "7c1c306b798cac39ae3d9a0a08e7903dfa1087bbc20643cb2139acc40774678b"
 }

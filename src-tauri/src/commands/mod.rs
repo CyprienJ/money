@@ -34,7 +34,7 @@ pub fn builder() -> Builder<tauri::Wry> {
             account::create_valuation,
             account::update_valuation,
             account::delete_valuation,
-            operation::list_operations,
+            operation::search_operations,
             operation::get_operation,
             operation::create_operation,
             operation::update_operation,

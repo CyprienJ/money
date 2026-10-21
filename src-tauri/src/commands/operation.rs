@@ -1,4 +1,3 @@
-use chrono::NaiveDate;
 use sqlx::SqlitePool;
 use tauri::State;
 
@@ -9,18 +8,18 @@ use crate::operation::same_label::{self, SameLabel};
 use crate::operation::schedule::{
     self, ScheduledOperation, ScheduledOperationInput, UpcomingOperation,
 };
+use crate::operation::search::{self, OperationFilter};
 use crate::operation::{self, NewOperation, Operation, OperationRow, OperationUpdate};
 
-/// Operations of an account, most recent first, with the balance after each one.
+/// Operations matching every filter, most recent first, with the balance of their account
+/// after each one.
 #[tauri::command]
 #[specta::specta]
-pub async fn list_operations(
+pub async fn search_operations(
     pool: State<'_, SqlitePool>,
-    account_id: i64,
-    from: Option<NaiveDate>,
-    to: Option<NaiveDate>,
+    filter: OperationFilter,
 ) -> AppResult<Vec<OperationRow>> {
-    operation::list(&pool, account_id, from, to).await
+    search::search(&pool, &filter).await
 }
 
 #[tauri::command]

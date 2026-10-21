@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT ot.operation_id, t.name\n         FROM operation_tag ot\n         JOIN tag t ON t.id = ot.tag_id\n         JOIN operation o ON o.id = ot.operation_id\n         WHERE o.account_id = ?1\n         ORDER BY t.name COLLATE NOCASE",
+  "query": "SELECT ot.operation_id, t.name\n         FROM operation_tag ot\n         JOIN tag t ON t.id = ot.tag_id\n         JOIN operation o ON o.id = ot.operation_id\n         WHERE ?1 IS NULL OR o.account_id = ?1\n         ORDER BY t.name COLLATE NOCASE",
   "describe": {
     "columns": [
       {
@@ -34,5 +34,5 @@
       false
     ]
   },
-  "hash": "c9c757d4d8015291a289a76086afb5d339d8f3ca4a67f3a940c1ca96cc4540bd"
+  "hash": "6687e648c6a0b212c9b0d5baa1606202d432fee8e33ff02f21c24fb90ea6a6e6"
 }
