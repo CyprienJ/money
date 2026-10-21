@@ -119,6 +119,20 @@ Maquette : `Import.dc.html` (étape 2 « Vérification et aperçu »).
 - [x] Bandeau « Dernier import … · Annuler cet import » sur l'écran Opérations, avec confirmation.
 - Étape 1 et édition du mapping sans maquette : style de `Import.dc.html` (validé le 20/10/2026).
 
+#### V1-02.6 · Détection automatique du format CSV — M
+Ajouté le 21/10/2026 (retour de recette sur un export Revolut).
+- [ ] Analyse du début du fichier : encodage, séparateur, ligne d'en-tête et lignes à ignorer, colonnes date / libellé / montant (titres puis contenu), format des dates, séparateur décimal, montant signé ou débit / crédit.
+- [ ] Proposition retenue seulement si elle lit tout le fichier sans erreur.
+- [ ] Bouton « Détecter automatiquement » dans la fenêtre du format, lancé d'office pour un nouveau format créé depuis un fichier.
+- [ ] Tests sur les fixtures CSV et un export de type Revolut.
+
+#### V1-02.7 · Frais et état des opérations dans le format CSV — S
+Ajouté le 21/10/2026 (export Revolut : colonnes « Fee » et « State »).
+- [ ] Colonne de frais facultative, déduite du montant (le compte perd montant + frais).
+- [ ] Colonne d'état facultative et valeur à garder (ex. `COMPLETED`) : les autres lignes (`PENDING`, `REVERTED`, `DECLINED`) sont ignorées.
+- [ ] Colonnes ajoutées à `csv_mapping` (modèle de données du README à mettre à jour).
+- 🟡 Valider sur quelques lignes anonymisées d'un vrai export Revolut (en-tête, ligne avec frais, ligne non `COMPLETED`).
+
 ---
 
 ### Étape 3 — Catégorisation
@@ -331,4 +345,5 @@ Ordre indicatif : catégorisation et tiers d'abord (gain quotidien), puis opéra
 
 | Ticket | Question |
 |---|---|
+| V1-02.7 | Lignes d'exemple d'un export Revolut (frais, état) |
 | V2-12 | Source des cours de bourse (accès réseau) |
