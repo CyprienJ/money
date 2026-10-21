@@ -288,9 +288,9 @@ Maquette : `Dashboard.dc.html`.
 #### V1-07.5 · Paramètres et finitions — S
 - [x] Écran Paramètres : emplacement des données, dossier des sauvegardes (avec leur nombre), mappings CSV enregistrés, banques PDF prises en charge, version.
 - [x] États vides (aucun compte, aucune opération) et messages d'erreur métier lisibles : erreurs structurées (domaine, code, paramètres) traduites en français côté front, avec vérification d'exhaustivité au typage.
-- [ ] Recette complète sur Windows et Linux, packaging de la V1.
+- [x] Recette complète sur Windows et Linux, packaging de la V1.
   - Fait : paquet Linux `.deb` construit (`npm run tauri build -- --bundles deb`), PDFium et sa licence embarqués dans `/usr/lib/Finances perso/pdfium/` ; binaire release démarré sur une base vierge (migration et catégories par défaut OK).
-  - Reste : recette manuelle dans la vraie fenêtre (Linux et Windows), paquets Windows (`.msi` / NSIS) via le workflow `release.yml`.
+  - Recette validée le 21/10/2026. Paquets Windows (`.msi` / NSIS) via le workflow `release.yml`.
 
 ---
 
