@@ -84,7 +84,7 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 
 #### Suivi
 - **Rapprochement échéancier ↔ import** : une opération importée est associée à l'échéance prévue (même montant à une tolérance près, date à ± N jours), qui passe alors en « réalisée » *(décisions du 21/10/2026)*. Candidats : même compte, même sens, montant à ± 10 % de l'échéance, date à ± 5 jours de l'occurrence, opération pas encore associée, proposition pas ignorée. Une association sûre (candidat unique dans les deux sens) est faite automatiquement après chaque import et à la demande ; les autres sont proposées dans l'écran Échéancier (Associer / Ignorer). L'échéancier montre les occurrences des 60 derniers jours avec leur statut (réalisée ou en attente) ; on peut associer à la main (même compte et même sens, à 15 jours près, montant libre) ou dissocier. Modifier une échéance oublie les associations qui ne tombent plus sur une de ses occurrences.
-- **Détection automatique des abonnements** : repérage des opérations récurrentes non déclarées dans l'échéancier.
+- **Détection automatique des abonnements** : repérage des opérations récurrentes non déclarées dans l'échéancier *(décisions du 21/10/2026)*. Les opérations d'un tiers sur un compte, dans un sens, forment une série quand chacune arrive une période après la précédente (hebdomadaire 6–8 jours, mensuelle 26–36, trimestrielle 85–98, semestrielle 175–190, annuelle 355–375) avec un montant à ± 10 % du dernier : 3 opérations au moins, 2 pour une série annuelle. Toutes les séries sont détectées (dépenses, revenus, virements internes). Une série terminée (plus d'une période et 10 jours sans opération), déjà associée à une échéance, ou couverte par une échéance du même compte, de même périodicité et de montant proche, n'est pas proposée. Les suggestions apparaissent dans l'échéancier : « Ajouter » pré-remplit le formulaire (tiers, jour médian, dernier montant, catégorie, début à la première opération) puis associe les opérations passées ; « Ignorer » est définitif pour ce tiers, ce compte et ce sens.
 - **Alertes** : solde projeté négatif, dépense inhabituelle pour une catégorie, échéance manquante.
 - **Prévision de trésorerie** : solde projeté à partir du solde actuel et de l'échéancier.
 
@@ -194,6 +194,9 @@ schedule_match           -- V2 operation realizing an occurrence (occurrences ar
 
 schedule_match_dismissal -- V2 proposed matches the user dismissed
   scheduled_operation_id, occurrence_date, operation_id
+
+recurring_dismissal      -- V2 recurring series the user does not want in the schedule
+  account_id, payee_id, is_credit
 
 tag                      -- V2 free labels, created on first use, unique ignoring case
   id, name

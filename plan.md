@@ -363,7 +363,9 @@ Décisions du 21/10/2026 : montant à ± 10 %, date à ± 5 jours ; associations
 - [x] Échéances récentes (60 jours) avec statut, échéances à venir déjà réalisées marquées (échéancier et tableau de bord).
 
 #### V2-08 · Détection automatique des abonnements — M
-- [ ] Repérage des opérations récurrentes absentes de l'échéancier, proposition d'ajout.
+Décisions du 21/10/2026 : 3 opérations au moins (2 pour l'annuel) ; toutes les séries (dépenses, revenus, virements internes) ; suggestions dans une carte de l'échéancier ; ajout suivi de l'association des opérations passées.
+- [x] Repérage des opérations récurrentes absentes de l'échéancier (module `operation/schedule/detection`), proposition d'ajout.
+- [x] « Ajouter » pré-remplit le formulaire d'échéance puis associe les opérations passées ; « Ignorer » mémorisé dans `recurring_dismissal`.
 
 #### V2-09 · Prévision de trésorerie — M
 - [ ] Solde projeté à partir du solde actuel et de l'échéancier.
