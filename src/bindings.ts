@@ -27,6 +27,28 @@ export const commands = {
 	 *  after each one.
 	 */
 	searchOperations: (filter: OperationFilter) => typedError<OperationRow[], AppError>(__TAURI_INVOKE("search_operations", { filter })),
+	/**  Detected internal transfers to confirm, the most recent first. */
+	listTransferProposals: () => typedError<TransferProposal[], AppError>(__TAURI_INVOKE("list_transfer_proposals")),
+	/**  Links the certain internal transfers of the whole history; returns their count. */
+	detectTransfers: () => typedError<number, AppError>(__TAURI_INVOKE("detect_transfers")),
+	/**  Links two operations as the two sides of an internal transfer. */
+	linkTransfer: (id: number, otherId: number) => typedError<null, AppError>(__TAURI_INVOKE("link_transfer", { id, otherId })),
+	/**  Unlinks an operation from its transfer; both sides keep their category. */
+	unlinkTransfer: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("unlink_transfer", { id })),
+	/**  Dismisses a proposed transfer, which is not proposed again. */
+	dismissTransfer: (debitId: number, creditId: number) => typedError<null, AppError>(__TAURI_INVOKE("dismiss_transfer", { debitId, creditId })),
+	/**  The other side of the transfer of an operation, if it is linked. */
+	transferPartner: (id: number) => typedError<{
+	operationId: number,
+	accountId: number,
+	accountName: string,
+	date: string,
+	amountCents: number,
+	/**  Payee name, or the normalized label when the operation has no payee. */
+	payeeName: string,
+} | null, AppError>(__TAURI_INVOKE("transfer_partner", { id })),
+	/**  Operations that can be linked by hand to an operation, the closest dates first. */
+	transferLinkCandidates: (id: number) => typedError<TransferSide[], AppError>(__TAURI_INVOKE("transfer_link_candidates", { id })),
 	getOperation: (id: number) => typedError<Operation, AppError>(__TAURI_INVOKE("get_operation", { id })),
 	createOperation: (operation: NewOperation) => typedError<Operation, AppError>(__TAURI_INVOKE("create_operation", { operation })),
 	updateOperation: (id: number, changes: OperationUpdate) => typedError<Operation, AppError>(__TAURI_INVOKE("update_operation", { id, changes })),
@@ -135,10 +157,11 @@ export const commands = {
 	 */
 	previewImport: (path: string, accountId: number, format: ImportFormat) => typedError<ImportPreview, AppError>(__TAURI_INVOKE("preview_import", { path, accountId, format })),
 	/**
-	 *  Imports the selected lines of the statement file at `path`, with their categories.
+	 *  Imports the selected lines of the statement file at `path`, with their categories, then
+	 *  links the certain internal transfers of the new operations.
 	 *  `file_hash` comes from the preview and guards against a file changed in between.
 	 */
-	importStatement: (path: string, accountId: number, format: ImportFormat, fileHash: string, selections: ImportSelection[]) => typedError<ImportBatch, AppError>(__TAURI_INVOKE("import_statement", { path, accountId, format, fileHash, selections })),
+	importStatement: (path: string, accountId: number, format: ImportFormat, fileHash: string, selections: ImportSelection[]) => typedError<ImportOutcome, AppError>(__TAURI_INVOKE("import_statement", { path, accountId, format, fileHash, selections })),
 	/**  Banks whose PDF statements can be imported. */
 	supportedBanks: () => __TAURI_INVOKE<SupportedBank[]>("supported_banks"),
 	/**  Bank of the PDF statement at `path`, `null` when no parser recognizes it. */
@@ -422,7 +445,7 @@ export type DuplicateStatus = { status: "new" } | { status: "duplicate"; operati
 candidateIds: number[] };
 
 /**  Business error with its code and parameters, for a message in French on the frontend. */
-export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "rule"; error: RuleError } | { domain: "payee"; error: PayeeError } | { domain: "tag"; error: TagError } | { domain: "attachment"; error: AttachmentError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError };
+export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "rule"; error: RuleError } | { domain: "payee"; error: PayeeError } | { domain: "tag"; error: TagError } | { domain: "attachment"; error: AttachmentError } | { domain: "transfer"; error: TransferError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError };
 
 /**  Stable identifier the frontend can match on. */
 export type ErrorKind = "database" | "migration" | "io" | 
@@ -468,6 +491,13 @@ export type ImportFormat =
 { kind: "csv"; mappingId: number } | 
 /**  PDF statement read by the parser of its bank, detected from its content. */
 { kind: "pdf" };
+
+/**  Result of an import. */
+export type ImportOutcome = {
+	batch: ImportBatch,
+	/**  Internal transfers linked automatically with operations of other accounts. */
+	linkedTransfers: number,
+};
 
 export type ImportPreview = {
 	fileName: string,
@@ -577,6 +607,8 @@ export type Operation = {
 	categoryId: number | null,
 	/**  Derived from the category; excluded from income and expense statistics. */
 	isInternalTransfer: boolean,
+	/**  The other side of the internal transfer, on another account, once linked. */
+	transferPairId: number | null,
 	note: string | null,
 	/**  Tag names, by name. */
 	tags: string[],
@@ -797,6 +829,26 @@ export type Tag = {
 
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
 export type TagError = { code: "notFound"; params: number } | { code: "emptyName" } | { code: "nameTaken"; params: string };
+
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type TransferError = { code: "sameAccount" } | { code: "amountsNotOpposite" } | { code: "alreadyLinked"; params: number };
+
+/**  A detected transfer the user has to confirm. */
+export type TransferProposal = {
+	debit: TransferSide,
+	credit: TransferSide,
+};
+
+/**  One side of a transfer, as shown to the user. */
+export type TransferSide = {
+	operationId: number,
+	accountId: number,
+	accountName: string,
+	date: string,
+	amountCents: number,
+	/**  Payee name, or the normalized label when the operation has no payee. */
+	payeeName: string,
+};
 
 /**  An upcoming occurrence of a scheduled operation. */
 export type UpcomingOperation = {

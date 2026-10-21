@@ -10,6 +10,7 @@ use crate::operation::schedule::{
     self, ScheduledOperation, ScheduledOperationInput, UpcomingOperation,
 };
 use crate::operation::search::{self, OperationFilter};
+use crate::operation::transfer::{self, TransferProposal, TransferSide};
 use crate::operation::{self, NewOperation, Operation, OperationRow, OperationUpdate};
 
 /// Operations matching every filter, most recent first, with the balance of their account
@@ -216,4 +217,65 @@ pub async fn reorder_rules(pool: State<'_, SqlitePool>, ids: Vec<i64>) -> AppRes
 #[specta::specta]
 pub async fn apply_rule(pool: State<'_, SqlitePool>, id: i64) -> AppResult<u32> {
     rules::apply(&pool, id).await
+}
+
+/// Detected internal transfers to confirm, the most recent first.
+#[tauri::command]
+#[specta::specta]
+pub async fn list_transfer_proposals(
+    pool: State<'_, SqlitePool>,
+) -> AppResult<Vec<TransferProposal>> {
+    transfer::proposals(&pool).await
+}
+
+/// Links the certain internal transfers of the whole history; returns their count.
+#[tauri::command]
+#[specta::specta]
+pub async fn detect_transfers(pool: State<'_, SqlitePool>) -> AppResult<u32> {
+    transfer::link_certain(&pool, None).await
+}
+
+/// Links two operations as the two sides of an internal transfer.
+#[tauri::command]
+#[specta::specta]
+pub async fn link_transfer(pool: State<'_, SqlitePool>, id: i64, other_id: i64) -> AppResult<()> {
+    transfer::link(&pool, id, other_id).await
+}
+
+/// Unlinks an operation from its transfer; both sides keep their category.
+#[tauri::command]
+#[specta::specta]
+pub async fn unlink_transfer(pool: State<'_, SqlitePool>, id: i64) -> AppResult<()> {
+    transfer::unlink(&pool, id).await
+}
+
+/// Dismisses a proposed transfer, which is not proposed again.
+#[tauri::command]
+#[specta::specta]
+pub async fn dismiss_transfer(
+    pool: State<'_, SqlitePool>,
+    debit_id: i64,
+    credit_id: i64,
+) -> AppResult<()> {
+    transfer::dismiss(&pool, debit_id, credit_id).await
+}
+
+/// The other side of the transfer of an operation, if it is linked.
+#[tauri::command]
+#[specta::specta]
+pub async fn transfer_partner(
+    pool: State<'_, SqlitePool>,
+    id: i64,
+) -> AppResult<Option<TransferSide>> {
+    transfer::partner(&pool, id).await
+}
+
+/// Operations that can be linked by hand to an operation, the closest dates first.
+#[tauri::command]
+#[specta::specta]
+pub async fn transfer_link_candidates(
+    pool: State<'_, SqlitePool>,
+    id: i64,
+) -> AppResult<Vec<TransferSide>> {
+    transfer::link_candidates(&pool, id).await
 }

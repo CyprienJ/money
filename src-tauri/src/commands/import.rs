@@ -1,5 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use serde::Serialize;
+use specta::Type;
 use sqlx::SqlitePool;
 use tauri::{AppHandle, Manager, State};
 
@@ -10,6 +12,7 @@ use crate::importing::pdf::{self, SupportedBank};
 use crate::importing::statement_import::{
     self, ImportFormat, ImportPreview, ImportSelection, StatementFile,
 };
+use crate::operation::transfer;
 
 /// Lines shown when defining a CSV mapping.
 const HEAD_LINES: usize = 12;
@@ -58,7 +61,17 @@ pub async fn preview_import(
     statement_import::preview(&pool, file).await
 }
 
-/// Imports the selected lines of the statement file at `path`, with their categories.
+/// Result of an import.
+#[derive(Serialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportOutcome {
+    pub batch: ImportBatch,
+    /// Internal transfers linked automatically with operations of other accounts.
+    pub linked_transfers: u32,
+}
+
+/// Imports the selected lines of the statement file at `path`, with their categories, then
+/// links the certain internal transfers of the new operations.
 /// `file_hash` comes from the preview and guards against a file changed in between.
 #[tauri::command]
 #[specta::specta]
@@ -70,18 +83,23 @@ pub async fn import_statement(
     format: ImportFormat,
     file_hash: String,
     selections: Vec<ImportSelection>,
-) -> AppResult<ImportBatch> {
+) -> AppResult<ImportOutcome> {
     let bytes = std::fs::read(&path)?;
     let pdfium_dir = pdfium_dir(&app)?;
     let file = statement_file(&path, account_id, format, &bytes, &pdfium_dir);
-    statement_import::import(
+    let batch = statement_import::import(
         &pool,
         &super::app::backups_dir(&app)?,
         file,
         &file_hash,
         &selections,
     )
-    .await
+    .await?;
+    let linked_transfers = transfer::link_certain(&pool, Some(batch.id)).await?;
+    Ok(ImportOutcome {
+        batch,
+        linked_transfers,
+    })
 }
 
 fn statement_file<'a>(

@@ -72,7 +72,7 @@ pub async fn search(pool: &SqlitePool, filter: &OperationFilter) -> AppResult<Ve
                   value_date AS "value_date: NaiveDate", amount_cents AS "amount_cents!",
                   raw_label AS "raw_label!", normalized_label AS "normalized_label!",
                   payee_id, payee_name AS "payee_name!: String", import_batch_id, category_id,
-                  is_internal_transfer AS "is_internal_transfer!: bool", note,
+                  is_internal_transfer AS "is_internal_transfer!: bool", transfer_pair_id, note,
                   (SELECT COUNT(*) FROM attachment WHERE operation_id = id)
                       AS "attachment_count!: i64",
                   balance_cents AS "balance_cents!: i64"
@@ -80,7 +80,8 @@ pub async fn search(pool: &SqlitePool, filter: &OperationFilter) -> AppResult<Ve
                SELECT o.id, o.account_id, o.date, o.value_date, o.amount_cents, o.raw_label,
                       o.normalized_label, o.payee_id,
                       COALESCE(p.name, o.normalized_label) AS payee_name,
-                      o.import_batch_id, s.category_id, o.is_internal_transfer, o.note,
+                      o.import_batch_id, s.category_id, o.is_internal_transfer,
+                      o.transfer_pair_id, o.note,
                       a.archived,
                       a.opening_balance_cents + SUM(o.amount_cents)
                           OVER (PARTITION BY o.account_id ORDER BY o.date, o.id) AS balance_cents
@@ -135,6 +136,7 @@ pub async fn search(pool: &SqlitePool, filter: &OperationFilter) -> AppResult<Ve
                 import_batch_id: row.import_batch_id,
                 category_id: row.category_id,
                 is_internal_transfer: row.is_internal_transfer,
+                transfer_pair_id: row.transfer_pair_id,
                 note: row.note,
                 tags: tags.remove(&row.id).unwrap_or_default(),
                 attachment_count: row.attachment_count,

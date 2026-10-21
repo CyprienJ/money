@@ -1,0 +1,81 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT o.id AS operation_id, o.account_id, a.name AS account_name,\n                  o.date AS \"date: NaiveDate\", o.amount_cents,\n                  COALESCE(p.name, o.normalized_label) AS \"payee_name!: String\"\n           FROM operation o\n           JOIN account a ON a.id = o.account_id\n           LEFT JOIN payee p ON p.id = o.payee_id\n           WHERE o.id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "operation_id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "account_id",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "account_id"
+          }
+        }
+      },
+      {
+        "name": "account_name",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "date: NaiveDate",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "name": "amount_cents",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "amount_cents"
+          }
+        }
+      },
+      {
+        "name": "payee_name!: String",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "b1267d0af166a9cac4b0a18bb5a74c25d8f9633f59084933077777b15cae4d1d"
+}

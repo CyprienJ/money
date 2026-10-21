@@ -15,6 +15,7 @@ import {
 import CategoryPicker from "../components/CategoryPicker.vue";
 import OperationFormModal from "../components/OperationFormModal.vue";
 import RuleFormModal from "../components/RuleFormModal.vue";
+import TransferProposalsModal from "../components/TransferProposalsModal.vue";
 import { ACCOUNT_TYPES } from "../utils/accounts";
 import { categoryTree } from "../utils/categories";
 import { errorMessage, unwrap } from "../utils/commands";
@@ -57,6 +58,12 @@ const advancedOpen = ref(false);
 const spread = ref<{ operation: Operation; categoryId: number; sameLabel: SameLabel } | null>(null);
 /** Result of the last spread, shown until the next categorization. */
 const spreadDone = ref("");
+
+/** Detected internal transfers waiting for a validation. */
+const transferProposalCount = ref(0);
+const transfersOpen = ref(false);
+/** Internal transfers linked by the import that led here (`?linkedTransfers=`). */
+const linkedTransfers = ref(0);
 
 const modalOpen = ref(false);
 const editedOperation = ref<Operation | null>(null);
@@ -123,8 +130,10 @@ async function loadOperations() {
   const searchNumber = ++lastSearch;
   const found = await unwrap(commands.searchOperations(filter));
   const batches = account ? await unwrap(commands.listImportBatches(account.account.id)) : [];
+  const proposals = await unwrap(commands.listTransferProposals());
   if (searchNumber !== lastSearch) return;
   rows.value = found;
+  transferProposalCount.value = proposals.length;
   lastImport.value = batches[0] ?? null;
 }
 
@@ -259,7 +268,19 @@ async function onRuleChanged(message: string) {
   await reload();
 }
 
-onMounted(() => reload(true));
+async function onTransfersChanged(remaining: number) {
+  transferProposalCount.value = remaining;
+  await reload();
+}
+
+onMounted(() => {
+  linkedTransfers.value = Number(route.query.linkedTransfers ?? 0);
+  if (linkedTransfers.value > 0) {
+    const { linkedTransfers: _, ...query } = route.query;
+    router.replace({ query });
+  }
+  reload(true);
+});
 watch([() => selected.value?.account.id, allAccounts, period, categoryFilter, advanced], () => reload(), {
   deep: true,
 });
@@ -285,6 +306,9 @@ watch([() => selected.value?.account.id, allAccounts, period, categoryFilter, ad
       </h1>
     </div>
     <div class="actions">
+      <button type="button" class="btn btn-secondary" @click="transfersOpen = true">
+        Virements internes<template v-if="transferProposalCount > 0"> ({{ transferProposalCount }})</template>
+      </button>
       <RouterLink
         :to="{ name: 'import', query: selected ? { account: String(selected.account.id) } : {} }"
         class="btn btn-secondary"
@@ -356,6 +380,23 @@ watch([() => selected.value?.account.id, allAccounts, period, categoryFilter, ad
       <button type="button" class="banner-action" @click="cancelLastImport">
         {{ confirmingCancel ? `Confirmer : supprimer ${operationCount(lastImport.operationCount)}` : "Annuler cet import" }}
       </button>
+    </div>
+
+    <div v-if="linkedTransfers > 0" class="banner done">
+      <span class="banner-text">
+        {{ linkedTransfers }} virement{{ linkedTransfers > 1 ? "s" : "" }} interne{{ linkedTransfers > 1 ? "s" : "" }}
+        lié{{ linkedTransfers > 1 ? "s" : "" }} automatiquement à {{ linkedTransfers > 1 ? "leurs pendants" : "son pendant" }}
+        sur un autre compte. Ouvre une opération pour la délier si besoin.
+      </span>
+      <button type="button" class="banner-action" @click="linkedTransfers = 0">Fermer</button>
+    </div>
+
+    <div v-if="transferProposalCount > 0" class="banner">
+      <span class="banner-text">
+        {{ transferProposalCount }} virement{{ transferProposalCount > 1 ? "s" : "" }}
+        interne{{ transferProposalCount > 1 ? "s" : "" }} à valider : plusieurs pendants possibles.
+      </span>
+      <button type="button" class="banner-action" @click="transfersOpen = true">Valider</button>
     </div>
 
     <template v-if="spread">
@@ -560,8 +601,13 @@ watch([() => selected.value?.account.id, allAccounts, period, categoryFilter, ad
       :operation="editedOperation"
       @close="modalOpen = false"
       @changed="onChanged"
-      @attachments-changed="reload()"
+      @refresh="reload()"
       @create-rule="openRule"
+    />
+    <TransferProposalsModal
+      :open="transfersOpen"
+      @close="transfersOpen = false"
+      @changed="onTransfersChanged"
     />
     <RuleFormModal
       :open="ruleModalOpen"

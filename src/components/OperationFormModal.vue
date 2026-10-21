@@ -5,6 +5,7 @@ import { errorMessage, unwrap } from "../utils/commands";
 import { formatAmountInput, formatDate, parseAmount, todayIso } from "../utils/format";
 import AttachmentList from "./AttachmentList.vue";
 import BaseModal from "./BaseModal.vue";
+import TransferLink from "./TransferLink.vue";
 import CategorySelect from "./CategorySelect.vue";
 import TagInput from "./TagInput.vue";
 
@@ -20,8 +21,8 @@ const emit = defineEmits<{
   close: [];
   /** Emitted after a create, update or delete. */
   changed: [];
-  /** Emitted after an attachment is added or deleted, the form staying open. */
-  attachmentsChanged: [];
+  /** Emitted after a change made at once (attachment, transfer link), the form staying open. */
+  refresh: [];
   /** Asks for a rule from the label of the operation, with the category in the form. */
   createRule: [operation: Operation, categoryId: number | null];
 }>();
@@ -90,6 +91,14 @@ watch(
   },
   { immediate: true },
 );
+
+/** A linked operation is in the internal transfer category: the form follows. */
+function onTransferChanged(linked: boolean) {
+  if (linked) {
+    form.categoryId = props.categories.find((c) => c.isInternalTransfer)?.id ?? form.categoryId;
+  }
+  emit("refresh");
+}
 
 async function loadTagNames() {
   try {
@@ -254,10 +263,12 @@ async function remove() {
         <textarea v-model="form.note" rows="2" placeholder="Facultative"></textarea>
       </label>
 
+      <TransferLink v-if="operation" :operation-id="operation.id" @changed="onTransferChanged" />
+
       <AttachmentList
         v-if="operation"
         :operation-id="operation.id"
-        @changed="(count) => { attachmentCount = count; emit('attachmentsChanged'); }"
+        @changed="(count) => { attachmentCount = count; emit('refresh'); }"
       />
       <p v-else class="field-hint">Les pièces jointes s'ajoutent une fois l'opération enregistrée.</p>
 

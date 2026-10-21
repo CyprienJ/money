@@ -7,6 +7,7 @@ pub mod schedule;
 pub mod search;
 #[cfg(test)]
 mod tests;
+pub mod transfer;
 
 pub(crate) use repository::{check_account, internal_transfer_flag, timestamp};
 pub use repository::{create, delete, get, set_category, update};
@@ -42,6 +43,8 @@ pub struct Operation {
     pub category_id: Option<i64>,
     /// Derived from the category; excluded from income and expense statistics.
     pub is_internal_transfer: bool,
+    /// The other side of the internal transfer, on another account, once linked.
+    pub transfer_pair_id: Option<i64>,
     pub note: Option<String>,
     /// Tag names, by name.
     pub tags: Vec<String>,

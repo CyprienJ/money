@@ -1,6 +1,7 @@
 use chrono::{NaiveDate, Utc};
 use sqlx::{SqliteConnection, SqlitePool};
 
+use super::transfer;
 use super::{NewOperation, Operation, OperationError, OperationUpdate};
 use crate::account::{AccountError, AccountType};
 use crate::error::AppResult;
@@ -158,7 +159,8 @@ async fn fetch(conn: &mut SqliteConnection, id: i64) -> AppResult<Operation> {
                   o.normalized_label, o.payee_id,
                   COALESCE(p.name, o.normalized_label) AS "payee_name!: String",
                   o.import_batch_id, s.category_id,
-                  o.is_internal_transfer AS "is_internal_transfer: bool", o.note,
+                  o.is_internal_transfer AS "is_internal_transfer: bool", o.transfer_pair_id,
+                  o.note,
                   (SELECT COUNT(*) FROM attachment a WHERE a.operation_id = o.id)
                       AS "attachment_count!: i64"
            FROM operation o
@@ -183,6 +185,7 @@ async fn fetch(conn: &mut SqliteConnection, id: i64) -> AppResult<Operation> {
         import_batch_id: row.import_batch_id,
         category_id: row.category_id,
         is_internal_transfer: row.is_internal_transfer,
+        transfer_pair_id: row.transfer_pair_id,
         note: row.note,
         tags: tag::names_of(conn, id).await?,
         attachment_count: row.attachment_count,
@@ -190,7 +193,8 @@ async fn fetch(conn: &mut SqliteConnection, id: i64) -> AppResult<Operation> {
 }
 
 /// Writes the category on the split and the derived internal transfer flag on the operation,
-/// and remembers it for the operation label: this is a categorization by the user.
+/// and remembers it for the operation label: this is a categorization by the user. An operation
+/// leaving the internal transfer category is unlinked from its transfer.
 async fn write_category(
     conn: &mut SqliteConnection,
     id: i64,
@@ -198,6 +202,9 @@ async fn write_category(
     now: &str,
 ) -> AppResult<()> {
     let is_internal_transfer = internal_transfer_flag(conn, category_id).await?;
+    if !is_internal_transfer {
+        transfer::unlink_conn(conn, id).await?;
+    }
     sqlx::query!(
         "UPDATE operation_split SET category_id = ?2 WHERE operation_id = ?1",
         id,

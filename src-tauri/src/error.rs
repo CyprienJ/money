@@ -11,6 +11,7 @@ use crate::labeling::rules::RuleError;
 use crate::operation::OperationError;
 use crate::operation::category::CategoryError;
 use crate::operation::schedule::ScheduleError;
+use crate::operation::transfer::TransferError;
 use crate::payee::PayeeError;
 use crate::stats::StatsError;
 use crate::tag::TagError;
@@ -50,6 +51,9 @@ pub enum AppError {
 
     #[error(transparent)]
     Attachment(#[from] AttachmentError),
+
+    #[error(transparent)]
+    Transfer(#[from] TransferError),
 
     #[error(transparent)]
     Stats(#[from] StatsError),
@@ -92,6 +96,7 @@ enum ErrorDetail {
     Payee(PayeeError),
     Tag(TagError),
     Attachment(AttachmentError),
+    Transfer(TransferError),
     Stats(StatsError),
     Csv(CsvError),
     CsvMapping(CsvMappingError),
@@ -123,6 +128,7 @@ impl AppError {
             AppError::Payee(error) => error.kind(),
             AppError::Tag(error) => error.kind(),
             AppError::Attachment(error) => error.kind(),
+            AppError::Transfer(error) => error.kind(),
             AppError::Stats(error) => error.kind(),
             AppError::Csv(error) => error.kind(),
             AppError::CsvMapping(error) => error.kind(),
@@ -144,6 +150,7 @@ impl AppError {
             AppError::Payee(error) => ErrorDetail::Payee(error.clone()),
             AppError::Tag(error) => ErrorDetail::Tag(error.clone()),
             AppError::Attachment(error) => ErrorDetail::Attachment(error.clone()),
+            AppError::Transfer(error) => ErrorDetail::Transfer(error.clone()),
             AppError::Stats(error) => ErrorDetail::Stats(error.clone()),
             AppError::Csv(error) => ErrorDetail::Csv(error.clone()),
             AppError::CsvMapping(error) => ErrorDetail::CsvMapping(error.clone()),

@@ -16,6 +16,7 @@ function operation(fields: Partial<Operation>): Operation {
     importBatchId: 1,
     categoryId: 2,
     isInternalTransfer: false,
+    transferPairId: null,
     note: null,
     tags: [],
     attachmentCount: 0,

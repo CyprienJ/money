@@ -247,7 +247,7 @@ async function runImport() {
   step.value = "importing";
   error.value = "";
   try {
-    await unwrap(
+    const outcome = await unwrap(
       commands.importStatement(
         path.value,
         accountId.value,
@@ -259,7 +259,9 @@ async function runImport() {
         })),
       ),
     );
-    await router.push({ name: "operations", query: { account: String(accountId.value) } });
+    const query: Record<string, string> = { account: String(accountId.value) };
+    if (outcome.linkedTransfers > 0) query.linkedTransfers = String(outcome.linkedTransfers);
+    await router.push({ name: "operations", query });
   } catch (e) {
     error.value = errorMessage(e);
     step.value = "preview";

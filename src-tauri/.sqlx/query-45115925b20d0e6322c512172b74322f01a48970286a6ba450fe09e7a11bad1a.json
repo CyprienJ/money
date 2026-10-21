@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE operation SET transfer_pair_id = NULL, updated_at = ?2\n         WHERE id = ?1 OR transfer_pair_id = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "45115925b20d0e6322c512172b74322f01a48970286a6ba450fe09e7a11bad1a"
+}

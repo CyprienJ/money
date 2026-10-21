@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR IGNORE INTO transfer_dismissal (debit_id, credit_id) VALUES (?1, ?2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "68762eb337844468fc107acd368064c4a000e8130f098a227e95661f8da5f283"
+}

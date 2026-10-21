@@ -116,7 +116,10 @@ fn copies_lists_and_opens_attachments() {
             .unwrap();
         assert_eq!(added.file_name, "Facture Fnac.pdf");
         assert_eq!(added.size_bytes, 8);
-        assert_eq!(list(&pool, operation_id).await.unwrap(), std::slice::from_ref(&added));
+        assert_eq!(
+            list(&pool, operation_id).await.unwrap(),
+            std::slice::from_ref(&added)
+        );
         assert_eq!(
             operation::get(&pool, operation_id)
                 .await

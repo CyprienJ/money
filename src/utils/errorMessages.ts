@@ -13,6 +13,7 @@ import type {
   ScheduleError,
   StatsError,
   TagError,
+  TransferError,
 } from "../bindings";
 import { formatDate, formatFileSize } from "./format";
 
@@ -165,6 +166,18 @@ function attachment(error: AttachmentError): string {
   return unreachable(error);
 }
 
+function transfer(error: TransferError): string {
+  switch (error.code) {
+    case "sameAccount":
+      return "Les deux côtés d'un virement interne doivent être sur des comptes différents.";
+    case "amountsNotOpposite":
+      return "Les deux côtés d'un virement interne doivent avoir des montants opposés.";
+    case "alreadyLinked":
+      return "Une de ces opérations est déjà liée à un autre virement.";
+  }
+  return unreachable(error);
+}
+
 function stats(error: StatsError): string {
   switch (error.code) {
     case "invalidPeriod":
@@ -270,6 +283,8 @@ export function businessMessage(detail: ErrorDetail): string {
       return tag(detail.error);
     case "attachment":
       return attachment(detail.error);
+    case "transfer":
+      return transfer(detail.error);
     case "stats":
       return stats(detail.error);
     case "csv":
