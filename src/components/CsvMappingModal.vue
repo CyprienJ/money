@@ -132,6 +132,29 @@ async function loadHead() {
   }
 }
 
+/** Result of the last automatic detection, shown under the button. */
+const detection = ref<"" | "found" | "notFound">("");
+const detecting = ref(false);
+
+/** Fills the settings with the format detected from the file, keeping the name. */
+async function detect() {
+  if (!props.path) return;
+  detecting.value = true;
+  error.value = "";
+  try {
+    const detected = await unwrap(commands.detectCsvMapping(props.path));
+    detection.value = detected ? "found" : "notFound";
+    if (detected) {
+      fill(detected, form.name);
+      await loadHead();
+    }
+  } catch (e) {
+    error.value = errorMessage(e);
+  } finally {
+    detecting.value = false;
+  }
+}
+
 watch(
   () => props.open,
   (open) => {
@@ -140,7 +163,10 @@ watch(
     submitted.value = false;
     confirmingDelete.value = false;
     error.value = "";
+    detection.value = "";
     loadHead();
+    // A new format created from a file starts from the detected one.
+    if (!props.mapping && props.path) detect();
   },
   { immediate: true },
 );
@@ -192,6 +218,18 @@ async function remove() {
     @close="emit('close')"
   >
     <form class="form" novalidate @submit.prevent="save">
+      <div v-if="path" class="detect">
+        <button type="button" class="btn btn-secondary" :disabled="detecting" @click="detect">
+          {{ detecting ? "Analyse du fichier…" : "Détecter automatiquement" }}
+        </button>
+        <span v-if="detection === 'found'" class="detect-result found">
+          Format détecté : vérifie les colonnes sur le début du fichier ci-dessous.
+        </span>
+        <span v-else-if="detection === 'notFound'" class="detect-result">
+          Format non reconnu automatiquement : remplis les réglages à la main.
+        </span>
+      </div>
+
       <label class="field">
         Nom
         <input v-model="form.name" type="text" autocomplete="off" placeholder="Ma banque – export CSV" />
@@ -317,6 +355,28 @@ async function remove() {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
+}
+
+.detect {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.detect .btn {
+  height: 38px;
+  font-size: 13px;
+}
+
+.detect-result {
+  flex: 1 1 240px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.detect-result.found {
+  color: var(--cat-transport-fg);
 }
 
 .columns {

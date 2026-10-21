@@ -333,10 +333,12 @@ onMounted(load);
             Format reconnu : il lit {{ operationCount(selectedLines) }} dans ce fichier.
           </span>
           <span v-else-if="path && mappings.length > 0 && suggestions.length === 0" class="field-hint">
-            Aucun format enregistré ne lit ce fichier sans erreur : crées-en un ou modifie-en un.
+            Aucun format enregistré ne lit ce fichier : clique sur « Nouveau format », les réglages seront
+            détectés automatiquement.
           </span>
           <span v-else-if="mappings.length === 0" class="field-hint">
-            Décris une première fois les colonnes de l'export de ta banque ; le format sera reconnu ensuite.
+            Clique sur « Nouveau format » : les réglages de l'export de ta banque seront détectés
+            automatiquement, puis reconnus aux imports suivants.
           </span>
         </div>
       </div>

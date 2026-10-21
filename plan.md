@@ -121,10 +121,10 @@ Maquette : `Import.dc.html` (étape 2 « Vérification et aperçu »).
 
 #### V1-02.6 · Détection automatique du format CSV — M
 Ajouté le 21/10/2026 (retour de recette sur un export Revolut).
-- [ ] Analyse du début du fichier : encodage, séparateur, ligne d'en-tête et lignes à ignorer, colonnes date / libellé / montant (titres puis contenu), format des dates, séparateur décimal, montant signé ou débit / crédit.
-- [ ] Proposition retenue seulement si elle lit tout le fichier sans erreur.
-- [ ] Bouton « Détecter automatiquement » dans la fenêtre du format, lancé d'office pour un nouveau format créé depuis un fichier.
-- [ ] Tests sur les fixtures CSV et un export de type Revolut.
+- [x] Analyse du début du fichier : encodage, séparateur, ligne d'en-tête et lignes à ignorer, colonnes date / libellé / montant (titres puis contenu), format des dates, séparateur décimal, montant signé ou débit / crédit.
+- [x] Proposition retenue seulement si elle lit tout le fichier sans erreur.
+- [x] Bouton « Détecter automatiquement » dans la fenêtre du format, lancé d'office pour un nouveau format créé depuis un fichier.
+- [x] Tests sur les fixtures CSV et un export de type Revolut.
 
 #### V1-02.7 · Frais et état des opérations dans le format CSV — S
 Ajouté le 21/10/2026 (export Revolut : colonnes « Fee » et « State »).
