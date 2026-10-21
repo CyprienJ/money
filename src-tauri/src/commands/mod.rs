@@ -12,6 +12,7 @@ mod import;
 mod operation;
 mod payee;
 mod stats;
+mod tag;
 
 /// Path of the generated TypeScript bindings (`src/bindings.ts`).
 const BINDINGS_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../src/bindings.ts");
@@ -61,6 +62,9 @@ pub fn builder() -> Builder<tauri::Wry> {
             payee::rename_payee,
             payee::merge_payees,
             payee::detach_payee_label,
+            tag::list_tags,
+            tag::rename_tag,
+            tag::delete_tag,
             csv_mapping::list_csv_mappings,
             csv_mapping::get_csv_mapping,
             csv_mapping::create_csv_mapping,

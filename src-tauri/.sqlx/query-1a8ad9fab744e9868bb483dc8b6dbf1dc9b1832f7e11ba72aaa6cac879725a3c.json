@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR IGNORE INTO operation_tag (operation_id, tag_id) VALUES (?1, ?2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "1a8ad9fab744e9868bb483dc8b6dbf1dc9b1832f7e11ba72aaa6cac879725a3c"
+}

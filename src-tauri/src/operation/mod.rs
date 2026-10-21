@@ -39,6 +39,9 @@ pub struct Operation {
     pub category_id: Option<i64>,
     /// Derived from the category; excluded from income and expense statistics.
     pub is_internal_transfer: bool,
+    pub note: Option<String>,
+    /// Tag names, by name.
+    pub tags: Vec<String>,
 }
 
 /// An operation in an account listing, with the account balance after it.
@@ -59,10 +62,14 @@ pub struct NewOperation {
     pub amount_cents: i64,
     pub label: String,
     pub category_id: Option<i64>,
+    pub note: Option<String>,
+    /// Tag names; unknown ones create a tag.
+    pub tags: Vec<String>,
 }
 
 /// New values of an operation. For an imported operation, `date`, `amount_cents` and `label`
-/// must be left unchanged: only the value date and the category can be edited.
+/// must be left unchanged: only the value date, the category, the note and the tags can be
+/// edited.
 #[derive(Debug, Clone, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct OperationUpdate {
@@ -71,6 +78,9 @@ pub struct OperationUpdate {
     pub amount_cents: i64,
     pub label: String,
     pub category_id: Option<i64>,
+    pub note: Option<String>,
+    /// Tag names; unknown ones create a tag.
+    pub tags: Vec<String>,
 }
 
 /// Serialized for the frontend as `{ code, params }`, to show a message in French.

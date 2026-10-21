@@ -12,6 +12,7 @@ use crate::operation::category::CategoryError;
 use crate::operation::schedule::ScheduleError;
 use crate::payee::PayeeError;
 use crate::stats::StatsError;
+use crate::tag::TagError;
 
 /// Error type returned by the domain layer and propagated to the frontend.
 #[derive(Debug, thiserror::Error)]
@@ -42,6 +43,9 @@ pub enum AppError {
 
     #[error(transparent)]
     Payee(#[from] PayeeError),
+
+    #[error(transparent)]
+    Tag(#[from] TagError),
 
     #[error(transparent)]
     Stats(#[from] StatsError),
@@ -82,6 +86,7 @@ enum ErrorDetail {
     Schedule(ScheduleError),
     Rule(RuleError),
     Payee(PayeeError),
+    Tag(TagError),
     Stats(StatsError),
     Csv(CsvError),
     CsvMapping(CsvMappingError),
@@ -111,6 +116,7 @@ impl AppError {
             AppError::Schedule(error) => error.kind(),
             AppError::Rule(error) => error.kind(),
             AppError::Payee(error) => error.kind(),
+            AppError::Tag(error) => error.kind(),
             AppError::Stats(error) => error.kind(),
             AppError::Csv(error) => error.kind(),
             AppError::CsvMapping(error) => error.kind(),
@@ -130,6 +136,7 @@ impl AppError {
             AppError::Schedule(error) => ErrorDetail::Schedule(error.clone()),
             AppError::Rule(error) => ErrorDetail::Rule(error.clone()),
             AppError::Payee(error) => ErrorDetail::Payee(error.clone()),
+            AppError::Tag(error) => ErrorDetail::Tag(error.clone()),
             AppError::Stats(error) => ErrorDetail::Stats(error.clone()),
             AppError::Csv(error) => ErrorDetail::Csv(error.clone()),
             AppError::CsvMapping(error) => ErrorDetail::CsvMapping(error.clone()),

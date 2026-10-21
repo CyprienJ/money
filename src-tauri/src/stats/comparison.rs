@@ -129,6 +129,8 @@ mod tests {
                             amount_cents: cents,
                             label: "Op".to_owned(),
                             category_id,
+                            note: None,
+                            tags: Vec::new(),
                         },
                     )
                     .await

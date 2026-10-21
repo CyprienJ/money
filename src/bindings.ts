@@ -78,6 +78,12 @@ export const commands = {
 	mergePayees: (target: number, sources: number[]) => typedError<Payee, AppError>(__TAURI_INVOKE("merge_payees", { target, sources })),
 	/**  Detaches a label from its payee into a new payee; returns the new payee. */
 	detachPayeeLabel: (normalizedLabel: string) => typedError<Payee, AppError>(__TAURI_INVOKE("detach_payee_label", { normalizedLabel })),
+	/**  Every tag, by name, with the count of its operations. */
+	listTags: () => typedError<Tag[], AppError>(__TAURI_INVOKE("list_tags")),
+	/**  Renames a tag; refused when another tag already has this name. */
+	renameTag: (id: number, name: string) => typedError<Tag, AppError>(__TAURI_INVOKE("rename_tag", { id, name })),
+	/**  Deletes a tag and removes it from its operations. */
+	deleteTag: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_tag", { id })),
 	listCsvMappings: () => typedError<SavedCsvMapping[], AppError>(__TAURI_INVOKE("list_csv_mappings")),
 	getCsvMapping: (id: number) => typedError<SavedCsvMapping, AppError>(__TAURI_INVOKE("get_csv_mapping", { id })),
 	createCsvMapping: (mapping: NewCsvMapping) => typedError<SavedCsvMapping, AppError>(__TAURI_INVOKE("create_csv_mapping", { mapping })),
@@ -375,7 +381,7 @@ export type DuplicateStatus = { status: "new" } | { status: "duplicate"; operati
 candidateIds: number[] };
 
 /**  Business error with its code and parameters, for a message in French on the frontend. */
-export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "rule"; error: RuleError } | { domain: "payee"; error: PayeeError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError };
+export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "rule"; error: RuleError } | { domain: "payee"; error: PayeeError } | { domain: "tag"; error: TagError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError };
 
 /**  Stable identifier the frontend can match on. */
 export type ErrorKind = "database" | "migration" | "io" | 
@@ -504,6 +510,9 @@ export type NewOperation = {
 	amountCents: number,
 	label: string,
 	categoryId: number | null,
+	note: string | null,
+	/**  Tag names; unknown ones create a tag. */
+	tags: string[],
 };
 
 /**  An operation with its category. V1 has exactly one split per operation. */
@@ -527,6 +536,9 @@ export type Operation = {
 	categoryId: number | null,
 	/**  Derived from the category; excluded from income and expense statistics. */
 	isInternalTransfer: boolean,
+	note: string | null,
+	/**  Tag names, by name. */
+	tags: string[],
 };
 
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
@@ -540,7 +552,8 @@ export type OperationRow = {
 
 /**
  *  New values of an operation. For an imported operation, `date`, `amount_cents` and `label`
- *  must be left unchanged: only the value date and the category can be edited.
+ *  must be left unchanged: only the value date, the category, the note and the tags can be
+ *  edited.
  */
 export type OperationUpdate = {
 	date: string,
@@ -548,6 +561,9 @@ export type OperationUpdate = {
 	amountCents: number,
 	label: string,
 	categoryId: number | null,
+	note: string | null,
+	/**  Tag names; unknown ones create a tag. */
+	tags: string[],
 };
 
 /**  A payee with its labels and the activity of its operations. */
@@ -711,6 +727,16 @@ export type SupportedBank = {
 	id: string,
 	name: string,
 };
+
+/**  A tag with the count of its operations. */
+export type Tag = {
+	id: number,
+	name: string,
+	operationCount: number,
+};
+
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type TagError = { code: "notFound"; params: number } | { code: "emptyName" } | { code: "nameTaken"; params: string };
 
 /**  An upcoming occurrence of a scheduled operation. */
 export type UpcomingOperation = {

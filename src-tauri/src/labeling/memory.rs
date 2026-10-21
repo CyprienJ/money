@@ -134,6 +134,8 @@ mod tests {
             .id;
             let new = |label: &str, category_id| NewOperation {
                 account_id,
+                note: None,
+                tags: Vec::new(),
                 date: NaiveDate::from_ymd_opt(2026, 9, 1).unwrap(),
                 value_date: None,
                 amount_cents: -500,
@@ -167,6 +169,8 @@ mod tests {
                     amount_cents: fnac.amount_cents,
                     label: "CB FNAC.COM".to_owned(),
                     category_id: Some(groceries),
+                    note: None,
+                    tags: Vec::new(),
                 },
             )
             .await

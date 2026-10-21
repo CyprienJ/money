@@ -44,6 +44,8 @@ async fn enter(
             amount_cents: cents,
             label: label.to_owned(),
             category_id: None,
+            note: None,
+            tags: Vec::new(),
         },
     )
     .await

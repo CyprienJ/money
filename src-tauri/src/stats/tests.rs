@@ -60,6 +60,8 @@ async fn enter(
             amount_cents,
             label: format!("Op {day} {amount_cents}"),
             category_id,
+            note: None,
+            tags: Vec::new(),
         },
     )
     .await

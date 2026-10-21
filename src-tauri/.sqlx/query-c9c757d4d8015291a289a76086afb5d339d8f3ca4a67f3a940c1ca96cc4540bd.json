@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT ot.operation_id, t.name\n         FROM operation_tag ot\n         JOIN tag t ON t.id = ot.tag_id\n         JOIN operation o ON o.id = ot.operation_id\n         WHERE o.account_id = ?1\n         ORDER BY t.name COLLATE NOCASE",
+  "describe": {
+    "columns": [
+      {
+        "name": "operation_id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation_tag",
+            "name": "operation_id"
+          }
+        }
+      },
+      {
+        "name": "name",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tag",
+            "name": "name"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "c9c757d4d8015291a289a76086afb5d339d8f3ca4a67f3a940c1ca96cc4540bd"
+}

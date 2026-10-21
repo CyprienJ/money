@@ -243,6 +243,8 @@ async fn enter(pool: &SqlitePool, account_id: i64, day: &str, amount_cents: i64)
             amount_cents,
             label: format!("Op {amount_cents}"),
             category_id: None,
+            note: None,
+            tags: Vec::new(),
         },
     )
     .await

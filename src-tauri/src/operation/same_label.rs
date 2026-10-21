@@ -150,6 +150,8 @@ mod tests {
                 amount_cents: -500,
                 label: label.to_owned(),
                 category_id,
+                note: None,
+                tags: Vec::new(),
             },
         )
         .await

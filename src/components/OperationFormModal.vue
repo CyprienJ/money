@@ -5,6 +5,7 @@ import { errorMessage, unwrap } from "../utils/commands";
 import { formatAmountInput, formatDate, parseAmount, todayIso } from "../utils/format";
 import BaseModal from "./BaseModal.vue";
 import CategorySelect from "./CategorySelect.vue";
+import TagInput from "./TagInput.vue";
 
 const props = defineProps<{
   open: boolean;
@@ -31,7 +32,11 @@ const form = reactive({
   valueDate: "",
   label: "",
   categoryId: null as number | null,
+  note: "",
+  tags: [] as string[],
 });
+/** Names of the existing tags, for the suggestions. */
+const tagNames = ref<string[]>([]);
 const submitted = ref(false);
 const saving = ref(false);
 const confirmingDelete = ref(false);
@@ -70,12 +75,29 @@ watch(
     form.valueDate = operation?.valueDate ?? "";
     form.label = operation?.rawLabel ?? "";
     form.categoryId = operation?.categoryId ?? null;
+    form.note = operation?.note ?? "";
+    form.tags = [...(operation?.tags ?? [])];
     submitted.value = false;
     confirmingDelete.value = false;
     error.value = "";
+    loadTagNames();
   },
   { immediate: true },
 );
+
+async function loadTagNames() {
+  try {
+    tagNames.value = (await unwrap(commands.listTags())).map((tag) => tag.name);
+  } catch {
+    // Suggestions only: tags can still be typed.
+    tagNames.value = [];
+  }
+}
+
+/** Note and tags, editable on every operation. */
+function annotations() {
+  return { note: form.note.trim() || null, tags: form.tags };
+}
 
 async function run(action: () => Promise<unknown>) {
   saving.value = true;
@@ -105,6 +127,7 @@ async function save() {
           label: operation.rawLabel,
           valueDate: form.valueDate || null,
           categoryId: form.categoryId,
+          ...annotations(),
         }),
       ),
     );
@@ -118,6 +141,7 @@ async function save() {
     amountCents: signed,
     label: form.label,
     categoryId: form.categoryId,
+    ...annotations(),
   };
   await run(() =>
     operation
@@ -213,6 +237,17 @@ async function remove() {
         </label>
       </div>
 
+      <div class="field">
+        <span aria-hidden="true">Tags</span>
+        <TagInput v-model="form.tags" :suggestions="tagNames" label="Tags" />
+        <span class="field-hint">Entrée ou virgule pour ajouter un tag</span>
+      </div>
+
+      <label class="field">
+        Note
+        <textarea v-model="form.note" rows="2" placeholder="Facultative"></textarea>
+      </label>
+
       <p v-if="error" class="error-banner">{{ error }}</p>
 
       <footer class="actions">
@@ -295,6 +330,22 @@ async function remove() {
   position: absolute;
   opacity: 0;
   pointer-events: none;
+}
+
+textarea {
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-card);
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 500;
+  resize: vertical;
+}
+
+textarea:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -1px;
 }
 
 .row {

@@ -51,6 +51,8 @@ async fn new_operation(pool: &SqlitePool, label: &str, category_id: Option<i64>)
             amount_cents: 120,
             label: label.to_owned(),
             category_id,
+            note: None,
+            tags: Vec::new(),
         },
     )
     .await

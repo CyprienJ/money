@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT o.id, o.account_id, o.date AS \"date: NaiveDate\",\n                  o.value_date AS \"value_date: NaiveDate\", o.amount_cents, o.raw_label,\n                  o.normalized_label, o.payee_id,\n                  COALESCE(p.name, o.normalized_label) AS \"payee_name!: String\",\n                  o.import_batch_id, s.category_id,\n                  o.is_internal_transfer AS \"is_internal_transfer: bool\"\n           FROM operation o\n           LEFT JOIN operation_split s ON s.operation_id = o.id\n           LEFT JOIN payee p ON p.id = o.payee_id\n           WHERE o.id = ?1",
+  "query": "SELECT o.id, o.account_id, o.date AS \"date: NaiveDate\",\n                  o.value_date AS \"value_date: NaiveDate\", o.amount_cents, o.raw_label,\n                  o.normalized_label, o.payee_id,\n                  COALESCE(p.name, o.normalized_label) AS \"payee_name!: String\",\n                  o.import_batch_id, s.category_id,\n                  o.is_internal_transfer AS \"is_internal_transfer: bool\", o.note\n           FROM operation o\n           LEFT JOIN operation_split s ON s.operation_id = o.id\n           LEFT JOIN payee p ON p.id = o.payee_id\n           WHERE o.id = ?1",
   "describe": {
     "columns": [
       {
@@ -129,6 +129,17 @@
             "name": "is_internal_transfer"
           }
         }
+      },
+      {
+        "name": "note",
+        "ordinal": 12,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "note"
+          }
+        }
       }
     ],
     "parameters": {
@@ -146,8 +157,9 @@
       false,
       true,
       true,
-      false
+      false,
+      true
     ]
   },
-  "hash": "809ee26b8de550ebb1a3f7e0b3de28e9d1ce22c21345369b2835da0e10b07058"
+  "hash": "2062058362cd85c22377312d538498fb8bdd9c21cb88bfcf496bd3325cfb73fb"
 }

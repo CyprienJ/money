@@ -11,6 +11,7 @@ import type {
   RuleError,
   ScheduleError,
   StatsError,
+  TagError,
 } from "../bindings";
 import { formatDate } from "./format";
 
@@ -137,6 +138,18 @@ function payee(error: PayeeError): string {
   return unreachable(error);
 }
 
+function tag(error: TagError): string {
+  switch (error.code) {
+    case "notFound":
+      return "Ce tag n'existe plus.";
+    case "emptyName":
+      return "Le nom du tag est obligatoire.";
+    case "nameTaken":
+      return `Un tag s'appelle déjà « ${error.params} ».`;
+  }
+  return unreachable(error);
+}
+
 function stats(error: StatsError): string {
   switch (error.code) {
     case "invalidPeriod":
@@ -238,6 +251,8 @@ export function businessMessage(detail: ErrorDetail): string {
       return rule(detail.error);
     case "payee":
       return payee(detail.error);
+    case "tag":
+      return tag(detail.error);
     case "stats":
       return stats(detail.error);
     case "csv":

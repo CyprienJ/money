@@ -7,6 +7,7 @@ mod labeling;
 mod operation;
 mod payee;
 mod stats;
+mod tag;
 
 use tauri::Manager;
 

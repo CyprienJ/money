@@ -6,6 +6,7 @@ use crate::account::{AccountError, AccountType};
 use crate::error::AppResult;
 use crate::labeling::{memory, normalize_label};
 use crate::payee;
+use crate::tag;
 
 pub async fn get(pool: &SqlitePool, id: i64) -> AppResult<Operation> {
     let mut conn = pool.acquire().await?;
@@ -27,13 +28,13 @@ pub async fn list(
                   value_date AS "value_date: NaiveDate", amount_cents AS "amount_cents!",
                   raw_label AS "raw_label!", normalized_label AS "normalized_label!",
                   payee_id, payee_name AS "payee_name!: String", import_batch_id, category_id,
-                  is_internal_transfer AS "is_internal_transfer!: bool",
+                  is_internal_transfer AS "is_internal_transfer!: bool", note,
                   balance_cents AS "balance_cents!: i64"
            FROM (
                SELECT o.id, o.account_id, o.date, o.value_date, o.amount_cents, o.raw_label,
                       o.normalized_label, o.payee_id,
                       COALESCE(p.name, o.normalized_label) AS payee_name,
-                      o.import_batch_id, s.category_id, o.is_internal_transfer,
+                      o.import_batch_id, s.category_id, o.is_internal_transfer, o.note,
                       a.opening_balance_cents
                           + SUM(o.amount_cents) OVER (ORDER BY o.date, o.id) AS balance_cents
                FROM operation o
@@ -50,6 +51,7 @@ pub async fn list(
     )
     .fetch_all(pool)
     .await?;
+    let mut tags = tag::names_by_operation(pool, account_id).await?;
 
     Ok(rows
         .into_iter()
@@ -67,6 +69,8 @@ pub async fn list(
                 import_batch_id: row.import_batch_id,
                 category_id: row.category_id,
                 is_internal_transfer: row.is_internal_transfer,
+                note: row.note,
+                tags: tags.remove(&row.id).unwrap_or_default(),
             },
             balance_cents: row.balance_cents,
         })
@@ -77,6 +81,7 @@ pub async fn list(
 pub async fn create(pool: &SqlitePool, new: NewOperation) -> AppResult<Operation> {
     let label = clean_label(&new.label)?;
     check_amount(new.amount_cents)?;
+    let note = clean_note(new.note.as_deref());
 
     let mut tx = pool.begin().await?;
     check_account(&mut tx, new.account_id, new.date).await?;
@@ -88,8 +93,8 @@ pub async fn create(pool: &SqlitePool, new: NewOperation) -> AppResult<Operation
     let id = sqlx::query!(
         "INSERT INTO operation
          (account_id, date, value_date, amount_cents, raw_label, normalized_label, payee_id,
-          is_internal_transfer, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)",
+          is_internal_transfer, note, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)",
         new.account_id,
         new.date,
         new.value_date,
@@ -98,6 +103,7 @@ pub async fn create(pool: &SqlitePool, new: NewOperation) -> AppResult<Operation
         normalized_label,
         payee_id,
         is_internal_transfer,
+        note,
         now
     )
     .execute(&mut *tx)
@@ -113,6 +119,7 @@ pub async fn create(pool: &SqlitePool, new: NewOperation) -> AppResult<Operation
     .execute(&mut *tx)
     .await?;
     memory::remember(&mut tx, &normalized_label, new.category_id, &now).await?;
+    tag::set_for_operation(&mut tx, id, &new.tags).await?;
 
     let operation = fetch(&mut tx, id).await?;
     tx.commit().await?;
@@ -124,6 +131,7 @@ pub async fn update(pool: &SqlitePool, id: i64, changes: OperationUpdate) -> App
     let mut tx = pool.begin().await?;
     let current = fetch(&mut tx, id).await?;
     let now = timestamp();
+    let note = clean_note(changes.note.as_deref());
 
     if current.import_batch_id.is_some() {
         if changes.date != current.date
@@ -133,9 +141,10 @@ pub async fn update(pool: &SqlitePool, id: i64, changes: OperationUpdate) -> App
             return Err(OperationError::ImportedFieldsLocked.into());
         }
         sqlx::query!(
-            "UPDATE operation SET value_date = ?2, updated_at = ?3 WHERE id = ?1",
+            "UPDATE operation SET value_date = ?2, note = ?3, updated_at = ?4 WHERE id = ?1",
             id,
             changes.value_date,
+            note,
             now
         )
         .execute(&mut *tx)
@@ -149,7 +158,7 @@ pub async fn update(pool: &SqlitePool, id: i64, changes: OperationUpdate) -> App
         sqlx::query!(
             "UPDATE operation
              SET date = ?2, value_date = ?3, amount_cents = ?4, raw_label = ?5,
-                 normalized_label = ?6, payee_id = ?7, updated_at = ?8
+                 normalized_label = ?6, payee_id = ?7, note = ?8, updated_at = ?9
              WHERE id = ?1",
             id,
             changes.date,
@@ -158,6 +167,7 @@ pub async fn update(pool: &SqlitePool, id: i64, changes: OperationUpdate) -> App
             label,
             normalized_label,
             payee_id,
+            note,
             now
         )
         .execute(&mut *tx)
@@ -172,6 +182,7 @@ pub async fn update(pool: &SqlitePool, id: i64, changes: OperationUpdate) -> App
     }
 
     write_category(&mut tx, id, changes.category_id, &now).await?;
+    tag::set_for_operation(&mut tx, id, &changes.tags).await?;
     let operation = fetch(&mut tx, id).await?;
     tx.commit().await?;
     Ok(operation)
@@ -205,23 +216,38 @@ pub async fn delete(pool: &SqlitePool, id: i64) -> AppResult<()> {
 }
 
 async fn fetch(conn: &mut SqliteConnection, id: i64) -> AppResult<Operation> {
-    let operation = sqlx::query_as!(
-        Operation,
+    let row = sqlx::query!(
         r#"SELECT o.id, o.account_id, o.date AS "date: NaiveDate",
                   o.value_date AS "value_date: NaiveDate", o.amount_cents, o.raw_label,
                   o.normalized_label, o.payee_id,
                   COALESCE(p.name, o.normalized_label) AS "payee_name!: String",
                   o.import_batch_id, s.category_id,
-                  o.is_internal_transfer AS "is_internal_transfer: bool"
+                  o.is_internal_transfer AS "is_internal_transfer: bool", o.note
            FROM operation o
            LEFT JOIN operation_split s ON s.operation_id = o.id
            LEFT JOIN payee p ON p.id = o.payee_id
            WHERE o.id = ?1"#,
         id
     )
-    .fetch_optional(conn)
-    .await?;
-    Ok(operation.ok_or(OperationError::NotFound(id))?)
+    .fetch_optional(&mut *conn)
+    .await?
+    .ok_or(OperationError::NotFound(id))?;
+    Ok(Operation {
+        id: row.id,
+        account_id: row.account_id,
+        date: row.date,
+        value_date: row.value_date,
+        amount_cents: row.amount_cents,
+        raw_label: row.raw_label,
+        normalized_label: row.normalized_label,
+        payee_id: row.payee_id,
+        payee_name: row.payee_name,
+        import_batch_id: row.import_batch_id,
+        category_id: row.category_id,
+        is_internal_transfer: row.is_internal_transfer,
+        note: row.note,
+        tags: tag::names_of(conn, id).await?,
+    })
 }
 
 /// Writes the category on the split and the derived internal transfer flag on the operation,
@@ -303,6 +329,13 @@ fn clean_label(label: &str) -> Result<String, OperationError> {
         return Err(OperationError::EmptyLabel);
     }
     Ok(label.to_owned())
+}
+
+/// Note without surrounding spaces; `None` when empty.
+fn clean_note(note: Option<&str>) -> Option<String> {
+    note.map(str::trim)
+        .filter(|note| !note.is_empty())
+        .map(str::to_owned)
 }
 
 fn check_amount(amount_cents: i64) -> Result<(), OperationError> {

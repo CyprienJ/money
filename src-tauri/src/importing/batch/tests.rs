@@ -263,6 +263,8 @@ fn cancelling_removes_the_whole_batch_only() {
                 amount_cents: -1000,
                 label: "Manuel".to_owned(),
                 category_id: None,
+                note: None,
+                tags: Vec::new(),
             },
         )
         .await
