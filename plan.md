@@ -340,7 +340,10 @@ Décisions du 21/10/2026 : note et tags modifiables sur toutes les opérations, 
 - [x] Renommage et suppression des tags dans l'écran Catégories.
 
 #### V2-05 · Pièces jointes — M
-- [ ] Table `attachment` ; fichiers copiés à côté du fichier de données ; ouverture depuis l'opération.
+Décisions du 21/10/2026 : ouverture par **tauri-plugin-opener** (dépendance validée), appelé depuis Rust ; fichiers supprimés avec leur opération (et nettoyage des orphelins au démarrage) ; 25 Mo au plus par fichier.
+- [x] Table `attachment` ; fichiers copiés à côté du fichier de données ; ouverture depuis l'opération.
+- [x] Section « Pièces jointes » dans la fiche d'une opération : ajout (plusieurs fichiers à la fois), ouverture, suppression.
+- [x] Nombre de pièces jointes affiché dans la liste des opérations.
 
 #### V2-06 · Recherche et filtres avancés — M
 Décisions du 21/10/2026 : recherche dans l'écran Opérations, avec un onglet « Tous les comptes » et un panneau « Plus de filtres » ; montant filtré par sens et fourchette en valeur absolue ; période personnalisée ; une seule valeur par filtre.

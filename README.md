@@ -79,7 +79,7 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 
 #### Opérations
 - **Tags et notes** libres *(décisions du 21/10/2026)* : un tag se crée en le tapant sur une opération, sans tenir compte des majuscules pour retrouver un tag existant, et se renomme ou se supprime depuis l'écran Catégories. Les tags n'ont pas de couleur (pastille neutre). Tags et note s'affichent sous le libellé dans la liste des opérations et sont couverts par la recherche libre ; ils sont modifiables sur toutes les opérations, importées comprises.
-- **Pièces jointes** (factures, justificatifs), copiées à côté du fichier de données.
+- **Pièces jointes** (factures, justificatifs), copiées à côté du fichier de données *(décisions du 21/10/2026)* : 25 Mo au plus par fichier, ouverture avec l'application par défaut du système. Les fichiers d'une opération supprimée ou d'un import annulé sont supprimés avec elle ; les fichiers orphelins sont aussi nettoyés au démarrage. La sauvegarde avant import ne copie que le fichier de données : les pièces jointes relèvent de la sauvegarde complète.
 - **Recherche et filtres avancés** : montant, période, tiers, catégorie, tag, compte *(décisions du 21/10/2026)*. Dans l'écran Opérations : un onglet « Tous les comptes » (comptes archivés exclus, colonne Compte à la place du solde), une période personnalisée en plus des périodes prédéfinies, et un panneau « Plus de filtres » : sens (dépenses, recettes) et fourchette de montant en valeur absolue, tiers, tag. Une seule valeur par filtre ; les filtres se combinent (ET). Une catégorie principale inclut ses sous-catégories.
 
 #### Suivi
@@ -195,7 +195,10 @@ tag                      -- V2 free labels, created on first use, unique ignorin
 operation_tag
   operation_id, tag_id
 
--- Prévus (V2+) : payee, payee_alias, attachment,
+attachment               -- V2 files copied into attachments/, deleted with their operation
+  id, operation_id, file_name (original), stored_name, size_bytes, added_at
+
+-- Prévus (V2+) : payee, payee_alias,
 --               security, security_price, investment_transaction
 ```
 
@@ -276,7 +279,7 @@ L'application est une **application de bureau Tauri**. L'interface est écrite e
 | Police | **Plus Jakarta Sans** | Fichiers `.woff2` (licence OFL) commités dans `src/assets/fonts/`, aucun chargement réseau |
 | Graphiques | **Apache ECharts** (via **vue-echarts**) | Camemberts, séries temporelles, zoom sur une période |
 | Typage front ↔ back | **tauri-specta** | Génère les types et fonctions TypeScript à partir des commandes Rust ; les `i64` (centimes) sont exportés en `number`, exact jusqu'à 2⁵³ |
-| Accès système | **tauri-plugin-dialog**, **tauri-plugin-fs** | Sélection des fichiers de relevés |
+| Accès système | **tauri-plugin-dialog**, **tauri-plugin-fs**, **tauri-plugin-opener** | Sélection des fichiers de relevés et des pièces jointes ; ouverture d'une pièce jointe avec l'application par défaut (appelé depuis Rust, le front ne peut ouvrir que des pièces jointes connues) |
 | Tests | `cargo test` (back), **Vitest** (front) | Relevés réels anonymisés comme fixtures d'import |
 | Packaging | Bundler Tauri | `.msi` / NSIS (Windows), `.deb`, `.rpm`, AppImage (Linux) |
 | CI | **GitHub Actions** + **tauri-action** | Matrice `windows-latest` / `ubuntu-latest` |
@@ -292,7 +295,7 @@ L'application est une **application de bureau Tauri**. L'interface est écrite e
 - **Moteur web différent selon l'OS** : WebView2 (Chromium) sous Windows, **WebKitGTK** sous Linux. Il faut tester le rendu et les performances d'ECharts sur les deux plateformes dès le début.
 - **Dépendances Linux** : WebKitGTK est déclaré en dépendance du `.deb` / `.rpm` et embarqué dans l'AppImage.
 - **Permissions Tauri 2** : chaque commande et chaque accès fichier doit être autorisé explicitement dans `src-tauri/capabilities/`.
-- **Emplacement des données** : `app_data_dir()` de Tauri, c'est-à-dire `%APPDATA%\<app>` sous Windows et `~/.local/share/<app>` sous Linux. Les sauvegardes automatiques sont rangées dans un sous-dossier `backups/`.
+- **Emplacement des données** : `app_data_dir()` de Tauri, c'est-à-dire `%APPDATA%\<app>` sous Windows et `~/.local/share/<app>` sous Linux. Les sauvegardes automatiques sont rangées dans un sous-dossier `backups/`, les pièces jointes dans `attachments/`.
 - **Fichier de données** : `money.sqlite` (identifiant d'application `fr.cyprien.money`). SQLite reste dans son mode de journal par défaut, pas en WAL : le fichier est ainsi autonome et une simple copie suffit pour la sauvegarde avant import.
 - **Chiffrement (V2)** : passer à SQLCipher (sqlx / libsqlite3-sys avec la fonctionnalité correspondante) sans impact sur le reste du code.
 
