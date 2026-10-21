@@ -75,7 +75,7 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 #### Catégorisation et tiers
 - **Suggestion de catégorie par classifieur local** : un classifieur (TF-IDF + régression logistique, crate **linfa**) apprend sur les opérations déjà catégorisées et propose une catégorie, avec un indice de confiance, pour les libellés qu'aucune règle ni la mémoire des libellés ne couvrent. Il tourne entièrement en local, sans réseau ni modèle téléchargé. Priorité : règle, puis mémoire, puis suggestion ; une suggestion n'est jamais appliquée sans validation.
 - **Gestion des tiers** : fusion de plusieurs libellés normalisés en un seul tiers (alias) et renommage.
-- **Appariement automatique des virements internes** : le débit sur le compte A et le crédit correspondant sur le compte B sont liés.
+- **Appariement automatique des virements internes** : le débit sur le compte A et le crédit correspondant sur le compte B sont liés *(décisions du 21/10/2026)*. Candidats : comptes différents, montants opposés, au plus 3 jours d'écart, deux opérations non liées, à catégoriser ou en Virement interne, et pas déjà ignorées. Un appariement est sûr quand chaque opération est le seul candidat de l'autre : il est lié automatiquement après chaque import (et à la demande sur tout l'historique) ; les autres sont proposés dans l'écran Opérations (Lier / Ignorer). Lier deux opérations leur donne la catégorie « Virement interne », sans toucher à la mémoire des libellés : l'exclusion des statistiques reste dérivée de la catégorie. Quitter cette catégorie délie les deux opérations ; « Délier » garde leur catégorie. La fiche d'une opération montre son pendant et permet de la lier à la main (n'importe quelle catégorie, à 15 jours près).
 
 #### Opérations
 - **Tags et notes** libres *(décisions du 21/10/2026)* : un tag se crée en le tapant sur une opération, sans tenir compte des majuscules pour retrouver un tag existant, et se renomme ou se supprime depuis l'écran Catégories. Les tags n'ont pas de couleur (pastille neutre). Tags et note s'affichent sous le libellé dans la liste des opérations et sont couverts par la recherche libre ; ils sont modifiables sur toutes les opérations, importées comprises.
@@ -155,8 +155,8 @@ operation
   normalized_label     -- cleaned label used for categorization and payees
   payee_id (prévu)     -- V2 payee management
   import_batch_id      -- null for manual entries
-  is_internal_transfer -- derived from category in V1, explicit pairing in V2
-  transfer_pair_id (prévu)
+  is_internal_transfer -- derived from the category (linking a transfer sets the internal transfer category)
+  transfer_pair_id     -- V2 other side of an internal transfer, both ways
   note, created_at, updated_at
 
 operation_split          -- one row per operation in V1; several rows once splitting is supported
@@ -195,6 +195,9 @@ tag                      -- V2 free labels, created on first use, unique ignorin
 operation_tag
   operation_id, tag_id
 
+transfer_dismissal       -- V2 proposed transfer pairs the user dismissed
+  debit_id, credit_id
+
 attachment               -- V2 files copied into attachments/, deleted with their operation
   id, operation_id, file_name (original), stored_name, size_bytes, added_at
 
@@ -225,6 +228,7 @@ File (CSV / PDF)
   → Preview screen (user validates / corrects)
   → Automatic backup of the data file
   → Insert as a new import_batch
+  → Internal transfer pairing (certain pairs linked, the others proposed)
 ```
 
 Un import peut être annulé à tout moment en supprimant son lot.

@@ -327,8 +327,10 @@ Décisions du 21/10/2026 : chaque libellé normalisé reçoit automatiquement un
 - [x] Top tiers et analyses basés sur les tiers.
 
 #### V2-03 · Appariement des virements internes — M
-- [ ] Liaison automatique débit compte A ↔ crédit compte B (montant opposé, dates proches) via `transfer_pair_id`.
-- [ ] `is_internal_transfer` explicite ; validation manuelle des appariements incertains.
+Décisions du 21/10/2026 : lier = catégorie « Virement interne » (l'exclusion reste dérivée de la catégorie) ; appariements sûrs liés automatiquement, incertains proposés ; ± 3 jours ; validation par un bandeau et une fenêtre dans l'écran Opérations.
+- [x] Liaison automatique débit compte A ↔ crédit compte B (montant opposé, dates proches) via `transfer_pair_id`, après chaque import et à la demande sur l'historique.
+- [x] Validation manuelle des appariements incertains (Lier / Ignorer, refus mémorisés dans `transfer_dismissal`).
+- [x] Fiche d'une opération : pendant affiché, Délier, Lier à la main ; changer de catégorie délie.
 
 ### Opérations
 
