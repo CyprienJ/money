@@ -343,7 +343,11 @@ Décisions du 21/10/2026 : note et tags modifiables sur toutes les opérations, 
 - [ ] Table `attachment` ; fichiers copiés à côté du fichier de données ; ouverture depuis l'opération.
 
 #### V2-06 · Recherche et filtres avancés — M
-- [ ] Filtres combinés : montant, période, tiers, catégorie, tag, compte.
+Décisions du 21/10/2026 : recherche dans l'écran Opérations, avec un onglet « Tous les comptes » et un panneau « Plus de filtres » ; montant filtré par sens et fourchette en valeur absolue ; période personnalisée ; une seule valeur par filtre.
+- [x] Filtres combinés : montant, période, tiers, catégorie, tag, compte (requête `operation::search`, commande `search_operations`).
+- [x] Onglet « Tous les comptes » (comptes archivés exclus), colonne Compte à la place du solde.
+- [x] Période personnalisée et panneau « Plus de filtres » : sens, montant min–max, tiers, tag ; réinitialisation des filtres.
+- [x] La recherche libre reste côté front (sans accents) et s'applique au résultat des filtres.
 
 ### Suivi
 
