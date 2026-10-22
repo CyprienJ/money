@@ -9,6 +9,7 @@ mod account;
 mod alert;
 mod app;
 mod attachment;
+mod backup;
 mod csv_mapping;
 mod import;
 mod investment;
@@ -54,6 +55,12 @@ pub fn builder() -> Builder<tauri::Wry> {
             investment::list_security_prices,
             investment::set_security_price,
             investment::delete_security_price,
+            backup::backup_settings,
+            backup::set_daily_backups,
+            backup::set_backup_folder,
+            backup::list_backups,
+            backup::create_full_backup,
+            backup::restore_backup,
             alert::list_alerts,
             alert::dismiss_unusual_expense,
             alert::dismiss_missing_occurrence,

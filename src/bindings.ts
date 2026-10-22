@@ -54,6 +54,17 @@ export const commands = {
 	/**  Records the price of a day by hand; fetched prices never overwrite it. */
 	setSecurityPrice: (securityId: number, date: string, priceCents: number) => typedError<null, AppError>(__TAURI_INVOKE("set_security_price", { securityId, date, priceCents })),
 	deleteSecurityPrice: (securityId: number, date: string) => typedError<null, AppError>(__TAURI_INVOKE("delete_security_price", { securityId, date })),
+	/**  Daily full backups, their folder and the day of the last one. */
+	backupSettings: () => typedError<BackupSettings, AppError>(__TAURI_INVOKE("backup_settings")),
+	setDailyBackups: (daily: boolean) => typedError<BackupSettings, AppError>(__TAURI_INVOKE("set_daily_backups", { daily })),
+	/**  Chooses the folder of the full backups; `null` goes back to the default one. */
+	setBackupFolder: (folder: string | null) => typedError<BackupSettings, AppError>(__TAURI_INVOKE("set_backup_folder", { folder })),
+	/**  Full backups and backups made before an import, the most recent first. */
+	listBackups: () => typedError<Backup[], AppError>(__TAURI_INVOKE("list_backups")),
+	/**  Makes a full backup now. */
+	createFullBackup: () => typedError<Backup, AppError>(__TAURI_INVOKE("create_full_backup")),
+	/**  Backs up the current data, then restarts the application to restore a listed backup. */
+	restoreBackup: (path: string) => typedError<null, AppError>(__TAURI_INVOKE("restore_backup", { path })),
 	/**  Alerts of today: negative forecasts, missing occurrences, unusual expenses. */
 	listAlerts: () => typedError<Alert[], AppError>(__TAURI_INVOKE("list_alerts")),
 	/**  Stops showing the unusual expense alert of a top-level category for the month of `month`. */
@@ -360,6 +371,35 @@ export type AttachmentError = { code: "notFound"; params: number } | { code: "no
 	maxBytes: number,
 } } | { code: "fileMissing"; params: number };
 
+export type Backup = {
+	path: string,
+	kind: BackupKind,
+	/**  Local date and time of the backup, from its name. */
+	createdAt: string,
+	/**  Size of the data file and of the attachments. */
+	sizeBytes: number,
+	attachmentCount: number,
+};
+
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type BackupError = { code: "notABackup"; params: string } | { code: "folderUnavailable"; params: string };
+
+export type BackupKind = 
+/**  Data file and attachments. */
+"FULL" | 
+/**  Data file only, made before an import. */
+"IMPORT";
+
+export type BackupSettings = {
+	/**  A full backup is made at startup once a day. */
+	daily: boolean,
+	/**  Folder of the full backups. */
+	folder: string,
+	/**  The folder was chosen by the user. */
+	customFolder: boolean,
+	lastFullOn: string | null,
+};
+
 export type BalanceCheck = {
 	status: BalanceCheckStatus,
 	/**  Sum of the statement lines. */
@@ -540,7 +580,7 @@ export type DuplicateStatus = { status: "new" } | { status: "duplicate"; operati
 candidateIds: number[] };
 
 /**  Business error with its code and parameters, for a message in French on the frontend. */
-export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "rule"; error: RuleError } | { domain: "payee"; error: PayeeError } | { domain: "tag"; error: TagError } | { domain: "attachment"; error: AttachmentError } | { domain: "transfer"; error: TransferError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError } | { domain: "investment"; error: InvestmentError } | { domain: "price"; error: PriceError };
+export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "rule"; error: RuleError } | { domain: "payee"; error: PayeeError } | { domain: "tag"; error: TagError } | { domain: "attachment"; error: AttachmentError } | { domain: "transfer"; error: TransferError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError } | { domain: "investment"; error: InvestmentError } | { domain: "price"; error: PriceError } | { domain: "backup"; error: BackupError };
 
 /**  Stable identifier the frontend can match on. */
 export type ErrorKind = "database" | "migration" | "io" | 

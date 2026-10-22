@@ -1,6 +1,7 @@
 mod account;
 mod alert;
 mod attachment;
+mod backup;
 mod commands;
 mod db;
 mod error;
@@ -29,6 +30,10 @@ pub fn run() {
         .setup(|app| {
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;
+            // A restore chosen in the settings replaces the files before they are opened.
+            if let Err(error) = backup::apply_pending_restore(&data_dir) {
+                eprintln!("restore failed, the current data is kept: {error}");
+            }
             let pool = tauri::async_runtime::block_on(async {
                 let pool = db::open(&data_dir.join(db::DATA_FILE_NAME)).await?;
                 // Applies label normalization changes to existing operations.
@@ -47,6 +52,16 @@ pub fn run() {
                 let _ = cache.refresh(&warm_pool).await;
             });
             app.manage(classifier);
+            // Daily full backup, unless disabled.
+            let (backup_pool, dirs) = (pool.clone(), backup::Dirs::new(data_dir.clone()));
+            tauri::async_runtime::spawn(async move {
+                let today = chrono::Local::now().date_naive();
+                if let Ok(true) = backup::full_due(&backup_pool, today).await
+                    && let Err(error) = backup::full(&backup_pool, &dirs, true).await
+                {
+                    eprintln!("daily backup failed: {error}");
+                }
+            });
             // Daily update of the security prices, once the user allowed it.
             let price_pool = pool.clone();
             tauri::async_runtime::spawn(async move {

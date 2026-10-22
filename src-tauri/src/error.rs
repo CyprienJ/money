@@ -4,6 +4,7 @@ use specta::datatype::DataType;
 
 use crate::account::AccountError;
 use crate::attachment::AttachmentError;
+use crate::backup::BackupError;
 use crate::importing::batch::ImportError;
 use crate::importing::csv::{CsvError, CsvMappingError};
 use crate::importing::pdf::PdfError;
@@ -77,6 +78,9 @@ pub enum AppError {
 
     #[error(transparent)]
     Price(#[from] PriceError),
+
+    #[error(transparent)]
+    Backup(#[from] BackupError),
 }
 
 /// Stable identifier the frontend can match on.
@@ -112,6 +116,7 @@ enum ErrorDetail {
     Pdf(PdfError),
     Investment(InvestmentError),
     Price(PriceError),
+    Backup(BackupError),
 }
 
 /// Error returned by commands to the frontend: `{ kind, message, detail }`. `message` is the
@@ -146,6 +151,7 @@ impl AppError {
             AppError::Pdf(error) => error.kind(),
             AppError::Investment(error) => error.kind(),
             AppError::Price(error) => error.kind(),
+            AppError::Backup(error) => error.kind(),
         }
     }
 }
@@ -170,6 +176,7 @@ impl AppError {
             AppError::Pdf(error) => ErrorDetail::Pdf(error.clone()),
             AppError::Investment(error) => ErrorDetail::Investment(error.clone()),
             AppError::Price(error) => ErrorDetail::Price(error.clone()),
+            AppError::Backup(error) => ErrorDetail::Backup(error.clone()),
         })
     }
 }

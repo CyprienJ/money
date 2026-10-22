@@ -123,6 +123,7 @@ pub async fn backup(pool: &SqlitePool, dir: &Path) -> AppResult<PathBuf> {
         .bind(path.to_string_lossy().into_owned())
         .execute(pool)
         .await?;
+    crate::backup::rotate_import(dir, crate::backup::KEEP_IMPORT)?;
     Ok(path)
 }
 

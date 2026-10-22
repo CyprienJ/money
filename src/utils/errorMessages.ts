@@ -1,6 +1,7 @@
 import type {
   AccountError,
   AttachmentError,
+  BackupError,
   CategoryError,
   CsvError,
   CsvMappingError,
@@ -324,6 +325,16 @@ export function priceMessage(error: PriceError): string {
   return unreachable(error);
 }
 
+function backup(error: BackupError): string {
+  switch (error.code) {
+    case "notABackup":
+      return `${error.params} n'est pas une sauvegarde de l'application.`;
+    case "folderUnavailable":
+      return `Le dossier ${error.params} est inaccessible en écriture : choisis-en un autre.`;
+  }
+  return unreachable(error);
+}
+
 /** French message of a business error. */
 export function businessMessage(detail: ErrorDetail): string {
   switch (detail.domain) {
@@ -359,6 +370,8 @@ export function businessMessage(detail: ErrorDetail): string {
       return investment(detail.error);
     case "price":
       return priceMessage(detail.error);
+    case "backup":
+      return backup(detail.error);
   }
   return unreachable(detail);
 }
