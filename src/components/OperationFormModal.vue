@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
-import { commands, type Account, type Category, type Operation } from "../bindings";
+import { commands, type Account, type Category, type Operation, type Suggestion } from "../bindings";
 import { errorMessage, unwrap } from "../utils/commands";
 import { formatAmountInput, formatDate, parseAmount, todayIso } from "../utils/format";
 import AttachmentList from "./AttachmentList.vue";
@@ -15,6 +15,8 @@ const props = defineProps<{
   categories: Category[];
   /** Operation to edit; `null` for a new manual entry. */
   operation: Operation | null;
+  /** Category suggested for an operation to categorize, preselected until the form is saved. */
+  suggestion?: Suggestion | null;
 }>();
 
 const emit = defineEmits<{
@@ -80,7 +82,7 @@ watch(
     form.date = operation?.date ?? todayIso();
     form.valueDate = operation?.valueDate ?? "";
     form.label = operation?.rawLabel ?? "";
-    form.categoryId = operation?.categoryId ?? null;
+    form.categoryId = operation?.categoryId ?? props.suggestion?.categoryId ?? null;
     form.note = operation?.note ?? "";
     form.tags = [...(operation?.tags ?? [])];
     attachmentCount.value = operation?.attachmentCount ?? 0;
@@ -244,6 +246,12 @@ async function remove() {
         <label class="field">
           Catégorie
           <CategorySelect v-model="form.categoryId" :categories="categories" />
+          <span
+            v-if="suggestion && operation?.categoryId === null && form.categoryId === suggestion.categoryId"
+            class="field-hint"
+          >
+            Suggestion ({{ suggestion.confidencePercent }} %), enregistrée seulement si tu valides
+          </span>
         </label>
         <label class="field">
           Date de valeur

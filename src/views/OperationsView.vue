@@ -10,6 +10,7 @@ import {
   type OperationRow,
   type Payee,
   type SameLabel,
+  type Suggestion,
   type Tag,
 } from "../bindings";
 import CategoryPicker from "../components/CategoryPicker.vue";
@@ -38,6 +39,8 @@ const categories = ref<Category[]>([]);
 const payees = ref<Payee[]>([]);
 const tags = ref<Tag[]>([]);
 const rows = ref<OperationRow[]>([]);
+/** Categories suggested by the classifier for the operations to categorize, by operation. */
+const suggestions = ref(new Map<number, Suggestion>());
 /** Most recent import of the selected account, which can be cancelled. */
 const lastImport = ref<ImportBatch | null>(null);
 const confirmingCancel = ref(false);
@@ -133,8 +136,11 @@ async function loadOperations() {
   const found = await unwrap(commands.searchOperations(filter));
   const batches = account ? await unwrap(commands.listImportBatches(account.account.id)) : [];
   const proposals = await unwrap(commands.listTransferProposals());
+  const uncategorized = found.filter((r) => r.operation.categoryId === null).map((r) => r.operation.id);
+  const suggested = uncategorized.length > 0 ? await unwrap(commands.suggestCategories(uncategorized)) : [];
   if (searchNumber !== lastSearch) return;
   rows.value = found;
+  suggestions.value = new Map(suggested.map((s) => [s.operationId, s.suggestion]));
   transferProposalCount.value = proposals.length;
   lastImport.value = batches[0] ?? null;
 }
@@ -575,6 +581,18 @@ watch([() => selected.value?.account.id, allAccounts, period, categoryFilter, ad
                 :label="`Catégorie de ${label(operation)}`"
                 @update:model-value="setCategory(operation, $event)"
               />
+              <button
+                v-if="operation.categoryId === null && suggestions.has(operation.id)"
+                type="button"
+                class="suggestion"
+                title="Accepter la catégorie suggérée"
+                @click.stop="setCategory(operation, suggestions.get(operation.id)!.categoryId)"
+                @keydown.enter.stop
+              >
+                <span aria-hidden="true">✓</span>
+                {{ categoryName(suggestions.get(operation.id)!.categoryId) }} ?
+                {{ suggestions.get(operation.id)!.confidencePercent }} %
+              </button>
               <span v-if="operation.isInternalTransfer" class="excluded">Exclu des statistiques</span>
             </td>
             <td class="col-amount" :class="amountClass(operation)">
@@ -611,6 +629,7 @@ watch([() => selected.value?.account.id, allAccounts, period, categoryFilter, ad
       :account="modalAccount"
       :categories="categories"
       :operation="editedOperation"
+      :suggestion="editedOperation ? suggestions.get(editedOperation.id) ?? null : null"
       @close="modalOpen = false"
       @changed="onChanged"
       @refresh="reload()"
@@ -936,6 +955,26 @@ td.col-balance {
   color: var(--color-text-muted);
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.suggestion {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border: 1px dashed var(--color-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cat-housing-fg);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.suggestion:hover {
+  border-style: solid;
+  background: var(--cat-housing-bg);
 }
 
 .excluded {
