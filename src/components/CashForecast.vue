@@ -2,7 +2,7 @@
 import { computed, ref, watch } from "vue";
 import { commands, type Account, type BalanceForecast } from "../bindings";
 import { forecastOption } from "../charts/options";
-import { readTokens } from "../charts/theme";
+import { useChartTokens } from "../charts/theme";
 import { errorMessage, unwrap } from "../utils/commands";
 import { formatAmount, formatDate } from "../utils/format";
 import { FORECAST_DAYS } from "../utils/schedule";
@@ -14,7 +14,7 @@ const props = defineProps<{
   accounts: Account[];
 }>();
 
-const tokens = readTokens();
+const tokens = useChartTokens();
 const days = ref<number>(FORECAST_DAYS[0]);
 /** `null` for every account. */
 const accountId = ref<number | null>(null);
@@ -24,7 +24,7 @@ const error = ref("");
 
 const accountNames = computed(() => new Map(props.accounts.map((a) => [a.id, a.name])));
 const projected = computed(() => forecast.value?.points[forecast.value.points.length - 1] ?? null);
-const option = computed(() => (forecast.value ? forecastOption(forecast.value, tokens) : null));
+const option = computed(() => (forecast.value ? forecastOption(forecast.value, tokens.value) : null));
 
 let lastLoad = 0;
 async function load() {

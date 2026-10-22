@@ -1,6 +1,8 @@
 /* Design tokens, taken from the validated mockups in docs/design/. */
 
 :root {
+  color-scheme: light;
+
   /* Typography */
   --font-family: "Plus Jakarta Sans", system-ui, sans-serif;
 
@@ -22,12 +24,19 @@
   --color-on-primary-muted: #dcd3ec;
   --color-accent: #f26b3a;
   --color-positive: #0f7a5f;
+  /* Highlighted cards (net worth): dark in both themes. */
+  --color-feature: #2a1e3f;
+  --color-on-feature: #ffffff;
+  --color-on-feature-muted: #dcd3ec;
+  /* Border of the import step dots. */
+  --color-control-border: #d6d0e2;
   /* Borders of the balance check cards (Import mockup). */
   --color-success-border: #a9dfd4;
   --color-danger-border: #f6c3ae;
 
   /* Sidebar */
   --sidebar-width: 232px;
+  --sidebar-bg: #2a1e3f;
   --sidebar-text: #f3eefa;
   --sidebar-link: #cfc4e3;
   --sidebar-section: #9e8fbd;
@@ -73,4 +82,68 @@
   --cat-neutral: #b9b4c6;
   --cat-neutral-bg: #eeedf2;
   --cat-neutral-fg: #4a4657;
+}
+
+/* Dark theme ("violet nuit"), applied by src/utils/theme.ts. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-page: #15111d;
+  --color-card: #1f1a2b;
+  --color-border: #332b44;
+  --color-divider: #2a2338;
+  --color-pending-row: #272016;
+
+  --color-text: #ece8f4;
+  --color-text-muted: #a69fba;
+
+  --color-primary: #8f7bd6;
+  --color-on-primary: #15111d;
+  --color-on-primary-muted: #3b3060;
+  --color-accent: #f47c4f;
+  --color-positive: #3cc29a;
+  --color-feature: #2c2342;
+  --color-on-feature: #ffffff;
+  --color-on-feature-muted: #c9bfe0;
+  --color-control-border: #4a4060;
+  --color-success-border: #23594f;
+  --color-danger-border: #6b3420;
+
+  --sidebar-bg: #100c17;
+  --sidebar-text: #f3eefa;
+  --sidebar-link: #b5aacb;
+  --sidebar-section: #7f7299;
+  --sidebar-active-bg: rgba(255, 255, 255, 0.08);
+
+  --cat-housing: #7383f5;
+  --cat-housing-bg: #262b52;
+  --cat-housing-fg: #b4bdfb;
+
+  --cat-groceries: #f2b04f;
+  --cat-groceries-bg: #3a2d14;
+  --cat-groceries-fg: #f5cd8a;
+
+  --cat-restaurants: #f47c4f;
+  --cat-restaurants-bg: #3d2219;
+  --cat-restaurants-fg: #f8b196;
+
+  --cat-transport: #2bb39c;
+  --cat-transport-bg: #15362f;
+  --cat-transport-fg: #8ddccd;
+
+  --cat-leisure: #ec6a8c;
+  --cat-leisure-bg: #3b1c27;
+  --cat-leisure-fg: #f4a7bb;
+
+  --cat-subscriptions: #52b1e0;
+  --cat-subscriptions-bg: #16303d;
+  --cat-subscriptions-fg: #9fd3ee;
+
+  --cat-health: #9d70de;
+  --cat-health-bg: #2c2142;
+  --cat-health-fg: #c9adf0;
+
+  --cat-neutral: #8f8a9e;
+  --cat-neutral-bg: #2b2735;
+  --cat-neutral-fg: #c4bfd0;
 }

@@ -73,8 +73,8 @@ watch(() => route.path, refreshAlertCount, { immediate: true });
     <div class="brand">
       <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true">
         <circle cx="16" cy="16" r="15" fill="var(--color-accent)" />
-        <circle cx="16" cy="16" r="9" fill="none" stroke="var(--color-primary)" stroke-width="2.5" />
-        <path d="M16 11v10M13 14h6" stroke="var(--color-primary)" stroke-width="2.5" stroke-linecap="round" />
+        <circle cx="16" cy="16" r="9" fill="none" stroke="var(--sidebar-bg)" stroke-width="2.5" />
+        <path d="M16 11v10M13 14h6" stroke="var(--sidebar-bg)" stroke-width="2.5" stroke-linecap="round" />
       </svg>
       <span>Finances perso</span>
     </div>
@@ -120,7 +120,7 @@ watch(() => route.path, refreshAlertCount, { immediate: true });
   flex-direction: column;
   gap: 4px;
   padding: 24px 16px;
-  background: var(--color-primary);
+  background: var(--sidebar-bg);
   color: var(--sidebar-text);
 }
 
@@ -147,12 +147,12 @@ watch(() => route.path, refreshAlertCount, { immediate: true });
 }
 
 .link:hover {
-  color: var(--color-on-primary);
+  color: var(--sidebar-text);
 }
 
 .link.router-link-active {
   background: var(--sidebar-active-bg);
-  color: var(--color-on-primary);
+  color: var(--sidebar-text);
   font-weight: 600;
 }
 
@@ -173,7 +173,7 @@ watch(() => route.path, refreshAlertCount, { immediate: true });
   box-sizing: border-box;
   border-radius: 10px;
   background: var(--color-accent);
-  color: var(--color-on-primary);
+  color: var(--sidebar-text);
   font-size: 12px;
   font-weight: 800;
   line-height: 20px;

@@ -650,7 +650,7 @@ h1 {
   width: 28px;
   height: 28px;
   box-sizing: border-box;
-  border: 1.5px solid #d6d0e2;
+  border: 1.5px solid var(--color-control-border);
   border-radius: 14px;
   background: var(--color-card);
   font-size: 13px;

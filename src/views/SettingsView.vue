@@ -5,6 +5,7 @@ import CsvMappingModal from "../components/CsvMappingModal.vue";
 import PageHeader from "../components/PageHeader.vue";
 import { errorMessage, unwrap } from "../utils/commands";
 import { DATE_FORMATS, DELIMITERS, ENCODINGS } from "../utils/csvMapping";
+import { THEME_PREFERENCES, setThemePreference, themePreference } from "../utils/theme";
 
 const version = ref("");
 const location = ref<DataLocation | null>(null);
@@ -71,6 +72,23 @@ onMounted(load);
   <p v-if="error" class="error-banner">{{ error }}</p>
 
   <div class="grid">
+    <section class="card">
+      <h2 class="card-title">Apparence</h2>
+      <div role="radiogroup" aria-label="Thème" class="segmented">
+        <button
+          v-for="choice in THEME_PREFERENCES"
+          :key="choice.value"
+          type="button"
+          role="radio"
+          :aria-checked="themePreference === choice.value"
+          @click="setThemePreference(choice.value)"
+        >
+          {{ choice.label }}
+        </button>
+      </div>
+      <p class="muted">« Système » suit le mode clair ou sombre réglé dans le système d'exploitation.</p>
+    </section>
+
     <section class="card">
       <h2 class="card-title">Données</h2>
       <p class="muted">
@@ -148,6 +166,36 @@ onMounted(load);
   grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
   align-items: start;
   gap: 16px;
+}
+
+.segmented {
+  display: flex;
+  align-self: flex-start;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-card);
+}
+
+.segmented button {
+  height: 36px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.segmented button[aria-checked="true"] {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.segmented button:hover:not([aria-checked="true"]) {
+  background: var(--color-page);
 }
 
 .card-header {

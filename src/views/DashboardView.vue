@@ -23,7 +23,7 @@ import {
   categoryDonutOption,
   periodLabel,
 } from "../charts/options";
-import { readTokens } from "../charts/theme";
+import { useChartTokens } from "../charts/theme";
 import { ACCOUNT_TYPES, valuationSubtitle } from "../utils/accounts";
 import { alertCount, describeAlert } from "../utils/alerts";
 import { categorySlices, legendSlices, variationPercent } from "../utils/analyses";
@@ -35,7 +35,7 @@ import { FORECAST_DAYS } from "../utils/schedule";
 /** Days of upcoming scheduled operations shown. */
 const UPCOMING_DAYS = 15;
 
-const tokens = readTokens();
+const tokens = useChartTokens();
 /** 0 for the current month, -1 for the previous one… */
 const offset = ref(0);
 const month = computed(() => analysisPeriod("month", offset.value));
@@ -92,8 +92,8 @@ const remaining = computed(() =>
 
 const slices = computed(() => legendSlices(categorySlices(expenses.value, categories.value)));
 const totalExpenses = computed(() => slices.value.reduce((sum, s) => sum + s.amountCents, 0));
-const donutOption = computed(() => categoryDonutOption(slices.value, tokens));
-const availableOption = computed(() => availableHistoryOption(available.value, tokens));
+const donutOption = computed(() => categoryDonutOption(slices.value, tokens.value));
+const availableOption = computed(() => availableHistoryOption(available.value, tokens.value));
 const payeesOption = computed(() =>
   categoryBarsOption(
     payees.value.map((p) => {
@@ -104,7 +104,7 @@ const payeesOption = computed(() =>
         amountCents: p.expenseCents,
       };
     }),
-    tokens,
+    tokens.value,
   ),
 );
 
@@ -494,8 +494,8 @@ h1 {
 
 .kpi.dark {
   border-color: transparent;
-  background: var(--color-primary);
-  color: var(--color-on-primary);
+  background: var(--color-feature);
+  color: var(--color-on-feature);
 }
 
 .kpi-head {
@@ -509,7 +509,7 @@ h1 {
 
 .kpi.dark .kpi-head,
 .kpi.dark .kpi-note {
-  color: var(--color-on-primary-muted);
+  color: var(--color-on-feature-muted);
 }
 
 .kpi-icon {
@@ -613,7 +613,7 @@ h1 {
 
 .change.light {
   background: rgba(255, 255, 255, 0.14);
-  color: var(--color-on-primary);
+  color: var(--color-on-feature);
 }
 
 .change.up {
