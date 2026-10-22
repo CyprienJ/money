@@ -408,7 +408,8 @@ Décisions du 22/10/2026 : choix mémorisé dans le stockage local du webview (l
 - [ ] Exploitation des colonnes `currency` ; conversion vers la devise de référence dans toutes les statistiques.
 
 #### V2-15 · Chiffrement du fichier de données — M
-- [ ] Passage à SQLCipher, mot de passe à l'ouverture, migration d'un fichier existant.
+Décisions du 22/10/2026 : optionnel, dans les Paramètres ; fichier de données seul (pièces jointes en clair) ; OpenSSL embarqué ; aucune récupération d'un mot de passe oublié, avertissement à l'activation.
+- [x] Passage à SQLCipher, mot de passe à l'ouverture (écran de déverrouillage, module `startup`), migration d'un fichier existant par `sqlcipher_export` ; changement de mot de passe et retrait du chiffrement.
 
 #### V2-16 · Sauvegarde complète — M
 Décisions du 22/10/2026 : un dossier par sauvegarde (données et pièces jointes) ; au démarrage une fois par jour (désactivable) et à la demande ; 10 complètes et 20 avant import gardées ; dossier au choix, `backups/` par défaut.

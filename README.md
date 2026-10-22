@@ -98,7 +98,7 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 
 #### Technique
 - **Multi-devises** avec conversion vers la devise de référence.
-- **Chiffrement** du fichier de données, protégé par mot de passe.
+- **Chiffrement** du fichier de données, protégé par mot de passe *(décisions du 22/10/2026)*. Optionnel, activé dans les Paramètres (mot de passe de 8 caractères au moins, saisi deux fois, avec un avertissement : aucun moyen de récupérer un mot de passe oublié). SQLCipher avec OpenSSL embarqué. Le fichier est chiffré, rechiffré avec un nouveau mot de passe ou déchiffré par export (`sqlcipher_export`) vérifié puis renommé sur le fichier de données, et l'application redémarre. Un fichier chiffré n'est ouvert qu'après la saisie du mot de passe (écran « Données chiffrées ») ; les tâches de démarrage suivent le déverrouillage. Les sauvegardes du fichier de données sont chiffrées avec le mot de passe en vigueur lors de la sauvegarde ; les pièces jointes restent en clair.
 - **Sauvegarde complète** : sauvegardes planifiées, rotation, restauration depuis l'interface *(décisions du 22/10/2026)*. Une sauvegarde complète est un dossier `complete-AAAAMMJJ-HHMMSS/` contenant une copie cohérente du fichier de données (`VACUUM INTO`) et les pièces jointes. Elle est faite au démarrage une fois par jour (désactivable) et à la demande ; les 10 plus récentes sont gardées, ainsi que les 20 dernières sauvegardes faites avant un import. Le dossier des sauvegardes complètes est `backups/` par défaut, ou un dossier choisi (disque externe, dossier synchronisé). Restaurer (une sauvegarde complète, ou les données seules d'une sauvegarde avant import) sauvegarde d'abord l'état actuel, puis redémarre l'application : les fichiers sont remplacés avant l'ouverture du fichier de données.
 
 ### Plus tard
@@ -304,6 +304,7 @@ L'application est une **application de bureau Tauri**. L'interface est écrite e
 | Empreinte des fichiers importés | crate **sha2** | SHA-256 du fichier source (`source_file_hash`), pour signaler un fichier déjà importé |
 | Import PDF | **pdfium-render** | Texte avec positions via PDFium ; bibliothèque PDFium embarquée dans le bundle. Version épinglée (binaires `bblanchon/pdfium-binaries`, `chromium/7881`, vérifiés par SHA-256), téléchargée dans `src-tauri/pdfium/` par `tools/fetch_pdfium.sh`, à lancer une fois avant de compiler |
 | Normalisation des libellés | crate **regex** | |
+| Chiffrement (V2) | **SQLCipher** (`libsqlite3-sys`, feature `bundled-sqlcipher-vendored-openssl`) | Remplace le SQLite embarqué de sqlx ; un fichier en clair reste lisible |
 | Cours de bourse (V2) | **reqwest** (rustls, json, query) | Appels HTTP côté Rust vers Yahoo Finance, TLS en pur Rust |
 | Suggestion de catégorie (V2) | **linfa** (`linfa`, `linfa-logistic`, `ndarray`) | TF-IDF (calculé dans le module) + régression logistique multiclasse, entraînée en local sur les opérations catégorisées |
 | Frontend | **Vue 3 + TypeScript + Vite** | |
