@@ -373,7 +373,9 @@ Décisions du 22/10/2026 : carte dans l'échéancier et KPI sur le tableau de bo
 - [x] Carte « Prévision de trésorerie » (compte, horizon, courbe, échéances prises en compte) et KPI « Solde projeté à 30 j ».
 
 #### V2-10 · Alertes — M
-- [ ] Solde projeté négatif, dépense inhabituelle pour une catégorie, échéance manquante.
+Décisions du 22/10/2026 : solde négatif par compte courant ou d'épargne à 30 jours ; dépense inhabituelle = mois en cours > moyenne des 6 mois précédents + 50 % et + 50 € (3 mois de dépense au moins) ; échéance manquante quand l'import couvre la date + 5 jours ; dépenses inhabituelles et échéances manquantes masquables ; carte du tableau de bord et pastille dans la barre latérale.
+- [x] Module `alert` : trois règles calculées à la demande, masquage dans `unusual_expense_dismissal` et `missing_occurrence_dismissal`.
+- [x] Carte « Alertes » du tableau de bord (lien vers l'écran concerné, « Masquer ») et pastille sur « Tableau de bord ».
 
 ### Placements
 
