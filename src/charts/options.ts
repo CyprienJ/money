@@ -269,7 +269,7 @@ export function forecastOption(forecast: BalanceForecast, tokens: ChartTokens) {
         const point = points[(params[0] as unknown as { dataIndex: number }).dataIndex];
         const lines = occurrences
           .filter((o) => o.date === point.date)
-          .map((o) => `${o.label} ${formatAmount(o.amountCents, { signed: true })}`);
+          .map((o) => `${o.label} ${formatAmount(o.amountCents, { signed: true, currency: o.currency })}`);
         return [formatDate(point.date), `<b>${formatAmount(point.balanceCents)}</b>`, ...lines].join("<br>");
       },
     },

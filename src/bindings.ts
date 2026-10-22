@@ -113,7 +113,9 @@ export const commands = {
 	accountId: number,
 	accountName: string,
 	date: string,
+	/**  In the currency of the account. */
 	amountCents: number,
+	currency: string,
 	/**  Payee name, or the normalized label when the operation has no payee. */
 	payeeName: string,
 } | null, AppError>(__TAURI_INVOKE("transfer_partner", { id })),
@@ -1264,7 +1266,9 @@ export type TransferSide = {
 	accountId: number,
 	accountName: string,
 	date: string,
+	/**  In the currency of the account. */
 	amountCents: number,
+	currency: string,
 	/**  Payee name, or the normalized label when the operation has no payee. */
 	payeeName: string,
 };

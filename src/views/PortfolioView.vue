@@ -27,6 +27,8 @@ const route = useRoute();
 const accountId = computed(() => Number(route.params.id));
 
 const account = ref<Account | null>(null);
+/** Currency of the amounts of the account; prices are in the currency of each security. */
+const currency = computed(() => account.value?.currency);
 const positions = ref<Position[]>([]);
 const performance = ref<Performance | null>(null);
 const transactions = ref<InvestmentTransaction[]>([]);
@@ -110,7 +112,9 @@ async function onSecurityChanged() {
 
 /** "+ 12,5 parts", "− 3 parts" or the amount received for a dividend. */
 function movement(transaction: InvestmentTransaction): string {
-  if (transaction.kind === "DIVIDEND") return formatAmount(transaction.amountCents, { signed: true });
+  if (transaction.kind === "DIVIDEND") {
+    return formatAmount(transaction.amountCents, { signed: true, currency: currency.value });
+  }
   const sign = transaction.kind === "BUY" ? "+" : "−";
   const quantity = formatQuantity(transaction.quantityMicro);
   return `${sign} ${quantity} part${transaction.quantityMicro > 1_000_000 ? "s" : ""}`;
@@ -174,28 +178,28 @@ watch(accountId, load, { immediate: true });
       <dl class="figures">
         <div>
           <dt>Valeur</dt>
-          <dd>{{ formatAmount(performance.marketValueCents) }}</dd>
+          <dd>{{ formatAmount(performance.marketValueCents, { currency }) }}</dd>
         </div>
         <div>
           <dt>Plus-value latente</dt>
           <dd :class="signClass(performance.unrealizedCents)">
-            {{ formatAmount(performance.unrealizedCents, { signed: true }) }}
+            {{ formatAmount(performance.unrealizedCents, { signed: true, currency }) }}
           </dd>
         </div>
         <div>
           <dt>Plus-values réalisées</dt>
           <dd :class="signClass(performance.realizedCents)">
-            {{ formatAmount(performance.realizedCents, { signed: true }) }}
+            {{ formatAmount(performance.realizedCents, { signed: true, currency }) }}
           </dd>
         </div>
         <div>
           <dt>Dividendes</dt>
-          <dd>{{ formatAmount(performance.dividendsCents) }}</dd>
+          <dd>{{ formatAmount(performance.dividendsCents, { currency }) }}</dd>
         </div>
         <div>
           <dt>Gain total</dt>
           <dd :class="signClass(performance.totalGainCents)">
-            {{ formatAmount(performance.totalGainCents, { signed: true }) }}
+            {{ formatAmount(performance.totalGainCents, { signed: true, currency }) }}
             <span v-if="performance.totalGainBasisPoints !== null" class="sub">
               {{ formatBasisPoints(performance.totalGainBasisPoints) }} des achats
             </span>
@@ -221,9 +225,9 @@ watch(accountId, load, { immediate: true });
           <tr v-for="year in performance.years" :key="year.year">
             <td>{{ year.year }}</td>
             <td class="number" :class="signClass(year.realizedCents)">
-              {{ formatAmount(year.realizedCents, { signed: true }) }}
+              {{ formatAmount(year.realizedCents, { signed: true, currency }) }}
             </td>
-            <td class="number">{{ formatAmount(year.dividendsCents) }}</td>
+            <td class="number">{{ formatAmount(year.dividendsCents, { currency }) }}</td>
           </tr>
         </tbody>
       </table>
@@ -258,36 +262,36 @@ watch(accountId, load, { immediate: true });
               <span v-if="position.isin" class="sub">{{ position.isin }}</span>
             </td>
             <td class="number">{{ formatQuantity(position.quantityMicro) }}</td>
-            <td class="number">{{ formatAmount(position.unitCostCents) }}</td>
-            <td class="number">{{ formatAmount(position.costCents) }}</td>
+            <td class="number">{{ formatAmount(position.unitCostCents, { currency }) }}</td>
+            <td class="number">{{ formatAmount(position.costCents, { currency }) }}</td>
             <td class="number">
               <template v-if="position.lastPrice">
-                {{ formatAmount(position.lastPrice.priceCents) }}
+                {{ formatAmount(position.lastPrice.priceCents, { currency: position.currency }) }}
                 <span class="sub">{{ formatDate(position.lastPrice.date) }}</span>
               </template>
               <span v-else class="sub">sans cours</span>
             </td>
-            <td class="number">{{ formatAmount(position.marketValueCents) }}</td>
+            <td class="number">{{ formatAmount(position.marketValueCents, { currency }) }}</td>
             <td class="number" :class="signClass(position.unrealizedCents)">
               <template v-if="position.lastPrice">
-                {{ formatAmount(position.unrealizedCents, { signed: true }) }}
+                {{ formatAmount(position.unrealizedCents, { signed: true, currency }) }}
                 <span class="sub">{{ percent(position.unrealizedCents, position.costCents) }}</span>
               </template>
               <template v-else>—</template>
             </td>
-            <td class="number">{{ position.dividendsCents > 0 ? formatAmount(position.dividendsCents) : "—" }}</td>
+            <td class="number">{{ position.dividendsCents > 0 ? formatAmount(position.dividendsCents, { currency }) : "—" }}</td>
           </tr>
         </tbody>
         <tfoot>
           <tr>
             <th scope="row" colspan="3">Total</th>
-            <td class="number"><strong>{{ formatAmount(totalCost) }}</strong></td>
+            <td class="number"><strong>{{ formatAmount(totalCost, { currency }) }}</strong></td>
             <td />
-            <td class="number"><strong>{{ formatAmount(totalValue) }}</strong></td>
+            <td class="number"><strong>{{ formatAmount(totalValue, { currency }) }}</strong></td>
             <td class="number" :class="signClass(totalValue - totalCost)">
-              {{ formatAmount(totalValue - totalCost, { signed: true }) }}
+              {{ formatAmount(totalValue - totalCost, { signed: true, currency }) }}
             </td>
-            <td class="number">{{ totalDividends > 0 ? formatAmount(totalDividends) : "—" }}</td>
+            <td class="number">{{ totalDividends > 0 ? formatAmount(totalDividends, { currency }) : "—" }}</td>
           </tr>
         </tfoot>
       </table>
@@ -316,15 +320,15 @@ watch(accountId, load, { immediate: true });
                 <span class="name">{{ kindLabel(transaction.kind) }} · {{ transaction.securityName }}</span>
                 <span class="sub">
                   {{ movement(transaction) }}
-                  <template v-if="transaction.feesCents > 0"> · frais {{ formatAmount(transaction.feesCents) }}</template>
+                  <template v-if="transaction.feesCents > 0"> · frais {{ formatAmount(transaction.feesCents, { currency }) }}</template>
                   <template v-if="transaction.realizedCents !== null">
-                    · plus-value {{ formatAmount(transaction.realizedCents, { signed: true }) }}
+                    · plus-value {{ formatAmount(transaction.realizedCents, { signed: true, currency }) }}
                   </template>
                   <template v-if="transaction.note"> · {{ transaction.note }}</template>
                 </span>
               </span>
               <strong class="amount" :class="{ positive: cashMoved(transaction) > 0 }">
-                {{ formatAmount(cashMoved(transaction), { signed: true }) }}
+                {{ formatAmount(cashMoved(transaction), { signed: true, currency }) }}
               </strong>
             </button>
           </li>

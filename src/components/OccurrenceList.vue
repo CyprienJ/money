@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { commands, type Category, type MatchedOperation, type UpcomingOperation } from "../bindings";
+import { commands, type Account, type Category, type MatchedOperation, type UpcomingOperation } from "../bindings";
 import { errorMessage, unwrap } from "../utils/commands";
 import { formatAmount, formatDate } from "../utils/format";
 import CategoryPill from "./CategoryPill.vue";
 
 const props = defineProps<{
   occurrences: UpcomingOperation[];
-  accountNames: Map<number, string>;
+  accounts: Map<number, Account>;
   categoriesById: Map<number, Category>;
   /** Past occurrences: unrealized ones are "En attente". */
   past: boolean;
@@ -71,8 +71,13 @@ async function unmatch(occurrence: UpcomingOperation) {
   }
 }
 
-function operationText(operation: MatchedOperation): string {
-  return `${formatDate(operation.date)} · ${formatAmount(operation.amountCents, { signed: true })}`;
+function currencyOf(occurrence: UpcomingOperation): string | undefined {
+  return props.accounts.get(occurrence.accountId)?.currency;
+}
+
+function operationText(occurrence: UpcomingOperation, operation: MatchedOperation): string {
+  const amount = formatAmount(operation.amountCents, { signed: true, currency: currencyOf(occurrence) });
+  return `${formatDate(operation.date)} · ${amount}`;
 }
 </script>
 
@@ -84,9 +89,9 @@ function operationText(operation: MatchedOperation): string {
         <span class="date">{{ formatDate(item.date, "day-month") }}</span>
         <span class="details">
           <span class="label">{{ item.label }}</span>
-          <span class="sub">{{ props.accountNames.get(item.accountId) }}</span>
+          <span class="sub">{{ props.accounts.get(item.accountId)?.name }}</span>
           <span v-if="item.realizedBy" class="status realized">
-            Réalisée : {{ item.realizedBy.payeeName }} · {{ operationText(item.realizedBy) }}
+            Réalisée : {{ item.realizedBy.payeeName }} · {{ operationText(item, item.realizedBy) }}
           </span>
           <span v-else-if="past" class="status pending">En attente</span>
         </span>
@@ -96,7 +101,7 @@ function operationText(operation: MatchedOperation): string {
           :color="categoriesById.get(item.categoryId)!.color"
         />
         <strong class="amount" :class="{ positive: item.amountCents > 0 }">
-          {{ formatAmount(item.amountCents, { signed: true }) }}
+          {{ formatAmount(item.amountCents, { signed: true, currency: currencyOf(item) }) }}
         </strong>
       </div>
       <div class="actions">
@@ -111,7 +116,7 @@ function operationText(operation: MatchedOperation): string {
         <ul v-if="candidates.length > 0">
           <li v-for="operation in candidates" :key="operation.operationId">
             <span>
-              <strong>{{ operation.payeeName }}</strong> · {{ operationText(operation) }}
+              <strong>{{ operation.payeeName }}</strong> · {{ operationText(item, operation) }}
             </span>
             <button type="button" class="btn btn-link" :disabled="busy" @click="match(item, operation)">
               Associer

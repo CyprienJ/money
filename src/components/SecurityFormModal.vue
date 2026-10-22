@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { commands, type Security, type SecurityPrice, type SymbolCandidate } from "../bindings";
 import { errorMessage, unwrap } from "../utils/commands";
+import { currencyLabel, REFERENCE_CURRENCY, supportedCurrencies } from "../utils/currency";
 import { formatAmount, formatDate, parseAmount, todayIso } from "../utils/format";
 import BaseModal from "./BaseModal.vue";
 
@@ -19,7 +20,12 @@ const emit = defineEmits<{
   changed: [security: Security | null];
 }>();
 
-const form = reactive({ name: "", isin: "", symbol: "" });
+const form = reactive({ name: "", isin: "", symbol: "", currency: REFERENCE_CURRENCY });
+const currencies = ref<string[]>([REFERENCE_CURRENCY]);
+
+onMounted(async () => {
+  currencies.value = await supportedCurrencies();
+});
 const candidates = ref<SymbolCandidate[] | null>(null);
 const searching = ref(false);
 /** Prices of the edited security, the most recent first. */
@@ -43,6 +49,7 @@ watch(
     form.name = props.security?.name ?? "";
     form.isin = props.security?.isin ?? "";
     form.symbol = props.security?.symbol ?? "";
+    form.currency = props.security?.currency ?? REFERENCE_CURRENCY;
     candidates.value = null;
     priceForm.date = todayIso();
     priceForm.price = "";
@@ -60,7 +67,12 @@ async function save() {
   submitted.value = true;
   error.value = "";
   if (nameError.value) return;
-  const input = { name: form.name, isin: form.isin.trim() || null, symbol: form.symbol.trim() || null };
+  const input = {
+    name: form.name,
+    isin: form.isin.trim() || null,
+    symbol: form.symbol.trim() || null,
+    currency: form.currency,
+  };
   saving.value = true;
   try {
     const security = props.security
@@ -174,7 +186,7 @@ async function remove() {
           </button>
         </span>
         <span class="field-hint">
-          Cotation dont les cours sont récupérés, en euros.
+          Cotation dont les cours sont récupérés ; sa devise est reprise des premiers cours.
           <template v-if="!priceUpdatesEnabled">La récupération des cours s'active dans les Paramètres.</template>
         </span>
       </label>
@@ -192,12 +204,23 @@ async function remove() {
         </button>
       </div>
 
+      <label class="field">
+        Devise des cours
+        <select v-model="form.currency" :disabled="security?.hasPrices">
+          <option v-for="code in currencies" :key="code" :value="code">
+            {{ currencyLabel(code) }}
+          </option>
+        </select>
+        <span v-if="security?.hasPrices" class="field-hint">
+          Le titre a des cours : sa devise ne peut plus être modifiée.
+        </span>
+      </label>
       <fieldset v-if="security" class="prices">
         <legend>Cours</legend>
         <ul v-if="prices.length > 0" class="price-list">
           <li v-for="price in prices.slice(0, PRICES_SHOWN)" :key="price.date">
             <span>{{ formatDate(price.date) }}</span>
-            <strong>{{ formatAmount(price.priceCents) }}</strong>
+            <strong>{{ formatAmount(price.priceCents, { currency: form.currency }) }}</strong>
             <span class="source">{{ price.source === "MANUAL" ? "saisi" : "Yahoo" }}</span>
             <button type="button" class="btn btn-link" :aria-label="`Supprimer le cours du ${formatDate(price.date)}`" @click="removePrice(price)">×</button>
           </li>

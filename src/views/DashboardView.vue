@@ -42,6 +42,11 @@ const month = computed(() => analysisPeriod("month", offset.value));
 const previousMonth = computed(() => analysisPeriod("month", offset.value - 1));
 
 const summaries = ref<AccountSummary[]>([]);
+
+/** Currency of the amounts of an account. */
+function currencyOf(accountId: number): string | undefined {
+  return summaries.value.find((s) => s.account.id === accountId)?.account.currency;
+}
 /** Date of the last import of each account. */
 const lastImports = ref(new Map<number, string>());
 const categories = ref<Category[]>([]);
@@ -73,7 +78,7 @@ const netWorthChange = computed(() => {
 });
 const alertViews = computed(() => {
   const names = {
-    accounts: new Map(summaries.value.map((s) => [s.account.id, s.account.name])),
+    accounts: new Map(summaries.value.map((s) => [s.account.id, s.account])),
     categories: new Map(categories.value.map((c) => [c.id, c.name])),
   };
   return alerts.value.map((alert) => ({ alert, view: describeAlert(alert, names) }));
@@ -342,7 +347,7 @@ watch(offset, load);
                 <span class="sub">{{ accountSubtitle(summary) }}</span>
               </span>
               <strong v-if="summary.balanceCents !== null" :class="{ negative: summary.balanceCents < 0 }">
-                {{ formatAmount(summary.balanceCents) }}
+                {{ formatAmount(summary.balanceCents, { currency: summary.account.currency }) }}
               </strong>
               <span v-else class="muted">—</span>
             </RouterLink>
@@ -367,7 +372,7 @@ watch(offset, load);
               <span v-else class="sub">{{ item.categoryId !== null ? categoriesById.get(item.categoryId)?.name : "" }}</span>
             </span>
             <strong :class="{ positive: item.amountCents > 0 }">
-              {{ formatAmount(item.amountCents, { signed: true }) }}
+              {{ formatAmount(item.amountCents, { signed: true, currency: currencyOf(item.accountId) }) }}
             </strong>
           </li>
         </ul>

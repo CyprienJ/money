@@ -20,6 +20,7 @@ import TransferProposalsModal from "../components/TransferProposalsModal.vue";
 import { ACCOUNT_TYPES } from "../utils/accounts";
 import { categoryTree } from "../utils/categories";
 import { errorMessage, unwrap } from "../utils/commands";
+import { REFERENCE_CURRENCY } from "../utils/currency";
 import { displayLabel, formatAmount, formatDate, localDateOf, operationCount, todayIso } from "../utils/format";
 import {
   activeFilterCount,
@@ -111,6 +112,18 @@ const modalAccount = computed(() => {
 });
 
 const totals = computed(() => summarize(visibleRows.value.map((r) => r.operation)));
+
+/** Currency of an operation: the one of its account. */
+function currencyOf(operation: Operation): string {
+  return accountsById.value.get(operation.accountId)?.currency ?? REFERENCE_CURRENCY;
+}
+
+/** Currency of the totals; `null` when the operations shown have several currencies. */
+const totalsCurrency = computed(() => {
+  const currencies = new Set(visibleRows.value.map((r) => currencyOf(r.operation)));
+  if (currencies.size > 1) return null;
+  return [...currencies][0] ?? selected.value?.account.currency ?? REFERENCE_CURRENCY;
+});
 
 async function loadAccounts() {
   const summaries = await unwrap(commands.listAccountSummaries(false));
@@ -310,7 +323,7 @@ watch([() => selected.value?.account.id, allAccounts, period, categoryFilter, ad
           class="balance"
           :class="{ negative: selected.balanceCents < 0 }"
         >
-          {{ formatAmount(selected.balanceCents) }}
+          {{ formatAmount(selected.balanceCents, { currency: selected.account.currency }) }}
         </span>
       </h1>
     </div>
@@ -509,7 +522,7 @@ watch([() => selected.value?.account.id, allAccounts, period, categoryFilter, ad
         </select>
       </label>
       <div class="field amount">
-        <span id="amount-label">Montant (€)</span>
+        <span id="amount-label">Montant</span>
         <div class="amount-inputs" role="group" aria-labelledby="amount-label">
           <input v-model="advanced.minAmount" type="text" inputmode="decimal" placeholder="Min" aria-label="Montant minimum" />
           <span aria-hidden="true">à</span>
@@ -596,10 +609,10 @@ watch([() => selected.value?.account.id, allAccounts, period, categoryFilter, ad
               <span v-if="operation.isInternalTransfer" class="excluded">Exclu des statistiques</span>
             </td>
             <td class="col-amount" :class="amountClass(operation)">
-              {{ formatAmount(operation.amountCents, { signed: true }) }}
+              {{ formatAmount(operation.amountCents, { signed: true, currency: currencyOf(operation) }) }}
             </td>
             <td v-if="allAccounts" class="col-account">{{ accountsById.get(operation.accountId)?.name }}</td>
-            <td v-else class="col-balance">{{ formatAmount(balanceCents) }}</td>
+            <td v-else class="col-balance">{{ formatAmount(balanceCents, { currency: currencyOf(operation) }) }}</td>
           </tr>
           <tr v-if="loaded && visibleRows.length === 0" class="empty">
             <td colspan="5">Aucune opération ne correspond à ces filtres.</td>
@@ -610,12 +623,22 @@ watch([() => selected.value?.account.id, allAccounts, period, categoryFilter, ad
 
     <div class="footer">
       <span>{{ totals.count }} opération{{ totals.count > 1 ? "s" : "" }}</span>
-      <span>Entrées <strong class="positive">{{ formatAmount(totals.incomeCents, { signed: true }) }}</strong></span>
-      <span>Sorties <strong>{{ formatAmount(totals.expenseCents, { signed: true }) }}</strong></span>
-      <span>
-        Virements internes
-        <strong>{{ formatAmount(totals.internalTransferCents, { signed: true }) }}</strong>
-      </span>
+      <template v-if="totalsCurrency">
+        <span>
+          Entrées
+          <strong class="positive">
+            {{ formatAmount(totals.incomeCents, { signed: true, currency: totalsCurrency }) }}
+          </strong>
+        </span>
+        <span>
+          Sorties <strong>{{ formatAmount(totals.expenseCents, { signed: true, currency: totalsCurrency }) }}</strong>
+        </span>
+        <span>
+          Virements internes
+          <strong>{{ formatAmount(totals.internalTransferCents, { signed: true, currency: totalsCurrency }) }}</strong>
+        </span>
+      </template>
+      <span v-else>Plusieurs devises : choisis un compte pour voir les totaux.</span>
       <span v-if="totals.uncategorized > 0" class="to-categorize">
         <strong>
           {{ totals.uncategorized }} opération{{ totals.uncategorized > 1 ? "s" : "" }} à catégoriser

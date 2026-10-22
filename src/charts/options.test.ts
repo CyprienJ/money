@@ -201,6 +201,7 @@ describe("forecastOption", () => {
         accountId: 1,
         label: "Loyer",
         amountCents: -50_000,
+        currency: "EUR",
         categoryId: null,
       },
     ],

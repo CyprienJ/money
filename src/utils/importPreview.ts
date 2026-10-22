@@ -71,9 +71,9 @@ export function periodText(preview: ImportPreview): string {
   return `relevé du ${formatDate(preview.firstDate, "day-month")} au ${formatDate(preview.lastDate, "day-month")}`;
 }
 
-/** Short amount for lists, e.g. "−97,15 €". */
-export function lineAmount(line: PreviewLine): string {
-  return formatAmount(line.line.amountCents, { signed: true });
+/** Short amount for lists, e.g. "−97,15 €", in the currency of the account. */
+export function lineAmount(line: PreviewLine, currency?: string): string {
+  return formatAmount(line.line.amountCents, { signed: true, currency });
 }
 
 /**

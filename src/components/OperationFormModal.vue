@@ -2,7 +2,7 @@
 import { computed, reactive, ref, watch } from "vue";
 import { commands, type Account, type Category, type Operation, type Suggestion } from "../bindings";
 import { errorMessage, unwrap } from "../utils/commands";
-import { formatAmountInput, formatDate, parseAmount, todayIso } from "../utils/format";
+import { currencySymbol, formatAmountInput, formatDate, parseAmount, todayIso } from "../utils/format";
 import AttachmentList from "./AttachmentList.vue";
 import BaseModal from "./BaseModal.vue";
 import TransferLink from "./TransferLink.vue";
@@ -206,7 +206,7 @@ async function remove() {
 
       <div class="row">
         <label class="field">
-          Montant (€)
+          Montant ({{ currencySymbol(account.currency) }})
           <input
             v-model="form.amount"
             type="text"

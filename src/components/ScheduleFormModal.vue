@@ -9,7 +9,7 @@ import {
   type ScheduledOperationInput,
 } from "../bindings";
 import { errorMessage, unwrap } from "../utils/commands";
-import { formatAmountInput, parseAmount, todayIso } from "../utils/format";
+import { currencySymbol, formatAmountInput, parseAmount, todayIso } from "../utils/format";
 import { FREQUENCIES, WEEKDAYS } from "../utils/schedule";
 import BaseModal from "./BaseModal.vue";
 import CategorySelect from "./CategorySelect.vue";
@@ -162,7 +162,7 @@ async function remove() {
 
       <div class="row">
         <label class="field">
-          Montant (€)
+          Montant ({{ currencySymbol(accounts.find((a) => a.id === form.accountId)?.currency ?? "EUR") }})
           <input v-model="form.amount" type="text" inputmode="decimal" placeholder="1 120,00" />
           <span v-if="submitted && amountError" class="field-error">{{ amountError }}</span>
         </label>

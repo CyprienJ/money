@@ -124,7 +124,7 @@ watch([days, accountId, () => props.accounts], load, { immediate: true });
             </span>
           </span>
           <strong class="amount" :class="{ positive: o.amountCents > 0 }">
-            {{ formatAmount(o.amountCents, { signed: true }) }}
+            {{ formatAmount(o.amountCents, { signed: true, currency: o.currency }) }}
           </strong>
         </li>
       </ul>

@@ -66,7 +66,7 @@ async function unlink() {
 }
 
 function sideText(side: TransferSide): string {
-  return `${side.accountName} · ${formatDate(side.date)} · ${formatAmount(side.amountCents, { signed: true })}`;
+  return `${side.accountName} · ${formatDate(side.date)} · ${formatAmount(side.amountCents, { signed: true, currency: side.currency })}`;
 }
 </script>
 

@@ -15,14 +15,22 @@ export interface AlertView {
 
 /** Names used in the alert messages. */
 export interface AlertNames {
-  accounts: Map<number, string>;
+  accounts: Map<number, { name: string; currency: string }>;
   categories: Map<number, string>;
 }
 
 export function describeAlert(alert: Alert, names: AlertNames): AlertView {
   switch (alert.kind) {
+    case "missingRate":
+      return {
+        key: `rate-${alert.currency}`,
+        title: `Taux de change manquant : ${alert.currency}`,
+        detail: `Les montants en ${alert.currency} comptent pour zéro dans les statistiques. Saisis un taux dans les Paramètres, ou active la récupération des cours.`,
+        to: "/settings",
+        dismissible: false,
+      };
     case "negativeForecast": {
-      const account = names.accounts.get(alert.accountId) ?? "Compte";
+      const account = names.accounts.get(alert.accountId)?.name ?? "Compte";
       return {
         key: `negative-${alert.accountId}`,
         title: `${account} : solde projeté négatif`,
@@ -35,13 +43,14 @@ export function describeAlert(alert: Alert, names: AlertNames): AlertView {
     }
     case "missingOccurrence": {
       const { occurrence } = alert;
-      const account = names.accounts.get(occurrence.accountId) ?? "le compte";
+      const account = names.accounts.get(occurrence.accountId);
       return {
         key: `missing-${occurrence.scheduledOperationId}-${occurrence.date}`,
         title: `Échéance manquante : ${occurrence.label}`,
         detail: `Prévue le ${formatDate(occurrence.date)} (${formatAmount(occurrence.amountCents, {
           signed: true,
-        })}) sur ${account}, mais absente des relevés importés.`,
+          currency: account?.currency,
+        })}) sur ${account?.name ?? "le compte"}, mais absente des relevés importés.`,
         to: "/schedule",
         dismissible: true,
       };

@@ -33,7 +33,9 @@ pub struct TransferSide {
     pub account_id: i64,
     pub account_name: String,
     pub date: NaiveDate,
+    /// In the currency of the account.
     pub amount_cents: i64,
+    pub currency: String,
     /// Payee name, or the normalized label when the operation has no payee.
     pub payee_name: String,
 }
@@ -330,7 +332,7 @@ async fn side(conn: &mut SqliteConnection, id: i64) -> AppResult<TransferSide> {
     let side = sqlx::query_as!(
         TransferSide,
         r#"SELECT o.id AS operation_id, o.account_id, a.name AS account_name,
-                  o.date AS "date: NaiveDate", o.amount_cents,
+                  o.date AS "date: NaiveDate", o.amount_cents, o.currency,
                   COALESCE(p.name, o.normalized_label) AS "payee_name!: String"
            FROM operation o
            JOIN account a ON a.id = o.account_id

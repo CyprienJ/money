@@ -18,14 +18,23 @@ export interface AmountFormatOptions {
   signed?: boolean;
   /** Show cents ("1 234,56 €"); otherwise round to the nearest euro ("1 235 €"). */
   cents?: boolean;
+  /** ISO code of the currency, euros by default. */
+  currency?: string;
+}
+
+const CURRENCY_SYMBOLS: Record<string, string> = { EUR: "€", USD: "$", GBP: "£" };
+
+/** Symbol written after an amount: "€", "$", "£", or the ISO code ("CHF"). */
+export function currencySymbol(currency: string): string {
+  return CURRENCY_SYMBOLS[currency] ?? currency;
 }
 
 /**
- * Formats an amount in cents as euros, e.g. `-123456` → `"−1 234,56 €"`.
+ * Formats an amount in cents, in euros unless told otherwise, e.g. `-123456` → `"−1 234,56 €"`.
  * Uses integer arithmetic only: amounts never go through floating point.
  */
 export function formatAmount(amountCents: number, options: AmountFormatOptions = {}): string {
-  const { signed = false, cents = true } = options;
+  const { signed = false, cents = true, currency = "EUR" } = options;
   if (!Number.isSafeInteger(amountCents)) {
     throw new RangeError(`amount must be an integer number of cents, got ${amountCents}`);
   }
@@ -37,7 +46,7 @@ export function formatAmount(amountCents: number, options: AmountFormatOptions =
 
   const isZero = cents ? abs === 0 : abs < 50;
   const sign = isZero ? "" : amountCents < 0 ? MINUS : signed ? "+" : "";
-  return `${sign}${body}${NBSP}€`;
+  return `${sign}${body}${NBSP}${currencySymbol(currency)}`;
 }
 
 export type DateStyle = "day-month" | "short" | "long";

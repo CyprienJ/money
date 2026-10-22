@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { commands, type ScheduleMatchProposal } from "../bindings";
+import { commands, type Account, type ScheduleMatchProposal } from "../bindings";
 import { errorMessage, unwrap } from "../utils/commands";
 import { formatAmount, formatDate } from "../utils/format";
 import BaseModal from "./BaseModal.vue";
 
 const props = defineProps<{
   open: boolean;
-  accountNames: Map<number, string>;
+  accounts: Map<number, Account>;
 }>();
 
 const emit = defineEmits<{
@@ -102,11 +102,16 @@ function proposalKey(proposal: ScheduleMatchProposal): string {
         <li v-for="proposal in proposals" :key="proposalKey(proposal)">
           <div class="sides">
             <span class="side">
-              <span class="caption">Échéance · {{ accountNames.get(proposal.occurrence.accountId) }}</span>
+              <span class="caption">Échéance · {{ accounts.get(proposal.occurrence.accountId)?.name }}</span>
               <strong>{{ proposal.occurrence.label }}</strong>
               <span>
                 {{ formatDate(proposal.occurrence.date) }} ·
-                {{ formatAmount(proposal.occurrence.amountCents, { signed: true }) }}
+                {{
+                  formatAmount(proposal.occurrence.amountCents, {
+                    signed: true,
+                    currency: accounts.get(proposal.occurrence.accountId)?.currency,
+                  })
+                }}
               </span>
             </span>
             <span class="arrow" aria-hidden="true">←</span>
@@ -115,7 +120,12 @@ function proposalKey(proposal: ScheduleMatchProposal): string {
               <strong>{{ proposal.operation.payeeName }}</strong>
               <span>
                 {{ formatDate(proposal.operation.date) }} ·
-                {{ formatAmount(proposal.operation.amountCents, { signed: true }) }}
+                {{
+                  formatAmount(proposal.operation.amountCents, {
+                    signed: true,
+                    currency: accounts.get(proposal.occurrence.accountId)?.currency,
+                  })
+                }}
               </span>
             </span>
           </div>

@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT o.id AS operation_id, o.account_id, a.name AS account_name,\n                  o.date AS \"date: NaiveDate\", o.amount_cents,\n                  COALESCE(p.name, o.normalized_label) AS \"payee_name!: String\"\n           FROM operation o\n           JOIN account a ON a.id = o.account_id\n           LEFT JOIN payee p ON p.id = o.payee_id\n           WHERE o.id = ?1",
+  "query": "SELECT o.id AS operation_id, o.account_id, a.name AS account_name,\n                  o.date AS \"date: NaiveDate\", o.amount_cents, o.currency,\n                  COALESCE(p.name, o.normalized_label) AS \"payee_name!: String\"\n           FROM operation o\n           JOIN account a ON a.id = o.account_id\n           LEFT JOIN payee p ON p.id = o.payee_id\n           WHERE o.id = ?1",
   "describe": {
     "columns": [
       {
@@ -59,8 +59,19 @@
         }
       },
       {
-        "name": "payee_name!: String",
+        "name": "currency",
         "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "currency"
+          }
+        }
+      },
+      {
+        "name": "payee_name!: String",
+        "ordinal": 6,
         "type_info": "Text",
         "origin": "Expression"
       }
@@ -74,8 +85,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "b1267d0af166a9cac4b0a18bb5a74c25d8f9633f59084933077777b15cae4d1d"
+  "hash": "9dc93034e28d2d3bfcb4746ad1964e083ad3c81aea3a481841c5090aef712bd6"
 }

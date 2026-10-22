@@ -1,4 +1,5 @@
 import type {
+  CurrencyError,
   AccountError,
   AttachmentError,
   BackupError,
@@ -184,6 +185,8 @@ function transfer(error: TransferError): string {
       return "Les deux côtés d'un virement interne doivent être sur des comptes différents.";
     case "amountsNotOpposite":
       return "Les deux côtés d'un virement interne doivent avoir des montants opposés.";
+    case "differentCurrencies":
+      return "Seuls deux comptes de même devise peuvent être liés par un virement.";
     case "alreadyLinked":
       return "Une de ces opérations est déjà liée à un autre virement.";
   }
@@ -319,9 +322,27 @@ export function priceMessage(error: PriceError): string {
     case "unknownSymbol":
       return `Le symbole ${error.params} est inconnu de Yahoo Finance.`;
     case "unsupportedCurrency":
-      return `${error.params.symbol} est coté en ${error.params.currency} : seuls les cours en euros sont pris en charge.`;
+      return `${error.params.symbol} est coté en ${error.params.currency}, une devise non prise en charge.`;
+    case "currencyMismatch":
+      return `${error.params.symbol} est coté en ${error.params.currency}, mais les cours du titre sont en ${error.params.expected}.`;
     case "invalidPrice":
       return "Le cours doit être positif.";
+  }
+  return unreachable(error);
+}
+
+function currency(error: CurrencyError): string {
+  switch (error.code) {
+    case "unsupported":
+      return `La devise ${error.params} n'est pas prise en charge.`;
+    case "referenceRate":
+      return "L'euro est la devise de référence : il n'a pas de taux de change.";
+    case "invalidRate":
+      return "Le taux de change doit être positif, par exemple 0,9234.";
+    case "accountCurrencyLocked":
+      return "Le compte contient déjà des données : sa devise ne peut plus être modifiée.";
+    case "securityCurrencyLocked":
+      return "Le titre a déjà des cours : sa devise ne peut plus être modifiée.";
   }
   return unreachable(error);
 }
@@ -385,6 +406,8 @@ export function businessMessage(detail: ErrorDetail): string {
       return investment(detail.error);
     case "price":
       return priceMessage(detail.error);
+    case "currency":
+      return currency(detail.error);
     case "backup":
       return backup(detail.error);
     case "encryption":

@@ -18,6 +18,12 @@ describe("formatAmount", () => {
     expect(plain(formatAmount(21000000))).toBe("210 000,00 €");
   });
 
+  it("writes the symbol or the code of other currencies", () => {
+    expect(plain(formatAmount(-6428, { currency: "USD" }))).toBe("−64,28 $");
+    expect(plain(formatAmount(6428, { currency: "GBP" }))).toBe("64,28 £");
+    expect(plain(formatAmount(6428, { currency: "CHF" }))).toBe("64,28 CHF");
+  });
+
   it("uses a typographic minus for debits", () => {
     expect(plain(formatAmount(-6428))).toBe("−64,28 €");
     expect(plain(formatAmount(-12699000))).toBe("−126 990,00 €");

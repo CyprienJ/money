@@ -2,7 +2,14 @@
 import { computed, reactive, ref, watch } from "vue";
 import { commands, type Account, type Valuation } from "../bindings";
 import { errorMessage, unwrap } from "../utils/commands";
-import { formatAmount, formatAmountInput, formatDate, parseAmount, todayIso } from "../utils/format";
+import {
+  currencySymbol,
+  formatAmount,
+  formatAmountInput,
+  formatDate,
+  parseAmount,
+  todayIso,
+} from "../utils/format";
 
 const props = defineProps<{
   /** Investment, asset or liability account. */
@@ -20,7 +27,10 @@ const saving = ref(false);
 const error = ref("");
 
 const isDebt = computed(() => props.account.type === "LIABILITY");
-const valueLabel = computed(() => (isDebt.value ? "Capital restant dû (€)" : "Valeur (€)"));
+const valueLabel = computed(() => {
+  const symbol = currencySymbol(props.account.currency);
+  return isDebt.value ? `Capital restant dû (${symbol})` : `Valeur (${symbol})`;
+});
 
 async function load() {
   error.value = "";
@@ -124,7 +134,11 @@ watch(
     <ul v-if="valuations.length > 0" class="list">
       <li v-for="valuation in valuations" :key="valuation.id" :class="{ editing: valuation.id === editingId }">
         <span class="date">{{ formatDate(valuation.date) }}</span>
-        <strong class="value">{{ formatAmount(isDebt ? -valuation.valueCents : valuation.valueCents) }}</strong>
+        <strong class="value">{{
+          formatAmount(isDebt ? -valuation.valueCents : valuation.valueCents, {
+            currency: account.currency,
+          })
+        }}</strong>
         <button type="button" class="btn btn-link" @click="edit(valuation)">Modifier</button>
         <button type="button" class="btn btn-link delete" @click="remove(valuation)">
           {{ confirmingDeleteId === valuation.id ? "Confirmer" : "Supprimer" }}

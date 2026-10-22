@@ -44,10 +44,10 @@ describe("unitPriceCents", () => {
 
 describe("priceUpdateLines", () => {
   it("sums up the update and explains each failure", () => {
-    expect(priceUpdateLines({ updated: 1, failures: [] })).toEqual(["Cours mis à jour pour 1 titre."]);
+    expect(priceUpdateLines({ updated: 1, failures: [] })).toEqual(["Cours mis à jour pour 1 titre ou devise."]);
     const lines = priceUpdateLines({
       updated: 0,
-      failures: [{ securityName: "Vieux titre", error: { code: "unknownSymbol", params: "OLD.PA" } }],
+      failures: [{ name: "Vieux titre", error: { code: "unknownSymbol", params: "OLD.PA" } }],
     });
     expect(lines).toEqual(["Aucun cours mis à jour.", "Vieux titre : Le symbole OLD.PA est inconnu de Yahoo Finance."]);
   });

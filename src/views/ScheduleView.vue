@@ -43,7 +43,7 @@ const prefill = ref<ScheduledOperationInput | null>(null);
 /** Message shown after a suggestion is added. */
 const suggestionNotice = ref("");
 
-const accountNames = computed(() => new Map(accounts.value.map((a) => [a.id, a.name])));
+const accountsById = computed(() => new Map(accounts.value.map((a) => [a.id, a])));
 const categoriesById = computed(() => new Map(categories.value.map((c) => [c.id, c])));
 /** Next occurrence of each schedule within the upcoming window. */
 const nextDates = computed(() => {
@@ -182,7 +182,7 @@ onMounted(load);
       <OccurrenceList
         v-if="upcoming.length > 0"
         :occurrences="upcoming"
-        :account-names="accountNames"
+        :accounts="accountsById"
         :categories-by-id="categoriesById"
         :past="false"
         @changed="load"
@@ -200,7 +200,7 @@ onMounted(load);
       <OccurrenceList
         v-if="recent.length > 0"
         :occurrences="recent"
-        :account-names="accountNames"
+        :accounts="accountsById"
         :categories-by-id="categoriesById"
         :past="true"
         @changed="load"
@@ -223,7 +223,7 @@ onMounted(load);
           <span class="details">
             <span class="label">{{ suggestion.payeeName }}</span>
             <span class="sub">
-              {{ describeSchedule(suggestion) }} · {{ accountNames.get(suggestion.accountId) }}
+              {{ describeSchedule(suggestion) }} · {{ accountsById.get(suggestion.accountId)?.name }}
             </span>
             <span class="sub">
               {{ suggestion.occurrenceCount }} opérations depuis le {{ formatDate(suggestion.startDate) }},
@@ -231,7 +231,12 @@ onMounted(load);
             </span>
           </span>
           <strong class="amount" :class="{ positive: suggestion.amountCents > 0 }">
-            {{ formatAmount(suggestion.amountCents, { signed: true }) }}
+            {{
+              formatAmount(suggestion.amountCents, {
+                signed: true,
+                currency: accountsById.get(suggestion.accountId)?.currency,
+              })
+            }}
           </strong>
           <span class="suggestion-actions">
             <button type="button" class="btn btn-link" @click="dismissSuggestion(suggestion)">Ignorer</button>
@@ -252,7 +257,7 @@ onMounted(load);
             <span class="details">
               <span class="label">{{ schedule.label }}</span>
               <span class="sub">
-                {{ describeSchedule(schedule) }} · {{ accountNames.get(schedule.accountId) }}
+                {{ describeSchedule(schedule) }} · {{ accountsById.get(schedule.accountId)?.name }}
                 <template v-if="schedule.endDate"> · jusqu'au {{ formatDate(schedule.endDate) }}</template>
               </span>
               <span v-if="nextDates.has(schedule.id)" class="sub">
@@ -260,7 +265,12 @@ onMounted(load);
               </span>
             </span>
             <strong class="amount" :class="{ positive: schedule.amountCents > 0 }">
-              {{ formatAmount(schedule.amountCents, { signed: true }) }}
+              {{
+                formatAmount(schedule.amountCents, {
+                  signed: true,
+                  currency: accountsById.get(schedule.accountId)?.currency,
+                })
+              }}
             </strong>
           </button>
         </li>
@@ -274,7 +284,7 @@ onMounted(load);
 
   <ScheduleMatchesModal
     :open="matchesOpen"
-    :account-names="accountNames"
+    :accounts="accountsById"
     @close="matchesOpen = false"
     @changed="onMatchesChanged"
   />

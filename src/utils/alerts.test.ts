@@ -2,11 +2,18 @@ import { describe, expect, it } from "vitest";
 import { describeAlert, type AlertNames } from "./alerts";
 
 const names: AlertNames = {
-  accounts: new Map([[1, "Compte courant"]]),
+  accounts: new Map([[1, { name: "Compte courant", currency: "EUR" }]]),
   categories: new Map([[7, "Restaurants"]]),
 };
 
 describe("describeAlert", () => {
+  it("sends a currency without rate to the settings", () => {
+    const view = describeAlert({ kind: "missingRate", currency: "USD" }, names);
+    expect(view.title).toBe("Taux de change manquant : USD");
+    expect(view.to).toBe("/settings");
+    expect(view.dismissible).toBe(false);
+  });
+
   it("describes a negative forecast, which cannot be dismissed", () => {
     const view = describeAlert(
       {

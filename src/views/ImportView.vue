@@ -67,6 +67,8 @@ const stepIndex = computed(() => steps.findIndex((s) => s.id === step.value));
 
 const fileName = computed(() => path.value?.split(/[\\/]/).pop() ?? "");
 const account = computed(() => accounts.value.find((s) => s.account.id === accountId.value)?.account);
+/** Currency of the amounts of the statement: the one of the account. */
+const currency = computed(() => account.value?.currency);
 const mapping = computed(() => mappings.value.find((m) => m.id === mappingId.value));
 const suggestedLines = computed(
   () => new Map(suggestions.value.map((s) => [s.mapping.id, s.lineCount])),
@@ -413,19 +415,19 @@ onMounted(load);
         </div>
         <div class="balance-grid">
           <span>Solde initial du relevé</span>
-          <strong>{{ formatAmount(preview.startBalanceCents ?? 0) }}</strong>
+          <strong>{{ formatAmount(preview.startBalanceCents ?? 0, { currency }) }}</strong>
           <span>+ Somme des opérations lues</span>
-          <strong>{{ formatAmount(preview.balanceCheck.linesTotalCents, { signed: true }) }}</strong>
+          <strong>{{ formatAmount(preview.balanceCheck.linesTotalCents, { signed: true, currency }) }}</strong>
           <span class="total">= Solde calculé</span>
-          <strong class="total">{{ formatAmount(preview.balanceCheck.computedEndCents ?? 0) }}</strong>
+          <strong class="total">{{ formatAmount(preview.balanceCheck.computedEndCents ?? 0, { currency }) }}</strong>
           <template v-if="!balanceOk">
             <span>Solde final du relevé</span>
-            <strong>{{ formatAmount(preview.endBalanceCents ?? 0) }}</strong>
+            <strong>{{ formatAmount(preview.endBalanceCents ?? 0, { currency }) }}</strong>
           </template>
         </div>
         <span v-if="balanceOk">Identique au solde final indiqué sur le relevé : aucune ligne manquante.</span>
         <span v-else>
-          Écart de {{ formatAmount(balanceGap(preview) ?? 0, { signed: true }) }} : une ligne du relevé n'a pas
+          Écart de {{ formatAmount(balanceGap(preview) ?? 0, { signed: true, currency }) }} : une ligne du relevé n'a pas
           été lue correctement. Tu peux annuler, ou importer quand même et saisir ensuite l'opération manquante.
         </span>
       </div>
@@ -527,7 +529,7 @@ onMounted(load);
               class="col-amount"
               :class="{ positive: line.line.amountCents > 0, internal: isInternalTransfer(index) }"
             >
-              {{ formatAmount(line.line.amountCents, { signed: true }) }}
+              {{ formatAmount(line.line.amountCents, { signed: true, currency }) }}
             </td>
           </tr>
           <tr v-if="groups.candidates.length === 0" class="empty-row">
@@ -542,7 +544,7 @@ onMounted(load);
           <li v-for="{ index, line } in groups.duplicates" :key="index">
             <span class="list-date">{{ formatDate(line.line.date, "day-month") }}</span>
             <span class="list-label">{{ line.payeeName }}</span>
-            <span class="list-amount">{{ lineAmount(line) }}</span>
+            <span class="list-amount">{{ lineAmount(line, currency) }}</span>
           </li>
         </ul>
       </details>
@@ -557,7 +559,7 @@ onMounted(load);
           <li v-for="{ index, line } in groups.beforeOpening" :key="index">
             <span class="list-date">{{ formatDate(line.line.date, "day-month") }}</span>
             <span class="list-label">{{ line.payeeName }}</span>
-            <span class="list-amount">{{ lineAmount(line) }}</span>
+            <span class="list-amount">{{ lineAmount(line, currency) }}</span>
           </li>
         </ul>
       </details>

@@ -46,14 +46,14 @@ export function unitPriceCents(amountCents: number, quantityMicro: number): numb
   return Number((amount * BigInt(QUANTITY_SCALE) * 2n + quantity) / (2n * quantity));
 }
 
-/** Summary of a price update, then one line per security that failed. */
+/** Summary of a price update, then one line per security or exchange rate ("USD/EUR") that failed. */
 export function priceUpdateLines(update: PriceUpdate): string[] {
   const { updated, failures } = update;
   const summary =
     updated === 0
       ? "Aucun cours mis à jour."
-      : `Cours mis à jour pour ${updated} titre${updated > 1 ? "s" : ""}.`;
-  return [summary, ...failures.map((f) => `${f.securityName} : ${priceMessage(f.error)}`)];
+      : `Cours mis à jour pour ${updated} titre${updated > 1 ? "s" : ""} ou devise${updated > 1 ? "s" : ""}.`;
+  return [summary, ...failures.map((f) => `${f.name} : ${priceMessage(f.error)}`)];
 }
 
 /** Hundredths of a percent as a signed percentage: `1645` → `"+16,45 %"`. */

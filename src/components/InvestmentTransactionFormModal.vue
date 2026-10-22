@@ -8,7 +8,14 @@ import {
   type TransactionKind,
 } from "../bindings";
 import { errorMessage, unwrap } from "../utils/commands";
-import { formatAmount, formatAmountInput, formatDate, parseAmount, todayIso } from "../utils/format";
+import {
+  currencySymbol,
+  formatAmount,
+  formatAmountInput,
+  formatDate,
+  parseAmount,
+  todayIso,
+} from "../utils/format";
 import { TRANSACTION_KINDS, formatQuantityInput, parseQuantity, unitPriceCents } from "../utils/portfolio";
 import BaseModal from "./BaseModal.vue";
 
@@ -65,7 +72,8 @@ const unitPriceText = computed(() => {
   if (isDividend.value || quantityMicro.value === null || amountCents.value === null || amountCents.value <= 0) {
     return "";
   }
-  return `Soit ${formatAmount(unitPriceCents(amountCents.value, quantityMicro.value))} par part`;
+  const unitPrice = unitPriceCents(amountCents.value, quantityMicro.value);
+  return `Soit ${formatAmount(unitPrice, { currency: props.account.currency })} par part`;
 });
 
 watch(
@@ -182,13 +190,13 @@ async function remove() {
 
       <div class="row">
         <label class="field">
-          {{ isDividend ? "Montant reçu (€)" : "Montant hors frais (€)" }}
+          {{ isDividend ? "Montant reçu" : "Montant hors frais" }} ({{ currencySymbol(account.currency) }})
           <input v-model="form.amount" type="text" inputmode="decimal" placeholder="1 250,00" />
           <span v-if="submitted && amountError" class="field-error">{{ amountError }}</span>
           <span v-else-if="unitPriceText" class="field-hint">{{ unitPriceText }}</span>
         </label>
         <label class="field">
-          {{ isDividend ? "Retenue ou frais (€)" : "Frais (€)" }}
+          {{ isDividend ? "Retenue ou frais" : "Frais" }} ({{ currencySymbol(account.currency) }})
           <input v-model="form.fees" type="text" inputmode="decimal" placeholder="0,00" />
           <span v-if="submitted && feesError" class="field-error">{{ feesError }}</span>
           <span v-else-if="form.kind === 'BUY'" class="field-hint">Ajoutés au prix de revient.</span>

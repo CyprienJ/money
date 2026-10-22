@@ -76,7 +76,7 @@ async function detect() {
 }
 
 function sideText(side: TransferSide): string {
-  return `${formatDate(side.date)} · ${formatAmount(side.amountCents, { signed: true })}`;
+  return `${formatDate(side.date)} · ${formatAmount(side.amountCents, { signed: true, currency: side.currency })}`;
 }
 </script>
 
