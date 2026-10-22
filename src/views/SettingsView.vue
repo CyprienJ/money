@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import {
   commands,
+  type Backup,
+  type BackupSettings,
   type DataLocation,
   type PriceSettings,
   type SavedCsvMapping,
@@ -11,7 +14,7 @@ import CsvMappingModal from "../components/CsvMappingModal.vue";
 import PageHeader from "../components/PageHeader.vue";
 import { errorMessage, unwrap } from "../utils/commands";
 import { DATE_FORMATS, DELIMITERS, ENCODINGS } from "../utils/csvMapping";
-import { formatDate } from "../utils/format";
+import { formatDate, formatFileSize } from "../utils/format";
 import { priceUpdateLines } from "../utils/portfolio";
 import { THEME_PREFERENCES, setThemePreference, themePreference } from "../utils/theme";
 
@@ -22,6 +25,15 @@ const banks = ref<SupportedBank[]>([]);
 const error = ref("");
 const copied = ref("");
 const priceSettings = ref<PriceSettings | null>(null);
+const backupSettings = ref<BackupSettings | null>(null);
+const backups = ref<Backup[]>([]);
+const backingUp = ref(false);
+const backupNotice = ref("");
+/** Backup waiting for the confirmation of its restore. */
+const restoring = ref<Backup | null>(null);
+const showAllBackups = ref(false);
+/** Backups listed before "Tout afficher". */
+const BACKUPS_SHOWN = 5;
 const updatingPrices = ref(false);
 const priceLines = ref<string[]>([]);
 
@@ -36,8 +48,75 @@ async function load() {
     location.value = await unwrap(commands.dataLocation());
     mappings.value = await unwrap(commands.listCsvMappings());
     priceSettings.value = await unwrap(commands.priceSettings());
+    await loadBackups();
   } catch (e) {
     error.value = errorMessage(e);
+  }
+}
+
+async function loadBackups() {
+  [backupSettings.value, backups.value] = await Promise.all([
+    unwrap(commands.backupSettings()),
+    unwrap(commands.listBackups()),
+  ]);
+}
+
+/** "22/10/2026 à 9 h 30". */
+function backupDate(backup: Backup): string {
+  const [date, time] = backup.createdAt.split("T");
+  const [hours, minutes] = time.split(":");
+  return `${formatDate(date)} à ${Number(hours)} h ${minutes}`;
+}
+
+function backupDescription(backup: Backup): string {
+  const size = formatFileSize(backup.sizeBytes);
+  if (backup.kind === "IMPORT") return `Avant un import, données seules · ${size}`;
+  const files = backup.attachmentCount;
+  return `Complète, ${files} pièce${files > 1 ? "s" : ""} jointe${files > 1 ? "s" : ""} · ${size}`;
+}
+
+async function runBackup(action: () => Promise<unknown>) {
+  error.value = "";
+  backupNotice.value = "";
+  try {
+    await action();
+    await loadBackups();
+  } catch (e) {
+    error.value = errorMessage(e);
+  }
+}
+
+async function backupNow() {
+  backingUp.value = true;
+  await runBackup(async () => {
+    await unwrap(commands.createFullBackup());
+    backupNotice.value = "Sauvegarde complète faite.";
+  });
+  backingUp.value = false;
+}
+
+async function setDaily(daily: boolean) {
+  await runBackup(() => unwrap(commands.setDailyBackups(daily)));
+}
+
+async function resetBackupFolder() {
+  await runBackup(() => unwrap(commands.setBackupFolder(null)));
+}
+
+async function chooseBackupFolder() {
+  const folder = await openDialog({ directory: true, title: "Dossier des sauvegardes complètes" });
+  if (typeof folder !== "string") return;
+  await runBackup(() => unwrap(commands.setBackupFolder(folder)));
+}
+
+async function restore(backup: Backup) {
+  error.value = "";
+  try {
+    // The application restarts on success.
+    await unwrap(commands.restoreBackup(backup.path));
+  } catch (e) {
+    error.value = errorMessage(e);
+    restoring.value = null;
   }
 }
 
@@ -138,18 +217,78 @@ onMounted(load);
             {{ copied === location.dataFile ? "Copié" : "Copier le chemin" }}
           </button>
         </div>
-        <div class="path-block">
-          <span class="path-label">Sauvegardes automatiques</span>
-          <code class="path">{{ location.backupsDir }}</code>
-          <span class="muted">
-            {{ location.backupCount }} sauvegarde{{ location.backupCount > 1 ? "s" : "" }} : une copie du fichier
-            de données est faite avant chaque import.
-          </span>
-          <button type="button" class="btn btn-link" @click="copy(location.backupsDir)">
-            {{ copied === location.backupsDir ? "Copié" : "Copier le chemin" }}
-          </button>
-        </div>
       </template>
+    </section>
+
+    <section v-if="backupSettings" class="card">
+      <h2 class="card-title">Sauvegardes</h2>
+      <label class="check">
+        <input
+          type="checkbox"
+          :checked="backupSettings.daily"
+          @change="setDaily(($event.target as HTMLInputElement).checked)"
+        />
+        Sauvegarde complète chaque jour, au démarrage
+      </label>
+      <p class="muted">
+        Une sauvegarde complète copie le fichier de données et les pièces jointes ; les 10 plus récentes sont
+        gardées. Une copie du fichier de données est aussi faite avant chaque import (les 20 dernières).
+        {{ backupSettings.lastFullOn ? `Dernière sauvegarde complète le ${formatDate(backupSettings.lastFullOn)}.` : "" }}
+      </p>
+      <div class="path-block">
+        <span class="path-label">Dossier des sauvegardes complètes</span>
+        <code class="path">{{ backupSettings.folder }}</code>
+        <span class="muted">Un disque externe ou un dossier synchronisé protège aussi d'une panne de l'ordinateur.</span>
+        <span class="buttons">
+          <button type="button" class="btn btn-link" @click="chooseBackupFolder">Changer…</button>
+          <button
+            v-if="backupSettings.customFolder"
+            type="button"
+            class="btn btn-link"
+            @click="resetBackupFolder"
+          >
+            Revenir au dossier par défaut
+          </button>
+        </span>
+      </div>
+      <div>
+        <button type="button" class="btn btn-secondary" :disabled="backingUp" @click="backupNow">
+          {{ backingUp ? "Sauvegarde…" : "Sauvegarder maintenant" }}
+        </button>
+      </div>
+      <p v-if="backupNotice" class="notice">{{ backupNotice }}</p>
+
+      <ul v-if="backups.length > 0" class="list backups">
+        <li v-for="backup in showAllBackups ? backups : backups.slice(0, BACKUPS_SHOWN)" :key="backup.path">
+          <span class="backup-row">
+            <span class="details">
+              <span class="name">{{ backupDate(backup) }}</span>
+              <span class="muted">{{ backupDescription(backup) }}</span>
+            </span>
+            <button v-if="restoring?.path !== backup.path" type="button" class="btn btn-link" @click="restoring = backup">
+              Restaurer…
+            </button>
+          </span>
+          <span v-if="restoring?.path === backup.path" class="confirm">
+            <span>
+              Les données actuelles seront d'abord sauvegardées, puis l'application redémarrera sur
+              {{ backup.kind === "FULL" ? "cette sauvegarde" : "ces données (les pièces jointes actuelles sont gardées)" }}.
+            </span>
+            <span class="buttons">
+              <button type="button" class="btn btn-secondary" @click="restoring = null">Annuler</button>
+              <button type="button" class="btn btn-primary" @click="restore(backup)">Restaurer et redémarrer</button>
+            </span>
+          </span>
+        </li>
+      </ul>
+      <button
+        v-if="backups.length > BACKUPS_SHOWN && !showAllBackups"
+        type="button"
+        class="btn btn-link"
+        @click="showAllBackups = true"
+      >
+        Afficher les {{ backups.length }} sauvegardes
+      </button>
     </section>
 
     <section class="card">
@@ -277,6 +416,58 @@ onMounted(load);
   width: 18px;
   height: 18px;
   accent-color: var(--color-primary);
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.notice {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-nav);
+  background: var(--cat-transport-bg);
+  color: var(--cat-transport-fg);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.backups > li {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.backups > li:last-child {
+  border-bottom: 0;
+}
+
+.backup-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.details {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-nav);
+  background: var(--cat-groceries-bg);
+  color: var(--cat-groceries-fg);
+  font-size: 13px;
 }
 
 .price-lines {
