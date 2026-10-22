@@ -202,6 +202,8 @@ pub fn parse(bytes: &[u8]) -> Result<Statement, InterchangeError> {
             amount_cents,
             note: (!note.is_empty()).then(|| note.join(" · ")),
             source_category,
+            source_page: None,
+            source_line: Some(record.line),
         });
     }
     Ok(Statement {

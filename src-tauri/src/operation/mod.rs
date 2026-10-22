@@ -39,6 +39,12 @@ pub struct Operation {
     pub payee_name: String,
     /// `None` for manual entries.
     pub import_batch_id: Option<i64>,
+    /// The file of the import was kept: it can be opened (imports made since V2).
+    pub has_source_document: bool,
+    /// Page of the operation in its PDF statement, from 1.
+    pub source_page: Option<u32>,
+    /// Line of the operation in its text file (CSV, OFX, QIF), from 1.
+    pub source_line: Option<u32>,
     /// `None` while the operation is still to categorize.
     pub category_id: Option<i64>,
     /// Derived from the category; excluded from income and expense statistics.

@@ -162,5 +162,7 @@ fn read_line(
         amount_cents,
         note: None,
         source_category: None,
+        source_page: None,
+        source_line: u32::try_from(line).ok(),
     }))
 }

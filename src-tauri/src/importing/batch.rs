@@ -63,6 +63,8 @@ pub struct NewImportBatch {
     pub statement_start_balance_cents: Option<i64>,
     pub statement_end_balance_cents: Option<i64>,
     pub balance_check_status: BalanceCheckStatus,
+    /// Name of the copy of the file in the statements directory.
+    pub stored_file: Option<String>,
 }
 
 /// Serialized for the frontend as `{ code, params }`, to show a message in French.
@@ -193,8 +195,9 @@ pub async fn import(
     let batch_id = sqlx::query!(
         "INSERT INTO import_batch
          (account_id, source_type, source_file_name, source_file_hash, imported_at,
-          statement_start_balance_cents, statement_end_balance_cents, balance_check_status)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+          statement_start_balance_cents, statement_end_balance_cents, balance_check_status,
+          stored_file)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         batch.account_id,
         batch.source_type,
         batch.source_file_name,
@@ -202,7 +205,8 @@ pub async fn import(
         now,
         batch.statement_start_balance_cents,
         batch.statement_end_balance_cents,
-        batch.balance_check_status
+        batch.balance_check_status,
+        batch.stored_file
     )
     .execute(&mut *tx)
     .await?
@@ -221,8 +225,9 @@ pub async fn import(
         let operation_id = sqlx::query!(
             "INSERT INTO operation
              (account_id, date, value_date, amount_cents, raw_label, normalized_label, payee_id,
-              import_batch_id, is_internal_transfer, note, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?11)",
+              import_batch_id, is_internal_transfer, note, source_page, source_line, created_at,
+              updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?13)",
             batch.account_id,
             line.date,
             line.value_date,
@@ -233,6 +238,8 @@ pub async fn import(
             batch_id,
             is_internal_transfer,
             line.note,
+            line.source_page,
+            line.source_line,
             now
         )
         .execute(&mut *tx)
@@ -255,8 +262,9 @@ pub async fn import(
     get(pool, batch_id).await
 }
 
-/// Cancels an import: deletes the batch, its operations and their splits.
-pub async fn cancel(pool: &SqlitePool, id: i64) -> AppResult<()> {
+/// Cancels an import: deletes the batch, its operations and their splits. The kept file goes
+/// away with the last import of its content.
+pub async fn cancel(pool: &SqlitePool, statements_dir: &Path, id: i64) -> AppResult<()> {
     let deleted = sqlx::query!("DELETE FROM import_batch WHERE id = ?1", id)
         .execute(pool)
         .await?
@@ -264,6 +272,7 @@ pub async fn cancel(pool: &SqlitePool, id: i64) -> AppResult<()> {
     if deleted == 0 {
         return Err(ImportError::NotFound(id).into());
     }
+    super::source_document::sweep(pool, statements_dir).await?;
     Ok(())
 }
 

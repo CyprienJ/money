@@ -23,6 +23,8 @@ fn line(day: &str, amount_cents: i64, label: &str) -> ImportLine {
             amount_cents,
             note: None,
             source_category: None,
+            source_page: None,
+            source_line: None,
         },
         category_id: None,
         chosen: false,
@@ -103,6 +105,7 @@ fn csv_batch(account_id: i64, hash: &str) -> NewImportBatch {
         statement_start_balance_cents: None,
         statement_end_balance_cents: None,
         balance_check_status: BalanceCheckStatus::NotAvailable,
+        stored_file: None,
     }
 }
 
@@ -289,7 +292,9 @@ fn cancelling_removes_the_whole_batch_only() {
         .await
         .unwrap();
 
-        cancel(&pool, cancelled.id).await.unwrap();
+        cancel(&pool, Path::new("/nonexistent/statements"), cancelled.id)
+            .await
+            .unwrap();
 
         let ids: Vec<i64> = operation::list(&pool, account_id, None, None)
             .await
@@ -303,7 +308,7 @@ fn cancelling_removes_the_whole_batch_only() {
         assert_eq!(list(&pool, account_id).await.unwrap(), vec![kept]);
 
         assert!(matches!(
-            cancel(&pool, cancelled.id).await,
+            cancel(&pool, Path::new("/nonexistent/statements"), cancelled.id).await,
             Err(AppError::Import(ImportError::NotFound(_)))
         ));
     });

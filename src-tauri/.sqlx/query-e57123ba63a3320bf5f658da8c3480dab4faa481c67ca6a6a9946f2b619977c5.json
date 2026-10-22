@@ -1,0 +1,62 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!\", source_file_name, imported_at AS \"imported_at: DateTime<Utc>\",\n                  stored_file\n           FROM import_batch\n           WHERE id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "import_batch",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "source_file_name",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "import_batch",
+            "name": "source_file_name"
+          }
+        }
+      },
+      {
+        "name": "imported_at: DateTime<Utc>",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "import_batch",
+            "name": "imported_at"
+          }
+        }
+      },
+      {
+        "name": "stored_file",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "import_batch",
+            "name": "stored_file"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "e57123ba63a3320bf5f658da8c3480dab4faa481c67ca6a6a9946f2b619977c5"
+}

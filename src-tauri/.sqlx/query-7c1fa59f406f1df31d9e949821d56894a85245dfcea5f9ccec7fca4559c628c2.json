@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT DISTINCT stored_file AS \"stored_file!\" FROM import_batch\n           WHERE stored_file IS NOT NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "stored_file!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "import_batch",
+            "name": "stored_file"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "7c1fa59f406f1df31d9e949821d56894a85245dfcea5f9ccec7fca4559c628c2"
+}

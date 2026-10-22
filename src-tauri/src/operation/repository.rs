@@ -158,7 +158,10 @@ async fn fetch(conn: &mut SqliteConnection, id: i64) -> AppResult<Operation> {
                   o.value_date AS "value_date: NaiveDate", o.amount_cents, o.raw_label,
                   o.normalized_label, o.payee_id,
                   COALESCE(p.name, o.normalized_label) AS "payee_name!: String",
-                  o.import_batch_id, s.category_id,
+                  o.import_batch_id,
+                  COALESCE(b.stored_file IS NOT NULL, 0) AS "has_source_document!: bool",
+                  o.source_page AS "source_page: u32", o.source_line AS "source_line: u32",
+                  s.category_id,
                   o.is_internal_transfer AS "is_internal_transfer: bool", o.transfer_pair_id,
                   o.note,
                   (SELECT COUNT(*) FROM attachment a WHERE a.operation_id = o.id)
@@ -166,6 +169,7 @@ async fn fetch(conn: &mut SqliteConnection, id: i64) -> AppResult<Operation> {
            FROM operation o
            LEFT JOIN operation_split s ON s.operation_id = o.id
            LEFT JOIN payee p ON p.id = o.payee_id
+           LEFT JOIN import_batch b ON b.id = o.import_batch_id
            WHERE o.id = ?1"#,
         id
     )
@@ -183,6 +187,9 @@ async fn fetch(conn: &mut SqliteConnection, id: i64) -> AppResult<Operation> {
         payee_id: row.payee_id,
         payee_name: row.payee_name,
         import_batch_id: row.import_batch_id,
+        has_source_document: row.has_source_document,
+        source_page: row.source_page,
+        source_line: row.source_line,
         category_id: row.category_id,
         is_internal_transfer: row.is_internal_transfer,
         transfer_pair_id: row.transfer_pair_id,

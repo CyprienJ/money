@@ -1,7 +1,7 @@
-//! Full backups: a consistent copy of the data file (`VACUUM INTO`) and of the attachments, in
-//! a `complete-AAAAMMJJ-HHMMSS/` directory of the backup folder. Made at startup once a day
-//! (unless disabled) and on demand; the 10 most recent are kept. The backups made before each
-//! import (data file only) are kept 20 by 20.
+//! Full backups: a consistent copy of the data file (`VACUUM INTO`), of the attachments and of
+//! the kept statements, in a `complete-AAAAMMJJ-HHMMSS/` directory of the backup folder. Made
+//! at startup once a day (unless disabled) and on demand; the 10 most recent are kept. The
+//! backups made before each import (data file only) are kept 20 by 20.
 //!
 //! A backup cannot replace the open data file: a restore is scheduled in a marker file of the
 //! data directory, the application restarts, and the files are replaced before the data file
@@ -17,6 +17,7 @@ use sqlx::SqlitePool;
 use crate::attachment::ATTACHMENTS_DIR;
 use crate::db::DATA_FILE_NAME;
 use crate::error::{AppResult, ErrorKind};
+use crate::importing::source_document::STATEMENTS_DIR;
 use crate::setting;
 
 #[cfg(test)]
@@ -38,7 +39,7 @@ const LAST_ON: &str = "full_backup_on";
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Type)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BackupKind {
-    /// Data file and attachments.
+    /// Data file, attachments and kept statements.
     Full,
     /// Data file only, made before an import.
     Import,
@@ -51,7 +52,7 @@ pub struct Backup {
     pub kind: BackupKind,
     /// Local date and time of the backup, from its name.
     pub created_at: NaiveDateTime,
-    /// Size of the data file and of the attachments.
+    /// Size of the data file, of the attachments and of the kept statements.
     pub size_bytes: u64,
     pub attachment_count: u32,
 }
@@ -179,10 +180,17 @@ pub async fn full(pool: &SqlitePool, dirs: &Dirs, rotate: bool) -> AppResult<Bac
         .bind(dir.join(DATA_FILE_NAME).to_string_lossy().into_owned())
         .execute(pool)
         .await?;
-    let (from, to) = (dirs.attachments(), dir.join(ATTACHMENTS_DIR));
-    tauri::async_runtime::spawn_blocking(move || copy_files(&from, &to))
-        .await
-        .map_err(std::io::Error::other)??;
+    let copies = [
+        (dirs.attachments(), dir.join(ATTACHMENTS_DIR)),
+        (dirs.data.join(STATEMENTS_DIR), dir.join(STATEMENTS_DIR)),
+    ];
+    tauri::async_runtime::spawn_blocking(move || {
+        copies
+            .iter()
+            .try_for_each(|(from, to)| copy_files(from, to))
+    })
+    .await
+    .map_err(std::io::Error::other)??;
     setting::set(pool, LAST_ON, &Local::now().date_naive().to_string()).await?;
     if rotate {
         rotate_full(&folder, KEEP_FULL)?;
@@ -198,7 +206,7 @@ pub async fn full_due(pool: &SqlitePool, today: NaiveDate) -> AppResult<bool> {
     )
 }
 
-/// Copies the files of `from` (attachments: no subdirectory) into `to`, created.
+/// Copies the files of `from` (attachments, statements: no subdirectory) into `to`, created.
 fn copy_files(from: &Path, to: &Path) -> std::io::Result<()> {
     std::fs::create_dir_all(to)?;
     let entries = match std::fs::read_dir(from) {
@@ -237,6 +245,11 @@ fn describe(path: &Path) -> Option<Backup> {
             for entry in entries.flatten() {
                 size_bytes += entry.metadata().map_or(0, |m| m.len());
                 attachment_count += 1;
+            }
+        }
+        if let Ok(entries) = std::fs::read_dir(path.join(STATEMENTS_DIR)) {
+            for entry in entries.flatten() {
+                size_bytes += entry.metadata().map_or(0, |m| m.len());
             }
         }
         Some(Backup {
@@ -309,7 +322,8 @@ pub async fn schedule_restore(pool: &SqlitePool, dirs: &Dirs, path: &str) -> App
 }
 
 /// Applies a scheduled restore, before the data file is opened: replaces the data file, and
-/// the attachments for a full backup. Returns the restored backup. The marker is removed
+/// the attachments and kept statements for a full backup (statements of a backup made before
+/// they were kept stay: the next start sweeps the unused ones). Returns the restored backup. The marker is removed
 /// first, so that a failing restore is not tried again at every start.
 pub fn apply_pending_restore(data_dir: &Path) -> std::io::Result<Option<PathBuf>> {
     let marker = data_dir.join(RESTORE_MARKER);
@@ -344,6 +358,14 @@ pub fn apply_pending_restore(data_dir: &Path) -> std::io::Result<Option<PathBuf>
             _ => {}
         }
         copy_files(&source.join(ATTACHMENTS_DIR), &attachments)?;
+        if source.join(STATEMENTS_DIR).is_dir() {
+            let statements = data_dir.join(STATEMENTS_DIR);
+            match std::fs::remove_dir_all(&statements) {
+                Err(error) if error.kind() != std::io::ErrorKind::NotFound => return Err(error),
+                _ => {}
+            }
+            copy_files(&source.join(STATEMENTS_DIR), &statements)?;
+        }
     }
     Ok(Some(source))
 }

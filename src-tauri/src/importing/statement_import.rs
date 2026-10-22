@@ -17,6 +17,7 @@ use super::duplicates::{self, DuplicateStatus, ExistingOperation};
 use super::interchange::{InterchangeError, ofx, qif};
 use super::pdf::{self, PdfError};
 use super::source_category::{self, SourceCategory, SourceCategoryChoice};
+use super::source_document;
 use crate::account;
 use crate::error::AppResult;
 use crate::labeling::classifier::{Classifier, Suggestion};
@@ -318,10 +319,12 @@ pub struct ImportSelection {
 /// read again and must not have changed since the preview; exact duplicates and lines dated
 /// before the account opening are refused. A category that differs from the proposed one is
 /// a choice of the user, remembered for the label, as is a category given by a QIF file. The
-/// categories chosen for the categories of a QIF file are remembered for the next imports.
+/// categories chosen for the categories of a QIF file are remembered for the next imports. The
+/// file is kept in `statements_dir`, to be opened from its operations.
 pub async fn import(
     pool: &SqlitePool,
     backup_dir: &Path,
+    statements_dir: &Path,
     file: StatementFile<'_>,
     expected_hash: &str,
     selections: &[ImportSelection],
@@ -354,6 +357,8 @@ pub async fn import(
         });
     }
 
+    let stored_file =
+        source_document::store(statements_dir, &file_hash, file.file_name, file.bytes)?;
     let batch = batch::import(
         pool,
         backup_dir,
@@ -370,6 +375,7 @@ pub async fn import(
             statement_start_balance_cents: preview.start_balance_cents,
             statement_end_balance_cents: preview.end_balance_cents,
             balance_check_status: preview.balance_check.status,
+            stored_file: Some(stored_file),
         },
         &lines,
     )

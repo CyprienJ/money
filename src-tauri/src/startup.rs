@@ -6,8 +6,9 @@ use sqlx::SqlitePool;
 use tauri::{AppHandle, Manager};
 
 use crate::error::{AppError, AppResult};
+use crate::importing::source_document::STATEMENTS_DIR;
 use crate::labeling::classifier::ClassifierCache;
-use crate::{attachment, backup, investment, labeling, payee};
+use crate::{attachment, backup, importing, investment, labeling, payee};
 
 /// Prepares the open data file, hands the pool to Tauri and starts the background tasks.
 pub async fn start(app: &AppHandle, pool: SqlitePool) -> AppResult<()> {
@@ -21,6 +22,8 @@ pub async fn start(app: &AppHandle, pool: SqlitePool) -> AppResult<()> {
     payee::assign_missing(&pool).await?;
     // Removes the files of attachments deleted with their operation.
     attachment::sweep(&pool, &data_dir.join(attachment::ATTACHMENTS_DIR)).await?;
+    // Removes the kept statements of cancelled or failed imports.
+    importing::source_document::sweep(&pool, &data_dir.join(STATEMENTS_DIR)).await?;
 
     // Trains the category classifier ahead of the first suggestion.
     let (cache, warm_pool) = (app.state::<ClassifierCache>().inner().clone(), pool.clone());

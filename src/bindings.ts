@@ -272,6 +272,12 @@ export const commands = {
 	 *  securities. `file_hash` comes from the preview.
 	 */
 	importTrades: (path: string, accountId: number, fileHash: string, indexes: number[]) => typedError<TradeImport, AppError>(__TAURI_INVOKE("import_trades", { path, accountId, fileHash, indexes })),
+	/**  The kept file of an import: name, date and how it is shown. */
+	sourceDocument: (importBatchId: number) => typedError<SourceDocument, AppError>(__TAURI_INVOKE("source_document", { importBatchId })),
+	/**  Text of a kept CSV, OFX or QIF file. */
+	sourceDocumentText: (importBatchId: number) => typedError<string, AppError>(__TAURI_INVOKE("source_document_text", { importBatchId })),
+	/**  Opens the kept file of an import with the default application of the system. */
+	openSourceDocument: (importBatchId: number) => typedError<null, AppError>(__TAURI_INVOKE("open_source_document", { importBatchId })),
 	/**  Banks whose PDF statements can be imported. */
 	supportedBanks: () => __TAURI_INVOKE<SupportedBank[]>("supported_banks"),
 	/**  Bank of the PDF statement at `path`, `null` when no parser recognizes it. */
@@ -416,7 +422,7 @@ export type Backup = {
 	kind: BackupKind,
 	/**  Local date and time of the backup, from its name. */
 	createdAt: string,
-	/**  Size of the data file and of the attachments. */
+	/**  Size of the data file, of the attachments and of the kept statements. */
 	sizeBytes: number,
 	attachmentCount: number,
 };
@@ -425,7 +431,7 @@ export type Backup = {
 export type BackupError = { code: "notABackup"; params: string } | { code: "folderUnavailable"; params: string };
 
 export type BackupKind = 
-/**  Data file and attachments. */
+/**  Data file, attachments and kept statements. */
 "FULL" | 
 /**  Data file only, made before an import. */
 "IMPORT";
@@ -625,6 +631,13 @@ export type Direction =
 /**  Positive amounts. */
 "credit";
 
+/**  How a document is shown. */
+export type DocumentKind = 
+/**  Opened with the application of the system. */
+"pdf" | 
+/**  Shown in the application, line by line. */
+"text";
+
 export type DuplicateStatus = { status: "new" } | { status: "duplicate"; operationId: number } | { status: "ambiguous"; reason: AmbiguityReason; 
 /**  Existing operations the line may duplicate. */
 candidateIds: number[] };
@@ -633,7 +646,7 @@ candidateIds: number[] };
 export type EncryptionError = { code: "wrongPassword" } | { code: "passwordTooShort"; params: number } | { code: "alreadyEncrypted" } | { code: "notEncrypted" };
 
 /**  Business error with its code and parameters, for a message in French on the frontend. */
-export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "rule"; error: RuleError } | { domain: "payee"; error: PayeeError } | { domain: "tag"; error: TagError } | { domain: "attachment"; error: AttachmentError } | { domain: "transfer"; error: TransferError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError } | { domain: "interchange"; error: InterchangeError } | { domain: "investment"; error: InvestmentError } | { domain: "price"; error: PriceError } | { domain: "currency"; error: CurrencyError } | { domain: "backup"; error: BackupError } | { domain: "encryption"; error: EncryptionError };
+export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "rule"; error: RuleError } | { domain: "payee"; error: PayeeError } | { domain: "tag"; error: TagError } | { domain: "attachment"; error: AttachmentError } | { domain: "transfer"; error: TransferError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError } | { domain: "interchange"; error: InterchangeError } | { domain: "sourceDocument"; error: SourceDocumentError } | { domain: "investment"; error: InvestmentError } | { domain: "price"; error: PriceError } | { domain: "currency"; error: CurrencyError } | { domain: "backup"; error: BackupError } | { domain: "encryption"; error: EncryptionError };
 
 /**  Stable identifier the frontend can match on. */
 export type ErrorKind = "database" | "migration" | "io" | 
@@ -783,6 +796,12 @@ export type InvestmentTransaction = {
 	note: string | null,
 	/**  Gain of a sell: proceeds net of fees − cost of the units sold; `None` otherwise. */
 	realizedCents: number | null,
+	/**  Import of the statement it was read from; `None` when entered by hand. */
+	importBatchId: number | null,
+	/**  The statement was kept: it can be opened. */
+	hasSourceDocument: boolean,
+	/**  Page of the trade in its statement, from 1. */
+	sourcePage: number | null,
 };
 
 export type LargestExpense = {
@@ -876,6 +895,12 @@ export type Operation = {
 	payeeName: string,
 	/**  `None` for manual entries. */
 	importBatchId: number | null,
+	/**  The file of the import was kept: it can be opened (imports made since V2). */
+	hasSourceDocument: boolean,
+	/**  Page of the operation in its PDF statement, from 1. */
+	sourcePage: number | null,
+	/**  Line of the operation in its text file (CSV, OFX, QIF), from 1. */
+	sourceLine: number | null,
 	/**  `None` while the operation is still to categorize. */
 	categoryId: number | null,
 	/**  Derived from the category; excluded from income and expense statistics. */
@@ -1111,6 +1136,10 @@ export type RawLine = {
 	note: string | null,
 	/**  Category given by a QIF file, e.g. "Alimentation:Courses"; `[Compte]` for a transfer. */
 	sourceCategory: string | null,
+	/**  Page of the line in a PDF statement, from 1. */
+	sourcePage: number | null,
+	/**  Line in a text file (CSV, OFX, QIF), from 1. */
+	sourceLine: number | null,
 };
 
 /**  A recurring series suggested as a scheduled operation. */
@@ -1248,6 +1277,17 @@ export type SourceCategoryChoice = {
 	categoryId: number | null,
 };
 
+export type SourceDocument = {
+	importBatchId: number,
+	/**  Original file name. */
+	fileName: string,
+	importedAt: string,
+	kind: DocumentKind,
+};
+
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type SourceDocumentError = { code: "notKept"; params: number } | { code: "fileMissing"; params: number } | { code: "notText"; params: number };
+
 export type SourceType = "CSV" | "PDF" | "OFX" | "QIF";
 
 /**  Lines kept according to a state column, e.g. only `COMPLETED` operations. */
@@ -1308,6 +1348,8 @@ export type Trade = {
 	quantityMicro: number,
 	/**  Positive. */
 	amountCents: number,
+	/**  Page of the trade in the statement, from 1. */
+	sourcePage: number | null,
 };
 
 export type TradeImport = {

@@ -1,3 +1,5 @@
+use std::sync::atomic::{AtomicU32, Ordering};
+
 use sqlx::SqlitePool;
 
 use super::*;
@@ -27,6 +29,8 @@ struct Setup {
     account_id: i64,
     mapping_id: i64,
     backups: std::path::PathBuf,
+    /// Kept statements of the test, deleted afterwards.
+    statements: std::path::PathBuf,
 }
 
 impl Setup {
@@ -83,13 +87,21 @@ fn run<F: Future<Output = ()>>(test: impl FnOnce(Setup) -> F) {
         .id;
         // Backups of an in-memory database are written in memory: the directory stays empty.
         let backups = std::env::temp_dir().join("money-csv-import-test-backups");
+        static COUNTER: AtomicU32 = AtomicU32::new(0);
+        let statements = std::env::temp_dir().join(format!(
+            "money-import-test-statements-{}-{}",
+            std::process::id(),
+            COUNTER.fetch_add(1, Ordering::Relaxed)
+        ));
         test(Setup {
             pool,
             account_id,
             mapping_id,
             backups,
+            statements: statements.clone(),
         })
         .await;
+        let _ = std::fs::remove_dir_all(statements);
     });
 }
 
@@ -190,6 +202,7 @@ fn imports_the_chosen_lines_once() {
         let batch = import(
             &setup.pool,
             &setup.backups,
+            &setup.statements,
             setup.file(),
             &hash,
             &selections,
@@ -234,6 +247,7 @@ fn refuses_invalid_selections() {
                 import(
                     &setup.pool,
                     &setup.backups,
+                    &setup.statements,
                     setup.file(),
                     &hash,
                     &selections,
@@ -299,6 +313,7 @@ fn proposes_and_applies_remembered_categories() {
         import(
             &setup.pool,
             &setup.backups,
+            &setup.statements,
             setup.file(),
             &hash,
             &selections,
@@ -425,6 +440,7 @@ fn remembers_categories_chosen_in_the_preview() {
         import(
             &setup.pool,
             &setup.backups,
+            &setup.statements,
             setup.file(),
             &hash,
             &selections,
@@ -485,6 +501,7 @@ fn previews_and_imports_a_pdf_statement() {
         let batch = import(
             &setup.pool,
             &setup.backups,
+            &setup.statements,
             file,
             &preview.file_hash,
             &selections,
@@ -613,6 +630,7 @@ fn imports_a_qif_file_with_its_categories() {
         let batch = import(
             &setup.pool,
             &setup.backups,
+            &setup.statements,
             qif_file(&setup),
             &preview.file_hash,
             &selections,
@@ -665,5 +683,54 @@ fn refuses_an_ofx_file_in_another_currency() {
             Err(AppError::Interchange(InterchangeError::CurrencyMismatch { file, account }))
                 if file == "USD" && account == "EUR"
         ));
+    });
+}
+
+#[test]
+fn keeps_the_imported_file_for_its_operations() {
+    run(|setup| async move {
+        let hash = batch::file_hash(FILE.as_bytes());
+        let selections = proposed(&setup, &[3]).await;
+        let batch = import(
+            &setup.pool,
+            &setup.backups,
+            &setup.statements,
+            setup.file(),
+            &hash,
+            &selections,
+            &[],
+        )
+        .await
+        .unwrap();
+        let kept = setup.statements.join(format!("{hash}.csv"));
+        assert!(kept.is_file());
+
+        let operation_id: i64 =
+            sqlx::query_scalar("SELECT id FROM operation WHERE import_batch_id = ?1")
+                .bind(batch.id)
+                .fetch_one(&setup.pool)
+                .await
+                .unwrap();
+        let operation = operation::get(&setup.pool, operation_id).await.unwrap();
+        assert!(operation.has_source_document);
+        // VIR SALAIRE, the fourth line of the file.
+        assert_eq!(
+            (operation.source_page, operation.source_line),
+            (None, Some(4))
+        );
+
+        let document = source_document::get(&setup.pool, batch.id).await.unwrap();
+        assert_eq!(document.file_name, "releve.csv");
+        assert_eq!(document.kind, source_document::DocumentKind::Text);
+        let text = source_document::text_of(&setup.pool, &setup.statements, batch.id)
+            .await
+            .unwrap();
+        assert_eq!(text.lines().nth(3), Some("2026-09-05;VIR SALAIRE;2450.00"));
+
+        // Cancelling the import removes the file nobody uses anymore.
+        batch::cancel(&setup.pool, &setup.statements, batch.id)
+            .await
+            .unwrap();
+        assert!(!kept.exists());
     });
 }

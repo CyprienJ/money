@@ -133,6 +133,8 @@ fn raw(day: &str, value_date: Option<&str>, label: &str, amount_cents: i64) -> R
         amount_cents,
         note: None,
         source_category: None,
+        source_page: None,
+        source_line: None,
     }
 }
 
@@ -142,6 +144,11 @@ fn parses_the_fortuneo_statement() {
     let parser = detect(&document).expect("Fortuneo recognized");
     assert_eq!(parser.id(), "fortuneo");
     let statement = parser.parse(&document).unwrap();
+    assert!(statement.lines.iter().all(|l| l.source_page == Some(1)));
+    let statement = Statement {
+        lines: crate::importing::unplaced(statement.lines),
+        ..statement
+    };
     assert_eq!(
         statement.lines,
         vec![
@@ -177,6 +184,10 @@ fn reads_the_fortuneo_lines_sharing_a_baseline_with_the_margin() {
     let document = fixture("fortuneo_2.pdf");
     let parser = detect(&document).expect("Fortuneo recognized");
     let statement = parser.parse(&document).unwrap();
+    let statement = Statement {
+        lines: crate::importing::unplaced(statement.lines),
+        ..statement
+    };
     assert_eq!(statement.lines.len(), 21);
     assert_eq!(
         statement.lines.last(),
@@ -199,6 +210,13 @@ fn parses_the_current_account_of_the_trade_republic_statement() {
     let parser = detect(&document).expect("Trade Republic recognized");
     assert_eq!(parser.id(), "trade-republic");
     let statement = parser.parse(&document).unwrap();
+    // The table goes on over the first two pages.
+    assert_eq!(statement.lines[0].source_page, Some(1));
+    assert_eq!(statement.lines[24].source_page, Some(2));
+    let statement = Statement {
+        lines: crate::importing::unplaced(statement.lines),
+        ..statement
+    };
 
     assert_eq!(statement.start_balance_cents, Some(6_984));
     assert_eq!(statement.end_balance_cents, Some(6_687));

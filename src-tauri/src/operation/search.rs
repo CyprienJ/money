@@ -71,7 +71,9 @@ pub async fn search(pool: &SqlitePool, filter: &OperationFilter) -> AppResult<Ve
         r#"SELECT id AS "id!", account_id AS "account_id!", date AS "date!: NaiveDate",
                   value_date AS "value_date: NaiveDate", amount_cents AS "amount_cents!",
                   raw_label AS "raw_label!", normalized_label AS "normalized_label!",
-                  payee_id, payee_name AS "payee_name!: String", import_batch_id, category_id,
+                  payee_id, payee_name AS "payee_name!: String", import_batch_id,
+                  has_source_document AS "has_source_document!: bool",
+                  source_page AS "source_page: u32", source_line AS "source_line: u32", category_id,
                   is_internal_transfer AS "is_internal_transfer!: bool", transfer_pair_id, note,
                   (SELECT COUNT(*) FROM attachment WHERE operation_id = id)
                       AS "attachment_count!: i64",
@@ -80,7 +82,8 @@ pub async fn search(pool: &SqlitePool, filter: &OperationFilter) -> AppResult<Ve
                SELECT o.id, o.account_id, o.date, o.value_date, o.amount_cents, o.raw_label,
                       o.normalized_label, o.payee_id,
                       COALESCE(p.name, o.normalized_label) AS payee_name,
-                      o.import_batch_id, s.category_id, o.is_internal_transfer,
+                      o.import_batch_id, b.stored_file IS NOT NULL AS has_source_document,
+                      o.source_page, o.source_line, s.category_id, o.is_internal_transfer,
                       o.transfer_pair_id, o.note,
                       a.archived,
                       a.opening_balance_cents + SUM(o.amount_cents)
@@ -89,6 +92,7 @@ pub async fn search(pool: &SqlitePool, filter: &OperationFilter) -> AppResult<Ve
                JOIN account a ON a.id = o.account_id
                LEFT JOIN operation_split s ON s.operation_id = o.id
                LEFT JOIN payee p ON p.id = o.payee_id
+               LEFT JOIN import_batch b ON b.id = o.import_batch_id
                WHERE ?1 IS NULL OR o.account_id = ?1
            )
            WHERE (?1 IS NOT NULL OR ?2 OR NOT archived)
@@ -134,6 +138,9 @@ pub async fn search(pool: &SqlitePool, filter: &OperationFilter) -> AppResult<Ve
                 payee_id: row.payee_id,
                 payee_name: row.payee_name,
                 import_batch_id: row.import_batch_id,
+                has_source_document: row.has_source_document,
+                source_page: row.source_page,
+                source_line: row.source_line,
                 category_id: row.category_id,
                 is_internal_transfer: row.is_internal_transfer,
                 transfer_pair_id: row.transfer_pair_id,

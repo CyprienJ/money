@@ -14,6 +14,7 @@ pub mod interchange;
 )]
 pub mod pdf;
 pub mod source_category;
+pub mod source_document;
 pub mod statement_import;
 pub mod trade_import;
 
@@ -36,6 +37,28 @@ pub struct RawLine {
     pub note: Option<String>,
     /// Category given by a QIF file, e.g. "Alimentation:Courses"; `[Compte]` for a transfer.
     pub source_category: Option<String>,
+    /// Page of the line in a PDF statement, from 1.
+    pub source_page: Option<u32>,
+    /// Line in a text file (CSV, OFX, QIF), from 1.
+    pub source_line: Option<u32>,
+}
+
+#[cfg(test)]
+impl RawLine {
+    /// The line without its position in the file, to compare with an expected line.
+    pub fn unplaced(self) -> RawLine {
+        RawLine {
+            source_page: None,
+            source_line: None,
+            ..self
+        }
+    }
+}
+
+/// Lines without their position in the file, for tests.
+#[cfg(test)]
+pub fn unplaced(lines: Vec<RawLine>) -> Vec<RawLine> {
+    lines.into_iter().map(RawLine::unplaced).collect()
 }
 
 /// What a parser reads from a statement file (PDF, OFX, QIF).

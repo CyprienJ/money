@@ -35,7 +35,7 @@ pub async fn list_import_batches(
 #[tauri::command]
 #[specta::specta]
 pub async fn cancel_import(app: AppHandle, pool: State<'_, SqlitePool>, id: i64) -> AppResult<()> {
-    batch::cancel(&pool, id).await?;
+    batch::cancel(&pool, &super::app::statements_dir(&app)?, id).await?;
     crate::attachment::sweep(&pool, &super::app::attachments_dir(&app)?).await?;
     Ok(())
 }
@@ -104,6 +104,7 @@ pub async fn import_statement(
     let batch = statement_import::import(
         &pool,
         &super::app::backups_dir(&app)?,
+        &super::app::statements_dir(&app)?,
         file,
         &file_hash,
         &selections,
@@ -152,6 +153,7 @@ pub async fn import_trades(
     trade_import::import(
         &pool,
         &super::app::backups_dir(&app)?,
+        &super::app::statements_dir(&app)?,
         trade_file(&path, account_id, &bytes, &pdfium_dir),
         &file_hash,
         &indexes,

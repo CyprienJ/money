@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id AS \"id!\", account_id AS \"account_id!\", date AS \"date!: NaiveDate\",\n                  value_date AS \"value_date: NaiveDate\", amount_cents AS \"amount_cents!\",\n                  raw_label AS \"raw_label!\", normalized_label AS \"normalized_label!\",\n                  payee_id, payee_name AS \"payee_name!: String\", import_batch_id, category_id,\n                  is_internal_transfer AS \"is_internal_transfer!: bool\", transfer_pair_id, note,\n                  (SELECT COUNT(*) FROM attachment WHERE operation_id = id)\n                      AS \"attachment_count!: i64\",\n                  balance_cents AS \"balance_cents!: i64\"\n           FROM (\n               SELECT o.id, o.account_id, o.date, o.value_date, o.amount_cents, o.raw_label,\n                      o.normalized_label, o.payee_id,\n                      COALESCE(p.name, o.normalized_label) AS payee_name,\n                      o.import_batch_id, s.category_id, o.is_internal_transfer,\n                      o.transfer_pair_id, o.note,\n                      a.archived,\n                      a.opening_balance_cents + SUM(o.amount_cents)\n                          OVER (PARTITION BY o.account_id ORDER BY o.date, o.id) AS balance_cents\n               FROM operation o\n               JOIN account a ON a.id = o.account_id\n               LEFT JOIN operation_split s ON s.operation_id = o.id\n               LEFT JOIN payee p ON p.id = o.payee_id\n               WHERE ?1 IS NULL OR o.account_id = ?1\n           )\n           WHERE (?1 IS NOT NULL OR ?2 OR NOT archived)\n             AND (?3 IS NULL OR date >= ?3) AND (?4 IS NULL OR date <= ?4)\n             AND (?5 IS NULL OR (?5 = 'debit' AND amount_cents < 0)\n                             OR (?5 = 'credit' AND amount_cents > 0))\n             AND (?6 IS NULL OR ABS(amount_cents) >= ?6)\n             AND (?7 IS NULL OR ABS(amount_cents) <= ?7)\n             AND (?8 IS NULL OR payee_id = ?8)\n             AND (NOT ?9 OR category_id IS NULL)\n             AND (?10 IS NULL OR category_id IN\n                     (SELECT c.id FROM category c WHERE c.id = ?10 OR c.parent_id = ?10))\n             AND (?11 IS NULL OR EXISTS\n                     (SELECT 1 FROM operation_tag ot WHERE ot.operation_id = id AND ot.tag_id = ?11))\n           ORDER BY date DESC, id DESC",
+  "query": "SELECT id AS \"id!\", account_id AS \"account_id!\", date AS \"date!: NaiveDate\",\n                  value_date AS \"value_date: NaiveDate\", amount_cents AS \"amount_cents!\",\n                  raw_label AS \"raw_label!\", normalized_label AS \"normalized_label!\",\n                  payee_id, payee_name AS \"payee_name!: String\", import_batch_id,\n                  has_source_document AS \"has_source_document!: bool\",\n                  source_page AS \"source_page: u32\", source_line AS \"source_line: u32\", category_id,\n                  is_internal_transfer AS \"is_internal_transfer!: bool\", transfer_pair_id, note,\n                  (SELECT COUNT(*) FROM attachment WHERE operation_id = id)\n                      AS \"attachment_count!: i64\",\n                  balance_cents AS \"balance_cents!: i64\"\n           FROM (\n               SELECT o.id, o.account_id, o.date, o.value_date, o.amount_cents, o.raw_label,\n                      o.normalized_label, o.payee_id,\n                      COALESCE(p.name, o.normalized_label) AS payee_name,\n                      o.import_batch_id, b.stored_file IS NOT NULL AS has_source_document,\n                      o.source_page, o.source_line, s.category_id, o.is_internal_transfer,\n                      o.transfer_pair_id, o.note,\n                      a.archived,\n                      a.opening_balance_cents + SUM(o.amount_cents)\n                          OVER (PARTITION BY o.account_id ORDER BY o.date, o.id) AS balance_cents\n               FROM operation o\n               JOIN account a ON a.id = o.account_id\n               LEFT JOIN operation_split s ON s.operation_id = o.id\n               LEFT JOIN payee p ON p.id = o.payee_id\n               LEFT JOIN import_batch b ON b.id = o.import_batch_id\n               WHERE ?1 IS NULL OR o.account_id = ?1\n           )\n           WHERE (?1 IS NOT NULL OR ?2 OR NOT archived)\n             AND (?3 IS NULL OR date >= ?3) AND (?4 IS NULL OR date <= ?4)\n             AND (?5 IS NULL OR (?5 = 'debit' AND amount_cents < 0)\n                             OR (?5 = 'credit' AND amount_cents > 0))\n             AND (?6 IS NULL OR ABS(amount_cents) >= ?6)\n             AND (?7 IS NULL OR ABS(amount_cents) <= ?7)\n             AND (?8 IS NULL OR payee_id = ?8)\n             AND (NOT ?9 OR category_id IS NULL)\n             AND (?10 IS NULL OR category_id IN\n                     (SELECT c.id FROM category c WHERE c.id = ?10 OR c.parent_id = ?10))\n             AND (?11 IS NULL OR EXISTS\n                     (SELECT 1 FROM operation_tag ot WHERE ot.operation_id = id AND ot.tag_id = ?11))\n           ORDER BY date DESC, id DESC",
   "describe": {
     "columns": [
       {
@@ -109,8 +109,36 @@
         }
       },
       {
-        "name": "category_id",
+        "name": "has_source_document!: bool",
         "ordinal": 10,
+        "type_info": "Integer",
+        "origin": "Expression"
+      },
+      {
+        "name": "source_page: u32",
+        "ordinal": 11,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "source_page"
+          }
+        }
+      },
+      {
+        "name": "source_line: u32",
+        "ordinal": 12,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "source_line"
+          }
+        }
+      },
+      {
+        "name": "category_id",
+        "ordinal": 13,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -121,7 +149,7 @@
       },
       {
         "name": "is_internal_transfer!: bool",
-        "ordinal": 11,
+        "ordinal": 14,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -132,7 +160,7 @@
       },
       {
         "name": "transfer_pair_id",
-        "ordinal": 12,
+        "ordinal": 15,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -143,7 +171,7 @@
       },
       {
         "name": "note",
-        "ordinal": 13,
+        "ordinal": 16,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -154,13 +182,13 @@
       },
       {
         "name": "attachment_count!: i64",
-        "ordinal": 14,
+        "ordinal": 17,
         "type_info": "Integer",
         "origin": "Expression"
       },
       {
         "name": "balance_cents!: i64",
-        "ordinal": 15,
+        "ordinal": 18,
         "type_info": "Integer",
         "origin": "Expression"
       }
@@ -179,6 +207,9 @@
       true,
       false,
       true,
+      false,
+      true,
+      true,
       true,
       false,
       true,
@@ -187,5 +218,5 @@
       false
     ]
   },
-  "hash": "2bf446097a5fa208b15488ce9bc95dbdb8b7432c2d1129ce21b407568a629193"
+  "hash": "d2f356e8fb1a7f9fdd13ba5ea4a57ea5da43e985b2e1beff7e0984155f0f3b60"
 }

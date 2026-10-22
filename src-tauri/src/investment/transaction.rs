@@ -36,6 +36,12 @@ pub struct InvestmentTransaction {
     pub note: Option<String>,
     /// Gain of a sell: proceeds net of fees − cost of the units sold; `None` otherwise.
     pub realized_cents: Option<i64>,
+    /// Import of the statement it was read from; `None` when entered by hand.
+    pub import_batch_id: Option<i64>,
+    /// The statement was kept: it can be opened.
+    pub has_source_document: bool,
+    /// Page of the trade in its statement, from 1.
+    pub source_page: Option<u32>,
 }
 
 #[derive(Debug, Clone, Deserialize, Type)]
@@ -58,9 +64,12 @@ pub async fn list(pool: &SqlitePool, account_id: i64) -> AppResult<Vec<Investmen
         r#"SELECT t.id AS "id!", t.account_id, t.security_id, s.name AS security_name,
                   t.date AS "date: NaiveDate", t.kind AS "kind: TransactionKind",
                   t.quantity_micro, t.amount_cents, t.fees_cents, t.note,
-                  CAST(NULL AS INTEGER) AS "realized_cents?: i64"
+                  CAST(NULL AS INTEGER) AS "realized_cents?: i64", t.import_batch_id,
+                  COALESCE(b.stored_file IS NOT NULL, 0) AS "has_source_document!: bool",
+                  t.source_page AS "source_page: u32"
            FROM investment_transaction t
            JOIN security s ON s.id = t.security_id
+           LEFT JOIN import_batch b ON b.id = t.import_batch_id
            WHERE t.account_id = ?1
            ORDER BY t.date DESC, t.id DESC"#,
         account_id
@@ -98,9 +107,12 @@ async fn get(pool: &SqlitePool, id: i64) -> AppResult<InvestmentTransaction> {
         r#"SELECT t.id AS "id!", t.account_id, t.security_id, s.name AS security_name,
                   t.date AS "date: NaiveDate", t.kind AS "kind: TransactionKind",
                   t.quantity_micro, t.amount_cents, t.fees_cents, t.note,
-                  CAST(NULL AS INTEGER) AS "realized_cents?: i64"
+                  CAST(NULL AS INTEGER) AS "realized_cents?: i64", t.import_batch_id,
+                  COALESCE(b.stored_file IS NOT NULL, 0) AS "has_source_document!: bool",
+                  t.source_page AS "source_page: u32"
            FROM investment_transaction t
            JOIN security s ON s.id = t.security_id
+           LEFT JOIN import_batch b ON b.id = t.import_batch_id
            WHERE t.id = ?1"#,
         id
     )
@@ -137,22 +149,25 @@ pub async fn create(
     get(pool, id).await
 }
 
-/// Records several transactions at once, all or none (an import).
+/// Records the transactions read from a statement at once, all or none, with the import they
+/// come from and their page in the statement.
 pub async fn create_many(
     pool: &SqlitePool,
     account_id: i64,
-    inputs: &[TransactionInput],
+    import_batch_id: i64,
+    inputs: &[(TransactionInput, Option<u32>)],
 ) -> AppResult<()> {
     let mut notes = Vec::with_capacity(inputs.len());
-    for input in inputs {
+    for (input, _) in inputs {
         notes.push(check(pool, account_id, input).await?);
     }
     let mut tx = pool.begin().await?;
-    for (input, note) in inputs.iter().zip(notes) {
+    for ((input, source_page), note) in inputs.iter().zip(notes) {
         sqlx::query!(
             "INSERT INTO investment_transaction
-             (account_id, security_id, date, kind, quantity_micro, amount_cents, fees_cents, note)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+             (account_id, security_id, date, kind, quantity_micro, amount_cents, fees_cents, note,
+              import_batch_id, source_page)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             account_id,
             input.security_id,
             input.date,
@@ -160,12 +175,14 @@ pub async fn create_many(
             input.quantity_micro,
             input.amount_cents,
             input.fees_cents,
-            note
+            note,
+            import_batch_id,
+            source_page
         )
         .execute(&mut *tx)
         .await?;
     }
-    let mut securities: Vec<i64> = inputs.iter().map(|input| input.security_id).collect();
+    let mut securities: Vec<i64> = inputs.iter().map(|(input, _)| input.security_id).collect();
     securities.sort_unstable();
     securities.dedup();
     for security_id in securities {

@@ -20,6 +20,8 @@ fn line(day: &str, amount_cents: i64, label: &str) -> RawLine {
         amount_cents,
         note: None,
         source_category: None,
+        source_page: None,
+        source_line: None,
     }
 }
 

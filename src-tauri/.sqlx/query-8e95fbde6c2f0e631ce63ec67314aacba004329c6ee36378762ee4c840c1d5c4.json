@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT t.id AS \"id!\", t.account_id, t.security_id, s.name AS security_name,\n                  t.date AS \"date: NaiveDate\", t.kind AS \"kind: TransactionKind\",\n                  t.quantity_micro, t.amount_cents, t.fees_cents, t.note,\n                  CAST(NULL AS INTEGER) AS \"realized_cents?: i64\"\n           FROM investment_transaction t\n           JOIN security s ON s.id = t.security_id\n           WHERE t.id = ?1",
+  "query": "SELECT t.id AS \"id!\", t.account_id, t.security_id, s.name AS security_name,\n                  t.date AS \"date: NaiveDate\", t.kind AS \"kind: TransactionKind\",\n                  t.quantity_micro, t.amount_cents, t.fees_cents, t.note,\n                  CAST(NULL AS INTEGER) AS \"realized_cents?: i64\", t.import_batch_id,\n                  COALESCE(b.stored_file IS NOT NULL, 0) AS \"has_source_document!: bool\",\n                  t.source_page AS \"source_page: u32\"\n           FROM investment_transaction t\n           JOIN security s ON s.id = t.security_id\n           LEFT JOIN import_batch b ON b.id = t.import_batch_id\n           WHERE t.account_id = ?1\n           ORDER BY t.date DESC, t.id DESC",
   "describe": {
     "columns": [
       {
@@ -118,6 +118,34 @@
         "ordinal": 10,
         "type_info": "Integer",
         "origin": "Expression"
+      },
+      {
+        "name": "import_batch_id",
+        "ordinal": 11,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "import_batch_id"
+          }
+        }
+      },
+      {
+        "name": "has_source_document!: bool",
+        "ordinal": 12,
+        "type_info": "Integer",
+        "origin": "Expression"
+      },
+      {
+        "name": "source_page: u32",
+        "ordinal": 13,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "source_page"
+          }
+        }
       }
     ],
     "parameters": {
@@ -134,8 +162,11 @@
       false,
       false,
       true,
+      true,
+      true,
+      false,
       true
     ]
   },
-  "hash": "f1a33d4a8c059a38465904e7cd9d8d906c43dfa7894092dbbcca37032509d010"
+  "hash": "8e95fbde6c2f0e631ce63ec67314aacba004329c6ee36378762ee4c840c1d5c4"
 }

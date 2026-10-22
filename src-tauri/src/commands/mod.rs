@@ -17,6 +17,7 @@ mod import;
 mod investment;
 mod operation;
 mod payee;
+mod source_document;
 mod stats;
 mod tag;
 
@@ -142,6 +143,9 @@ pub fn builder() -> Builder<tauri::Wry> {
             import::import_statement,
             import::preview_trades,
             import::import_trades,
+            source_document::source_document,
+            source_document::source_document_text,
+            source_document::open_source_document,
             import::supported_banks,
             import::detect_pdf_statement,
             stats::expenses_by_category,

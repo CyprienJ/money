@@ -58,7 +58,7 @@ impl InterchangeError {
 
 /// Text of a file in UTF-8 (byte order mark removed), or else in Windows-1252, the encoding of
 /// the French versions of Money.
-fn decode(bytes: &[u8]) -> String {
+pub(crate) fn decode(bytes: &[u8]) -> String {
     let bytes = bytes.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(bytes);
     match std::str::from_utf8(bytes) {
         Ok(text) => text.to_owned(),

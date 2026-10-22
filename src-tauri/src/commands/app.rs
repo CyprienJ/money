@@ -49,6 +49,11 @@ pub(super) fn backups_dir(app: &AppHandle) -> AppResult<PathBuf> {
     Ok(data_dir(app)?.join("backups"))
 }
 
+/// `statements/` in the application data directory: the kept imported files.
+pub(super) fn statements_dir(app: &AppHandle) -> AppResult<PathBuf> {
+    Ok(data_dir(app)?.join(crate::importing::source_document::STATEMENTS_DIR))
+}
+
 /// `attachments/` in the application data directory.
 pub(super) fn attachments_dir(app: &AppHandle) -> AppResult<PathBuf> {
     Ok(data_dir(app)?.join(crate::attachment::ATTACHMENTS_DIR))

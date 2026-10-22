@@ -49,7 +49,8 @@ impl StatementParser for Fortuneo {
         let mut start_date = None;
         let mut lines: Vec<RawLine> = Vec::new();
 
-        for page in &document.pages {
+        for (index, page) in document.pages.iter().enumerate() {
+            let page_number = u32::try_from(index + 1).ok();
             let mut columns = None;
             // y and label start of the last operation line, while its label may go on.
             let mut last: Option<(f32, f32)> = None;
@@ -75,7 +76,10 @@ impl StatementParser for Fortuneo {
                 } else if text.starts_with("TOTAL") || text.starts_with("SOLDE") {
                     last = None;
                 } else if let Some((operation, label_left)) = operation(line, columns, end)? {
-                    lines.push(operation);
+                    lines.push(RawLine {
+                        source_page: page_number,
+                        ..operation
+                    });
                     last = Some((line.y, label_left));
                 } else if let (Some((y, label_left)), Some(previous)) = (last, lines.last_mut()) {
                     // Label going on under the previous one, without date nor amount.
@@ -218,6 +222,8 @@ fn operation(
         amount_cents,
         note: None,
         source_category: None,
+        source_page: None,
+        source_line: None,
     };
     Ok(Some((operation, first.left)))
 }
@@ -320,7 +326,7 @@ mod tests {
 
         let statement = Fortuneo.parse(&document).unwrap();
         assert_eq!(
-            statement.lines,
+            crate::importing::unplaced(statement.lines),
             [RawLine {
                 date: date("2025-04-30"),
                 value_date: Some(date("2025-04-30")),
@@ -328,6 +334,8 @@ mod tests {
                 amount_cents: -1590,
                 note: None,
                 source_category: None,
+                source_page: None,
+                source_line: None,
             }]
         );
         assert_eq!(statement.start_balance_cents, Some(2000));

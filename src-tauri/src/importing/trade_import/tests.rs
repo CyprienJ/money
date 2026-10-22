@@ -97,18 +97,29 @@ fn imports_the_trades_into_the_portfolio() {
         assert!(preview.lines[0].security_id.is_none());
 
         let backups = std::env::temp_dir().join("money-trade-import-test-backups");
+        let statements = std::env::temp_dir().join(format!(
+            "money-trade-import-test-statements-{}",
+            std::process::id()
+        ));
         assert!(matches!(
-            import(&pool, &backups, file, "autre", &[0]).await,
+            import(&pool, &backups, &statements, file, "autre", &[0]).await,
             Err(AppError::Import(ImportError::FileChanged))
         ));
         assert!(matches!(
-            import(&pool, &backups, file, &preview.file_hash, &[1]).await,
+            import(&pool, &backups, &statements, file, &preview.file_hash, &[1]).await,
             Err(AppError::Import(ImportError::DuplicateLine(1)))
         ));
         let kept: Vec<u32> = (0..11).filter(|i| *i != 1).collect();
-        let outcome = import(&pool, &backups, file, &preview.file_hash, &kept)
-            .await
-            .unwrap();
+        let outcome = import(
+            &pool,
+            &backups,
+            &statements,
+            file,
+            &preview.file_hash,
+            &kept,
+        )
+        .await
+        .unwrap();
         assert_eq!(
             outcome,
             TradeImport {
@@ -128,6 +139,31 @@ fn imports_the_trades_into_the_portfolio() {
         assert_eq!(engie.security_name, "ENGIE S.A. INH. EO 1");
         assert_eq!(engie.quantity_micro, 10 * QUANTITY_SCALE);
         assert_eq!(engie.cost_cents, 26_294);
+
+        // Each trade opens its statement, at its page.
+        let imported = transactions::list(&pool, pea).await.unwrap();
+        let carrefour = imported
+            .iter()
+            .find(|t| t.security_name == "CARREFOUR S.A. INH.EO 2,5")
+            .unwrap();
+        assert!(carrefour.has_source_document);
+        assert_eq!(carrefour.source_page, Some(4));
+        let document =
+            crate::importing::source_document::get(&pool, carrefour.import_batch_id.unwrap())
+                .await
+                .unwrap();
+        assert_eq!(
+            document.kind,
+            crate::importing::source_document::DocumentKind::Pdf
+        );
+        assert!(
+            !imported
+                .iter()
+                .find(|t| t.security_id == asml)
+                .unwrap()
+                .has_source_document
+        );
+        let _ = std::fs::remove_dir_all(&statements);
 
         // Imported once: everything is a duplicate now.
         let again = super::preview(&pool, file).await.unwrap();

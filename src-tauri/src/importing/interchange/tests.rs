@@ -1,7 +1,7 @@
 use chrono::NaiveDate;
 
 use super::*;
-use crate::importing::RawLine;
+use crate::importing::{RawLine, Statement};
 
 fn date(text: &str) -> NaiveDate {
     text.parse().unwrap()
@@ -15,6 +15,8 @@ fn line(day: &str, label: &str, amount_cents: i64) -> RawLine {
         amount_cents,
         note: None,
         source_category: None,
+        source_page: None,
+        source_line: None,
     }
 }
 
@@ -72,8 +74,11 @@ fn reads_an_ofx_1_statement() {
     let read = ofx::parse(OFX_SGML.as_bytes()).unwrap();
     assert_eq!(read.currency.as_deref(), Some("EUR"));
     let statement = read.statement;
+    // Line of the <STMTTRN> of each transaction.
+    let positions: Vec<Option<u32>> = statement.lines.iter().map(|l| l.source_line).collect();
+    assert_eq!(positions, [Some(12), Some(14), Some(18)]);
     assert_eq!(
-        statement.lines,
+        crate::importing::unplaced(statement.lines),
         [
             RawLine {
                 note: Some("CARTE 4974 04/10".to_owned()),
@@ -106,7 +111,7 @@ fn reads_an_ofx_2_statement() {
     assert_eq!(read.currency.as_deref(), Some("USD"));
     // The memo repeating the name is not kept.
     assert_eq!(
-        read.statement.lines,
+        crate::importing::unplaced(read.statement.lines),
         [line("2026-10-03", "Café étoile", -1999)]
     );
 }
@@ -194,6 +199,13 @@ MAbonnement
 #[test]
 fn reads_a_money_qif_export() {
     let statement = qif::parse(&money_qif()).unwrap();
+    // First line of each record.
+    let positions: Vec<Option<u32>> = statement.lines.iter().map(|l| l.source_line).collect();
+    assert_eq!(positions, [8, 14, 19, 27, 39].map(Some));
+    let statement = Statement {
+        lines: crate::importing::unplaced(statement.lines),
+        ..statement
+    };
     assert_eq!(statement.start_balance_cents, Some(150_000));
     assert_eq!(statement.end_balance_cents, None);
     let with = |line: RawLine, category: Option<&str>, note: Option<&str>| RawLine {

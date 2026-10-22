@@ -4,7 +4,8 @@
 //! A trade already in the account (same ISIN, date, kind, quantity, and amount plus fees) is a
 //! duplicate, never imported. A security unknown by its ISIN is created with the name the
 //! bank gives it, in the currency of the account. The amount is the total paid or received,
-//! fees included: the statement does not detail them.
+//! fees included: the statement does not detail them. The import makes a batch without
+//! operations, which keeps the file: each trade opens its statement.
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -14,8 +15,9 @@ use serde::Serialize;
 use specta::Type;
 use sqlx::SqlitePool;
 
-use super::batch::{self, ImportError};
+use super::batch::{self, BalanceCheckStatus, ImportError, SourceType};
 use super::pdf::{self, PdfError, Trade};
+use super::source_document;
 use crate::account::{self, AccountType};
 use crate::error::AppResult;
 use crate::investment::{
@@ -138,10 +140,12 @@ pub async fn preview(pool: &SqlitePool, file: TradeFile<'_>) -> AppResult<TradeP
 
 /// Imports the selected trades, after a backup into `backup_dir`. The file is read again and
 /// must not have changed since the preview; duplicates are refused. Missing securities are
-/// created first, then every trade is recorded at once, buys before sells on a day.
+/// created first, then every trade is recorded at once, buys before sells on a day. The file
+/// is kept in `statements_dir`.
 pub async fn import(
     pool: &SqlitePool,
     backup_dir: &Path,
+    statements_dir: &Path,
     file: TradeFile<'_>,
     expected_hash: &str,
     indexes: &[u32],
@@ -191,23 +195,56 @@ pub async fn import(
         created.insert(&line.trade.isin, security.id);
     }
 
-    let mut inputs: Vec<TransactionInput> = lines
+    let mut inputs: Vec<(TransactionInput, Option<u32>)> = lines
         .iter()
-        .map(|line| TransactionInput {
-            security_id: line
-                .security_id
-                .or_else(|| created.get(line.trade.isin.as_str()).copied())
-                .expect("missing securities are created above"),
-            date: line.trade.date,
-            kind: line.trade.kind,
-            quantity_micro: line.trade.quantity_micro,
-            amount_cents: line.trade.amount_cents,
-            fees_cents: 0,
-            note: None,
+        .map(|line| {
+            let input = TransactionInput {
+                security_id: line
+                    .security_id
+                    .or_else(|| created.get(line.trade.isin.as_str()).copied())
+                    .expect("missing securities are created above"),
+                date: line.trade.date,
+                kind: line.trade.kind,
+                quantity_micro: line.trade.quantity_micro,
+                amount_cents: line.trade.amount_cents,
+                fees_cents: 0,
+                note: None,
+            };
+            (input, line.trade.source_page)
         })
         .collect();
-    inputs.sort_by_key(|input| (input.date, input.kind != TransactionKind::Buy));
-    transactions::create_many(pool, file.account_id, &inputs).await?;
+    inputs.sort_by_key(|(input, _)| (input.date, input.kind != TransactionKind::Buy));
+
+    let stored_file = source_document::store(
+        statements_dir,
+        &preview.file_hash,
+        file.file_name,
+        file.bytes,
+    )?;
+    let batch_id = sqlx::query!(
+        "INSERT INTO import_batch
+         (account_id, source_type, source_file_name, source_file_hash, imported_at,
+          balance_check_status, stored_file)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        file.account_id,
+        SourceType::Pdf,
+        preview.file_name,
+        preview.file_hash,
+        crate::operation::timestamp(),
+        BalanceCheckStatus::NotAvailable,
+        stored_file
+    )
+    .execute(pool)
+    .await?
+    .last_insert_rowid();
+    if let Err(error) = transactions::create_many(pool, file.account_id, batch_id, &inputs).await {
+        // Nothing was recorded: the batch goes, and its file with it.
+        sqlx::query!("DELETE FROM import_batch WHERE id = ?1", batch_id)
+            .execute(pool)
+            .await?;
+        source_document::sweep(pool, statements_dir).await?;
+        return Err(error);
+    }
     Ok(TradeImport {
         imported: u32::try_from(inputs.len()).unwrap_or(u32::MAX),
         created_securities: u32::try_from(created.len()).unwrap_or(u32::MAX),

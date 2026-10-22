@@ -11,6 +11,7 @@ use crate::importing::batch::ImportError;
 use crate::importing::csv::{CsvError, CsvMappingError};
 use crate::importing::interchange::InterchangeError;
 use crate::importing::pdf::PdfError;
+use crate::importing::source_document::SourceDocumentError;
 use crate::investment::InvestmentError;
 use crate::investment::prices::PriceError;
 use crate::labeling::rules::RuleError;
@@ -80,6 +81,9 @@ pub enum AppError {
     Interchange(#[from] InterchangeError),
 
     #[error(transparent)]
+    SourceDocument(#[from] SourceDocumentError),
+
+    #[error(transparent)]
     Investment(#[from] InvestmentError),
 
     #[error(transparent)]
@@ -127,6 +131,7 @@ enum ErrorDetail {
     Import(ImportError),
     Pdf(PdfError),
     Interchange(InterchangeError),
+    SourceDocument(SourceDocumentError),
     Investment(InvestmentError),
     Price(PriceError),
     Currency(CurrencyError),
@@ -165,6 +170,7 @@ impl AppError {
             AppError::Import(error) => error.kind(),
             AppError::Pdf(error) => error.kind(),
             AppError::Interchange(error) => error.kind(),
+            AppError::SourceDocument(error) => error.kind(),
             AppError::Investment(error) => error.kind(),
             AppError::Price(error) => error.kind(),
             AppError::Currency(error) => error.kind(),
@@ -193,6 +199,7 @@ impl AppError {
             AppError::Import(error) => ErrorDetail::Import(error.clone()),
             AppError::Pdf(error) => ErrorDetail::Pdf(error.clone()),
             AppError::Interchange(error) => ErrorDetail::Interchange(error.clone()),
+            AppError::SourceDocument(error) => ErrorDetail::SourceDocument(error.clone()),
             AppError::Investment(error) => ErrorDetail::Investment(error.clone()),
             AppError::Price(error) => ErrorDetail::Price(error.clone()),
             AppError::Currency(error) => ErrorDetail::Currency(error.clone()),

@@ -34,6 +34,8 @@ pub struct Trade {
     pub quantity_micro: i64,
     /// Positive.
     pub amount_cents: i64,
+    /// Page of the trade in the statement, from 1.
+    pub source_page: Option<u32>,
 }
 
 /// A parser for the PDF statements of one bank.

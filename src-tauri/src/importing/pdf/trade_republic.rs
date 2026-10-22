@@ -145,6 +145,7 @@ fn trade(line: &RawLine) -> Option<Result<Trade, PdfError>> {
         name: captures[3].trim().to_owned(),
         quantity_micro,
         amount_cents: line.amount_cents.abs(),
+        source_page: line.source_page,
     }))
 }
 
@@ -173,7 +174,7 @@ fn transactions(
     let mut in_section = false;
     let mut seen = false;
 
-    for page in &document.pages {
+    for (index, page) in document.pages.iter().enumerate() {
         let mut columns: Option<Columns> = None;
         let mut items: Vec<Placed> = Vec::new();
         let mut table_over = false;
@@ -201,7 +202,8 @@ fn transactions(
         }
         let Some(columns) = columns else { continue };
         for row in group_rows(&items, &columns) {
-            let (line, printed_balance) = transaction(&row, &columns)?;
+            let (mut line, printed_balance) = transaction(&row, &columns)?;
+            line.source_page = u32::try_from(index + 1).ok();
             balance += line.amount_cents;
             if balance != printed_balance {
                 return Err(PdfError::Layout(format!(
@@ -354,6 +356,8 @@ fn transaction(row: &[&Placed], columns: &Columns) -> Result<(RawLine, i64), Pdf
         amount_cents,
         note: None,
         source_category: None,
+        source_page: None,
+        source_line: None,
     };
     Ok((line, balance))
 }
@@ -370,6 +374,8 @@ mod tests {
             amount_cents,
             note: None,
             source_category: None,
+            source_page: None,
+            source_line: None,
         }
     }
 
