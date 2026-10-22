@@ -41,7 +41,7 @@ async function save() {
   submitted.value = true;
   error.value = "";
   if (nameError.value) return;
-  const input = { name: form.name, isin: form.isin.trim() || null };
+  const input = { name: form.name, isin: form.isin.trim() || null, symbol: props.security?.symbol ?? null };
   saving.value = true;
   try {
     const security = props.security

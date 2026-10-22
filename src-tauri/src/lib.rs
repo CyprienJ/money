@@ -9,6 +9,7 @@ mod investment;
 mod labeling;
 mod operation;
 mod payee;
+mod setting;
 mod stats;
 mod tag;
 
@@ -46,6 +47,17 @@ pub fn run() {
                 let _ = cache.refresh(&warm_pool).await;
             });
             app.manage(classifier);
+            // Daily update of the security prices, once the user allowed it.
+            let price_pool = pool.clone();
+            tauri::async_runtime::spawn(async move {
+                let today = chrono::Local::now().date_naive();
+                if let Ok(true) = investment::prices::update_due(&price_pool, today).await
+                    && let Ok(yahoo) = investment::yahoo::Yahoo::new()
+                {
+                    // Failures show on the next update from the portfolio screen.
+                    let _ = investment::prices::update(&price_pool, &yahoo, today).await;
+                }
+            });
             app.manage(pool);
             Ok(())
         })

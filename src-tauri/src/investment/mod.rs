@@ -8,10 +8,12 @@
 //! valuations.
 
 mod position;
+pub mod prices;
 mod security;
 #[cfg(test)]
 mod tests;
 mod transaction;
+pub mod yahoo;
 
 pub use position::{Position, positions};
 pub use security::{Security, SecurityInput};
@@ -53,6 +55,9 @@ pub enum InvestmentError {
 
     #[error("{0:?} is not a valid ISIN")]
     InvalidIsin(String),
+
+    #[error("{0:?} is not a valid symbol")]
+    InvalidSymbol(String),
 
     #[error("a security with the ISIN {0} already exists")]
     IsinTaken(String),

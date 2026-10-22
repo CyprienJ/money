@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM security_price WHERE security_id = ?1 AND date = ?2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "95c7eb950bc22b6da2836beeb76d1ce1e9f664b7981a627d9a5dd3c9a3a1233d"
+}

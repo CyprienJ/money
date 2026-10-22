@@ -11,6 +11,8 @@ pub struct Security {
     pub id: i64,
     pub name: String,
     pub isin: Option<String>,
+    /// Yahoo Finance symbol of the listing whose prices are fetched, e.g. `CW8.PA`.
+    pub symbol: Option<String>,
     /// Transactions of the security, in every account.
     pub transaction_count: i64,
 }
@@ -20,13 +22,14 @@ pub struct Security {
 pub struct SecurityInput {
     pub name: String,
     pub isin: Option<String>,
+    pub symbol: Option<String>,
 }
 
 /// Every security, by name.
 pub async fn list(pool: &SqlitePool) -> AppResult<Vec<Security>> {
     let securities = sqlx::query_as!(
         Security,
-        r#"SELECT s.id AS "id!", s.name, s.isin,
+        r#"SELECT s.id AS "id!", s.name, s.isin, s.symbol,
                   (SELECT COUNT(*) FROM investment_transaction t WHERE t.security_id = s.id)
                       AS "transaction_count!: i64"
            FROM security s
@@ -46,11 +49,12 @@ async fn get(pool: &SqlitePool, id: i64) -> AppResult<Security> {
 }
 
 pub async fn create(pool: &SqlitePool, input: SecurityInput) -> AppResult<Security> {
-    let (name, isin) = clean(&input)?;
+    let (name, isin, symbol) = clean(&input)?;
     let id = sqlx::query!(
-        "INSERT INTO security (name, isin) VALUES (?1, ?2)",
+        "INSERT INTO security (name, isin, symbol) VALUES (?1, ?2, ?3)",
         name,
-        isin
+        isin,
+        symbol
     )
     .execute(pool)
     .await
@@ -60,12 +64,13 @@ pub async fn create(pool: &SqlitePool, input: SecurityInput) -> AppResult<Securi
 }
 
 pub async fn update(pool: &SqlitePool, id: i64, input: SecurityInput) -> AppResult<Security> {
-    let (name, isin) = clean(&input)?;
+    let (name, isin, symbol) = clean(&input)?;
     let updated = sqlx::query!(
-        "UPDATE security SET name = ?2, isin = ?3 WHERE id = ?1",
+        "UPDATE security SET name = ?2, isin = ?3, symbol = ?4 WHERE id = ?1",
         id,
         name,
-        isin
+        isin,
+        symbol
     )
     .execute(pool)
     .await
@@ -88,8 +93,10 @@ pub async fn delete(pool: &SqlitePool, id: i64) -> AppResult<()> {
     Ok(())
 }
 
-/// Trimmed name, and ISIN in uppercase without spaces (`None` when empty).
-fn clean(input: &SecurityInput) -> Result<(String, Option<String>), InvestmentError> {
+/// Trimmed name, ISIN and symbol in uppercase without spaces (`None` when empty).
+fn clean(
+    input: &SecurityInput,
+) -> Result<(String, Option<String>, Option<String>), InvestmentError> {
     let name = input.name.trim();
     if name.is_empty() {
         return Err(InvestmentError::EmptySecurityName);
@@ -104,7 +111,19 @@ fn clean(input: &SecurityInput) -> Result<(String, Option<String>), InvestmentEr
     {
         return Err(InvestmentError::InvalidIsin(isin.clone()));
     }
-    Ok((name.to_owned(), isin))
+    let symbol = input
+        .symbol
+        .as_deref()
+        .map(|symbol| symbol.trim().to_uppercase())
+        .filter(|symbol| !symbol.is_empty());
+    if let Some(symbol) = &symbol
+        && !symbol
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '^' | '='))
+    {
+        return Err(InvestmentError::InvalidSymbol(symbol.clone()));
+    }
+    Ok((name.to_owned(), isin, symbol))
 }
 
 /// 2 letters, 9 letters or digits and a check digit (Luhn on the digits of the code, each

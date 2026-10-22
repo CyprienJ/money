@@ -34,6 +34,7 @@ async fn new_security(pool: &SqlitePool, name: &str, isin: Option<&str>) -> i64 
         SecurityInput {
             name: name.to_owned(),
             isin: isin.map(str::to_owned),
+            symbol: None,
         },
     )
     .await
@@ -83,18 +84,21 @@ fn manages_securities() {
             SecurityInput {
                 name: "  iShares MSCI World ".to_owned(),
                 isin: Some(" ie00 b4l5y983 ".to_owned()),
+                symbol: Some(" iwda.as ".to_owned()),
             },
         )
         .await
         .unwrap();
         assert_eq!(world.name, "iShares MSCI World");
         assert_eq!(world.isin.as_deref(), Some("IE00B4L5Y983"));
+        assert_eq!(world.symbol.as_deref(), Some("IWDA.AS"));
 
         let taken = securities::create(
             &pool,
             SecurityInput {
                 name: "Autre".to_owned(),
                 isin: Some("IE00B4L5Y983".to_owned()),
+                symbol: None,
             },
         )
         .await;
@@ -107,6 +111,7 @@ fn manages_securities() {
             SecurityInput {
                 name: "Autre".to_owned(),
                 isin: Some("IE00B4L5Y984".to_owned()),
+                symbol: None,
             },
         )
         .await;
@@ -266,6 +271,21 @@ fn computes_the_positions_at_a_date() {
             ]
         );
         assert_eq!(at("2026-04-01").await[0].1, 12_500_000);
+
+        prices::set_manual(&pool, world, date("2026-03-15"), 10_500)
+            .await
+            .unwrap();
+        prices::set_manual(&pool, world, date("2026-05-01"), 11_000)
+            .await
+            .unwrap();
+        let held = positions(&pool, account_id, date("2026-04-30"))
+            .await
+            .unwrap();
+        assert_eq!(
+            held[0].last_price.map(|p| (p.date, p.price_cents)),
+            Some((date("2026-03-15"), 10_500))
+        );
+        assert_eq!(held[1].last_price, None);
         assert_eq!(
             transactions::list(&pool, account_id).await.unwrap()[0].date,
             date("2026-04-01")

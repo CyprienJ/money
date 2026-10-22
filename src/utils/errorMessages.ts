@@ -10,6 +10,7 @@ import type {
   OperationError,
   PayeeError,
   PdfError,
+  PriceError,
   RuleError,
   ScheduleError,
   StatsError,
@@ -283,6 +284,8 @@ function investment(error: InvestmentError): string {
       return "Le nom du titre est obligatoire.";
     case "invalidIsin":
       return `« ${error.params} » n'est pas un code ISIN valide (2 lettres, 9 caractères et un chiffre de contrôle).`;
+    case "invalidSymbol":
+      return `« ${error.params} » n'est pas un symbole valide (lettres, chiffres, point ou tiret, par exemple CW8.PA).`;
     case "isinTaken":
       return `Un titre a déjà le code ISIN ${error.params}.`;
     case "securityInUse":
@@ -299,6 +302,24 @@ function investment(error: InvestmentError): string {
       return "Le montant doit être positif.";
     case "oversold":
       return `Le ${formatDate(error.params.date)}, la vente dépasserait la quantité détenue de ${error.params.security}.`;
+  }
+  return unreachable(error);
+}
+
+export function priceMessage(error: PriceError): string {
+  switch (error.code) {
+    case "disabled":
+      return "La récupération des cours est désactivée : active-la dans les Paramètres.";
+    case "network":
+      return `Yahoo Finance est injoignable (${error.params}). Vérifie la connexion et réessaie.`;
+    case "unexpectedResponse":
+      return "Yahoo Finance a répondu dans un format inattendu : réessaie plus tard, ou saisis le cours à la main.";
+    case "unknownSymbol":
+      return `Le symbole ${error.params} est inconnu de Yahoo Finance.`;
+    case "unsupportedCurrency":
+      return `${error.params.symbol} est coté en ${error.params.currency} : seuls les cours en euros sont pris en charge.`;
+    case "invalidPrice":
+      return "Le cours doit être positif.";
   }
   return unreachable(error);
 }
@@ -336,6 +357,8 @@ export function businessMessage(detail: ErrorDetail): string {
       return pdf(detail.error);
     case "investment":
       return investment(detail.error);
+    case "price":
+      return priceMessage(detail.error);
   }
   return unreachable(detail);
 }

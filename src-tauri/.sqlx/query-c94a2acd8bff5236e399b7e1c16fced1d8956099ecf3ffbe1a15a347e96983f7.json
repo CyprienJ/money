@@ -1,0 +1,69 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT s.id AS \"id!\", s.name, s.isin, s.symbol,\n                  (SELECT COUNT(*) FROM investment_transaction t WHERE t.security_id = s.id)\n                      AS \"transaction_count!: i64\"\n           FROM security s\n           ORDER BY s.name COLLATE NOCASE",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "security",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "name",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "security",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "isin",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "security",
+            "name": "isin"
+          }
+        }
+      },
+      {
+        "name": "symbol",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "security",
+            "name": "symbol"
+          }
+        }
+      },
+      {
+        "name": "transaction_count!: i64",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "c94a2acd8bff5236e399b7e1c16fced1d8956099ecf3ffbe1a15a347e96983f7"
+}

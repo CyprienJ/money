@@ -1,0 +1,62 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT security_id, date AS \"date: NaiveDate\", price_cents,\n                  source AS \"source: PriceSourceKind\"\n           FROM security_price\n           WHERE security_id = ?1\n           ORDER BY date DESC",
+  "describe": {
+    "columns": [
+      {
+        "name": "security_id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "security_price",
+            "name": "security_id"
+          }
+        }
+      },
+      {
+        "name": "date: NaiveDate",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "security_price",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "name": "price_cents",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "security_price",
+            "name": "price_cents"
+          }
+        }
+      },
+      {
+        "name": "source: PriceSourceKind",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "security_price",
+            "name": "source"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "65644b13352ae47a2be6f7d1ac668f6e7d121f213caef84e06f1c9aec72551f5"
+}

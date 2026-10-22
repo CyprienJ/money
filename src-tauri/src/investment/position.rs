@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use chrono::NaiveDate;
 use serde::Serialize;
@@ -23,6 +23,15 @@ pub struct Position {
     pub unit_cost_cents: i64,
     /// Dividends received since the first buy.
     pub dividends_cents: i64,
+    /// Last known price on or before the date.
+    pub last_price: Option<PricePoint>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct PricePoint {
+    pub date: NaiveDate,
+    pub price_cents: i64,
 }
 
 /// Quantity, cost and dividends of a security, transaction after transaction.
@@ -115,6 +124,24 @@ pub async fn positions(
             )
             .unwrap_or_default();
     }
+    let last_prices: HashMap<i64, PricePoint> = sqlx::query!(
+        r#"SELECT p.security_id, p.date AS "date: NaiveDate", p.price_cents
+           FROM security_price p
+           WHERE p.date = (SELECT MAX(q.date) FROM security_price q
+                           WHERE q.security_id = p.security_id AND q.date <= ?1)"#,
+        date
+    )
+    .fetch_all(pool)
+    .await?
+    .into_iter()
+    .map(|row| {
+        let point = PricePoint {
+            date: row.date,
+            price_cents: row.price_cents,
+        };
+        (row.security_id, point)
+    })
+    .collect();
     let mut positions: Vec<Position> = holdings
         .into_iter()
         .filter(|(_, (_, _, holding))| holding.quantity_micro > 0)
@@ -126,6 +153,7 @@ pub async fn positions(
             cost_cents: holding.cost_cents,
             unit_cost_cents: holding.unit_cost_cents(),
             dividends_cents: holding.dividends_cents,
+            last_price: last_prices.get(&security_id).copied(),
         })
         .collect();
     positions.sort_by(|a, b| {

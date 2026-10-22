@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT p.security_id, p.date AS \"date: NaiveDate\", p.price_cents\n           FROM security_price p\n           WHERE p.date = (SELECT MAX(q.date) FROM security_price q\n                           WHERE q.security_id = p.security_id AND q.date <= ?1)",
+  "describe": {
+    "columns": [
+      {
+        "name": "security_id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "security_price",
+            "name": "security_id"
+          }
+        }
+      },
+      {
+        "name": "date: NaiveDate",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "security_price",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "name": "price_cents",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "security_price",
+            "name": "price_cents"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "f67df3cb6e5da105ab6357a40900f0cfa0e597e93de47ca54d50b84e5aa23da9"
+}

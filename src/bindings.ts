@@ -36,6 +36,19 @@ export const commands = {
 	deleteInvestmentTransaction: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_investment_transaction", { id })),
 	/**  Securities held in an investment account at the end of `date`, with their cost. */
 	portfolioPositions: (accountId: number, date: string) => typedError<Position[], AppError>(__TAURI_INVOKE("portfolio_positions", { accountId, date })),
+	/**  Whether prices are fetched from Yahoo Finance, and the day of the last update. */
+	priceSettings: () => typedError<PriceSettings, AppError>(__TAURI_INVOKE("price_settings")),
+	/**  Allows or stops fetching prices from Yahoo Finance, the only network access. */
+	setPriceUpdatesEnabled: (enabled: boolean) => typedError<PriceSettings, AppError>(__TAURI_INVOKE("set_price_updates_enabled", { enabled })),
+	/**  Fetches the recent prices of the securities with a symbol. */
+	updateSecurityPrices: () => typedError<PriceUpdate, AppError>(__TAURI_INVOKE("update_security_prices")),
+	/**  Listings of a security found on Yahoo Finance by its ISIN. */
+	searchSecuritySymbols: (isin: string) => typedError<SymbolCandidate[], AppError>(__TAURI_INVOKE("search_security_symbols", { isin })),
+	/**  Prices of a security, the most recent first. */
+	listSecurityPrices: (securityId: number) => typedError<SecurityPrice[], AppError>(__TAURI_INVOKE("list_security_prices", { securityId })),
+	/**  Records the price of a day by hand; fetched prices never overwrite it. */
+	setSecurityPrice: (securityId: number, date: string, priceCents: number) => typedError<null, AppError>(__TAURI_INVOKE("set_security_price", { securityId, date, priceCents })),
+	deleteSecurityPrice: (securityId: number, date: string) => typedError<null, AppError>(__TAURI_INVOKE("delete_security_price", { securityId, date })),
 	/**  Alerts of today: negative forecasts, missing occurrences, unusual expenses. */
 	listAlerts: () => typedError<Alert[], AppError>(__TAURI_INVOKE("list_alerts")),
 	/**  Stops showing the unusual expense alert of a top-level category for the month of `month`. */
@@ -518,7 +531,7 @@ export type DuplicateStatus = { status: "new" } | { status: "duplicate"; operati
 candidateIds: number[] };
 
 /**  Business error with its code and parameters, for a message in French on the frontend. */
-export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "rule"; error: RuleError } | { domain: "payee"; error: PayeeError } | { domain: "tag"; error: TagError } | { domain: "attachment"; error: AttachmentError } | { domain: "transfer"; error: TransferError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError } | { domain: "investment"; error: InvestmentError };
+export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "rule"; error: RuleError } | { domain: "payee"; error: PayeeError } | { domain: "tag"; error: TagError } | { domain: "attachment"; error: AttachmentError } | { domain: "transfer"; error: TransferError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError } | { domain: "investment"; error: InvestmentError } | { domain: "price"; error: PriceError };
 
 /**  Stable identifier the frontend can match on. */
 export type ErrorKind = "database" | "migration" | "io" | 
@@ -618,7 +631,7 @@ export type ImportSelection = {
 };
 
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
-export type InvestmentError = { code: "securityNotFound"; params: number } | { code: "transactionNotFound"; params: number } | { code: "emptySecurityName" } | { code: "invalidIsin"; params: string } | { code: "isinTaken"; params: string } | { code: "securityInUse" } | { code: "notAnInvestmentAccount" } | { code: "dateBeforeOpening"; params: string } | { code: "missingQuantity" } | { code: "quantityOnDividend" } | { code: "zeroAmount" } | { code: "oversold"; params: {
+export type InvestmentError = { code: "securityNotFound"; params: number } | { code: "transactionNotFound"; params: number } | { code: "emptySecurityName" } | { code: "invalidIsin"; params: string } | { code: "invalidSymbol"; params: string } | { code: "isinTaken"; params: string } | { code: "securityInUse" } | { code: "notAnInvestmentAccount" } | { code: "dateBeforeOpening"; params: string } | { code: "missingQuantity" } | { code: "quantityOnDividend" } | { code: "zeroAmount" } | { code: "oversold"; params: {
 	date: string,
 	security: string,
 } };
@@ -838,6 +851,8 @@ export type Position = {
 	unitCostCents: number,
 	/**  Dividends received since the first buy. */
 	dividendsCents: number,
+	/**  Last known price on or before the date. */
+	lastPrice: PricePoint | null,
 };
 
 /**  A statement line in the import preview. */
@@ -866,6 +881,38 @@ export type PreviewLine = {
 	 *  user's validation.
 	 */
 	suggestion: Suggestion | null,
+};
+
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type PriceError = { code: "disabled" } | { code: "network"; params: string } | { code: "unexpectedResponse"; params: string } | { code: "unknownSymbol"; params: string } | { code: "unsupportedCurrency"; params: {
+	symbol: string,
+	currency: string,
+} } | { code: "invalidPrice" };
+
+export type PriceFailure = {
+	securityName: string,
+	error: PriceError,
+};
+
+export type PricePoint = {
+	date: string,
+	priceCents: number,
+};
+
+export type PriceSettings = {
+	/**  The user allowed fetching prices from Yahoo Finance. */
+	updatesEnabled: boolean,
+	/**  Day of the last update. */
+	updatedOn: string | null,
+};
+
+export type PriceSourceKind = "MANUAL" | "YAHOO";
+
+/**  Result of an update of the prices. */
+export type PriceUpdate = {
+	/**  Securities whose prices were fetched. */
+	updated: number,
+	failures: PriceFailure[],
 };
 
 /**
@@ -972,6 +1019,8 @@ export type Security = {
 	id: number,
 	name: string,
 	isin: string | null,
+	/**  Yahoo Finance symbol of the listing whose prices are fetched, e.g. `CW8.PA`. */
+	symbol: string | null,
 	/**  Transactions of the security, in every account. */
 	transactionCount: number,
 };
@@ -979,6 +1028,15 @@ export type Security = {
 export type SecurityInput = {
 	name: string,
 	isin: string | null,
+	symbol: string | null,
+};
+
+export type SecurityPrice = {
+	securityId: number,
+	date: string,
+	/**  Price of one unit. */
+	priceCents: number,
+	source: PriceSourceKind,
 };
 
 export type SourceType = "CSV" | "PDF";
@@ -1007,6 +1065,14 @@ export type Suggestion = {
 export type SupportedBank = {
 	id: string,
 	name: string,
+};
+
+/**  A listing of a security found by its ISIN. */
+export type SymbolCandidate = {
+	symbol: string,
+	name: string,
+	/**  Exchange, e.g. "Paris" or "Amsterdam". */
+	exchange: string,
 };
 
 /**  A tag with the count of its operations. */
