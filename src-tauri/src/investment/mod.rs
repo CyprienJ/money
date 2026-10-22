@@ -15,7 +15,7 @@ mod tests;
 mod transaction;
 pub mod yahoo;
 
-pub use position::{Position, positions};
+pub use position::{Performance, Portfolios, Position, performance, positions};
 pub use security::{Security, SecurityInput};
 pub use transaction::{InvestmentTransaction, TransactionInput, TransactionKind};
 

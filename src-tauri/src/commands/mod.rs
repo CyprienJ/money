@@ -46,6 +46,7 @@ pub fn builder() -> Builder<tauri::Wry> {
             investment::update_investment_transaction,
             investment::delete_investment_transaction,
             investment::portfolio_positions,
+            investment::portfolio_performance,
             investment::price_settings,
             investment::set_price_updates_enabled,
             investment::update_security_prices,

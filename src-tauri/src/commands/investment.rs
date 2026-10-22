@@ -7,8 +7,8 @@ use crate::error::AppResult;
 use crate::investment::prices::{self, PriceSettings, PriceUpdate, SecurityPrice, SymbolCandidate};
 use crate::investment::yahoo::Yahoo;
 use crate::investment::{
-    self, InvestmentTransaction, Position, Security, SecurityInput, TransactionInput, securities,
-    transactions,
+    self, InvestmentTransaction, Performance, Position, Security, SecurityInput, TransactionInput,
+    securities, transactions,
 };
 
 /// Every security, by name, with its count of transactions.
@@ -156,4 +156,16 @@ pub async fn delete_security_price(
     date: NaiveDate,
 ) -> AppResult<()> {
     prices::delete(&pool, security_id, date).await
+}
+
+/// Gains of an investment account at the end of `date`: unrealized, realized, dividends,
+/// annual return, and realized gains by year.
+#[tauri::command]
+#[specta::specta]
+pub async fn portfolio_performance(
+    pool: State<'_, SqlitePool>,
+    account_id: i64,
+    date: NaiveDate,
+) -> AppResult<Performance> {
+    investment::performance(&pool, account_id, date).await
 }

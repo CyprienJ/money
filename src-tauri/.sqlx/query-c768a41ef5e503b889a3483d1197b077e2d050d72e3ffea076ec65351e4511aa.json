@@ -1,11 +1,22 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT t.security_id, s.name, s.isin, t.kind AS \"kind: TransactionKind\",\n                  t.quantity_micro, t.amount_cents, t.fees_cents\n           FROM investment_transaction t\n           JOIN security s ON s.id = t.security_id\n           WHERE t.account_id = ?1 AND t.date <= ?2\n           ORDER BY t.date, t.id",
+  "query": "SELECT account_id, security_id, date AS \"date: NaiveDate\",\n                      kind AS \"kind: TransactionKind\", quantity_micro, amount_cents, fees_cents\n               FROM investment_transaction\n               WHERE date <= ?1\n               ORDER BY date, id",
   "describe": {
     "columns": [
       {
-        "name": "security_id",
+        "name": "account_id",
         "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "account_id"
+          }
+        }
+      },
+      {
+        "name": "security_id",
+        "ordinal": 1,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -15,24 +26,13 @@
         }
       },
       {
-        "name": "name",
-        "ordinal": 1,
-        "type_info": "Text",
-        "origin": {
-          "Table": {
-            "table": "security",
-            "name": "name"
-          }
-        }
-      },
-      {
-        "name": "isin",
+        "name": "date: NaiveDate",
         "ordinal": 2,
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "security",
-            "name": "isin"
+            "table": "investment_transaction",
+            "name": "date"
           }
         }
       },
@@ -82,17 +82,17 @@
       }
     ],
     "parameters": {
-      "Right": 2
+      "Right": 1
     },
     "nullable": [
       false,
       false,
-      true,
+      false,
       false,
       false,
       false,
       false
     ]
   },
-  "hash": "598150cfc07a120b011969f228ae28c87576e1f39508430361c7d0cd8084927f"
+  "hash": "c768a41ef5e503b889a3483d1197b077e2d050d72e3ffea076ec65351e4511aa"
 }

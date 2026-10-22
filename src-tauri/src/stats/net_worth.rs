@@ -1,7 +1,10 @@
 //! Net worth at a date D (README, calculation rules):
 //! - balances of the checking, savings and deferred debit card accounts at D (a card owes
 //!   what was spent until it is debited, so its negative balance is counted);
-//! - plus the last valuation on or before D of each investment and asset;
+//! - plus the value of each investment account: from its first transaction on, the market
+//!   value of its portfolio (last price on or before D, or the cost without a price);
+//!   before, its last valuation on or before D;
+//! - plus the last valuation on or before D of each asset;
 //! - minus the last outstanding capital on or before D of each liability.
 //!
 //! Archived accounts are left out, as in the other statistics. An account counts from its
@@ -17,6 +20,7 @@ use sqlx::SqlitePool;
 use super::{BalanceStep, check_period, step_ends};
 use crate::account::AccountType;
 use crate::error::AppResult;
+use crate::investment::Portfolios;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Type)]
 #[serde(rename_all = "camelCase")]
@@ -32,12 +36,18 @@ pub struct NetWorth {
     pub liabilities_cents: i64,
 }
 
+/// (date, value) of the valuations of an account, sorted by date.
+type Valuations = Vec<(NaiveDate, i64)>;
+
 /// Account data the computation needs, loaded once.
 struct Data {
     /// Changes of the cash balance by date: account openings and operations.
     cash_changes: BTreeMap<NaiveDate, i64>,
-    /// Valuations by account: type and (date, value) sorted by date.
-    valuations: Vec<(AccountType, Vec<(NaiveDate, i64)>)>,
+    /// Valuations by account: id, type and (date, value) sorted by date.
+    valuations: Vec<(i64, AccountType, Valuations)>,
+    /// Non-archived investment accounts.
+    investment_accounts: Vec<i64>,
+    portfolios: Portfolios,
 }
 
 async fn load(pool: &SqlitePool, to: NaiveDate) -> AppResult<Data> {
@@ -86,9 +96,19 @@ async fn load(pool: &SqlitePool, to: NaiveDate) -> AppResult<Data> {
             .1
             .push((row.date, row.value_cents));
     }
+    let investment_accounts = sqlx::query_scalar!(
+        r#"SELECT id AS "id!" FROM account WHERE archived = 0 AND type = 'INVESTMENT'"#
+    )
+    .fetch_all(pool)
+    .await?;
     Ok(Data {
         cash_changes,
-        valuations: by_account.into_values().collect(),
+        valuations: by_account
+            .into_iter()
+            .map(|(id, (account_type, values))| (id, account_type, values))
+            .collect(),
+        investment_accounts,
+        portfolios: Portfolios::load(pool, to).await?,
     })
 }
 
@@ -100,7 +120,10 @@ impl Data {
             .map(|(_, amount)| amount)
             .sum();
         let (mut investments_cents, mut assets_cents, mut liabilities_cents) = (0, 0, 0);
-        for (account_type, valuations) in &self.valuations {
+        for (account_id, account_type, valuations) in &self.valuations {
+            if self.portfolios.values(*account_id, date) {
+                continue;
+            }
             // Last valuation on or before the date.
             let last = valuations
                 .iter()
@@ -112,6 +135,11 @@ impl Data {
                 AccountType::Asset => assets_cents += last,
                 AccountType::Liability => liabilities_cents += last,
                 _ => {}
+            }
+        }
+        for &account_id in &self.investment_accounts {
+            if self.portfolios.values(account_id, date) {
+                investments_cents += self.portfolios.value(account_id, date).0;
             }
         }
         NetWorth {

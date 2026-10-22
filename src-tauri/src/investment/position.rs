@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
-use chrono::NaiveDate;
+use chrono::{Datelike, NaiveDate};
 use serde::Serialize;
 use specta::Type;
 use sqlx::SqlitePool;
@@ -21,10 +21,14 @@ pub struct Position {
     pub cost_cents: i64,
     /// Cost of one unit, rounded to the cent.
     pub unit_cost_cents: i64,
-    /// Dividends received since the first buy.
+    /// Dividends received since the first buy, net of their fees.
     pub dividends_cents: i64,
     /// Last known price on or before the date.
     pub last_price: Option<PricePoint>,
+    /// Quantity × last price, or the cost without a price.
+    pub market_value_cents: i64,
+    /// Market value − cost; 0 without a price.
+    pub unrealized_cents: i64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Type)]
@@ -34,18 +38,58 @@ pub struct PricePoint {
     pub price_cents: i64,
 }
 
-/// Quantity, cost and dividends of a security, transaction after transaction.
+/// Gains of an investment account at a date.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct Performance {
+    /// Cost of the units held.
+    pub cost_cents: i64,
+    pub market_value_cents: i64,
+    pub unrealized_cents: i64,
+    /// Gains of the sells: proceeds net of fees − cost of the units sold.
+    pub realized_cents: i64,
+    /// Dividends net of their fees.
+    pub dividends_cents: i64,
+    /// Unrealized + realized + dividends.
+    pub total_gain_cents: i64,
+    /// Every buy, fees included: the base of the percentage.
+    pub bought_cents: i64,
+    /// Total gain ÷ bought, in hundredths of a percent; `None` without buys.
+    pub total_gain_basis_points: Option<i64>,
+    /// Money-weighted annual return (XIRR) of the buys, sells, dividends and market value, in
+    /// hundredths of a percent; `None` under a year after the first buy.
+    pub annualized_basis_points: Option<i64>,
+    /// Realized gains and dividends by calendar year, the most recent first.
+    pub years: Vec<YearGains>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct YearGains {
+    pub year: i32,
+    pub realized_cents: i64,
+    pub dividends_cents: i64,
+}
+
+/// Quantity, cost, realized gains and dividends of a security, transaction after transaction.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(super) struct Holding {
     pub quantity_micro: i64,
     pub cost_cents: i64,
+    pub realized_cents: i64,
     pub dividends_cents: i64,
 }
 
-/// `a × b / c` rounded half up, for non-negative values.
-fn mul_div(a: i64, b: i64, c: i64) -> i64 {
+/// `a × b / c` rounded half up, for non-negative `b` and positive `c`.
+pub(super) fn mul_div(a: i64, b: i64, c: i64) -> i64 {
     let (a, b, c) = (i128::from(a), i128::from(b), i128::from(c));
-    ((a * b * 2 + c) / (c * 2)) as i64
+    let product = a * b * 2;
+    let rounded = if product >= 0 {
+        (product + c) / (c * 2)
+    } else {
+        (product - c) / (c * 2)
+    };
+    rounded as i64
 }
 
 impl Holding {
@@ -68,14 +112,17 @@ impl Holding {
                     return None;
                 }
                 let remaining = self.quantity_micro - quantity_micro;
+                let cost_cents = mul_div(self.cost_cents, remaining, self.quantity_micro);
+                let sold_cost = self.cost_cents - cost_cents;
                 Holding {
                     quantity_micro: remaining,
-                    cost_cents: mul_div(self.cost_cents, remaining, self.quantity_micro),
+                    cost_cents,
+                    realized_cents: self.realized_cents + amount_cents - fees_cents - sold_cost,
                     ..self
                 }
             }
             TransactionKind::Dividend => Holding {
-                dividends_cents: self.dividends_cents + amount_cents,
+                dividends_cents: self.dividends_cents + amount_cents - fees_cents,
                 ..self
             },
         })
@@ -88,6 +135,232 @@ impl Holding {
             mul_div(self.cost_cents, QUANTITY_SCALE, self.quantity_micro)
         }
     }
+
+    /// Quantity × price, or the cost without a price.
+    pub fn market_value_cents(&self, price: Option<PricePoint>) -> i64 {
+        price.map_or(self.cost_cents, |p| {
+            mul_div(p.price_cents, self.quantity_micro, QUANTITY_SCALE)
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Transaction {
+    date: NaiveDate,
+    security_id: i64,
+    kind: TransactionKind,
+    quantity_micro: i64,
+    amount_cents: i64,
+    fees_cents: i64,
+}
+
+/// Transactions and prices of the portfolios, loaded once to value them at many dates.
+pub struct Portfolios {
+    /// Transactions of each account, by date.
+    transactions: HashMap<i64, Vec<Transaction>>,
+    /// Prices of each security, by date.
+    prices: HashMap<i64, Vec<PricePoint>>,
+}
+
+impl Portfolios {
+    /// Transactions and prices up to `to`.
+    pub async fn load(pool: &SqlitePool, to: NaiveDate) -> AppResult<Portfolios> {
+        let rows = sqlx::query!(
+            r#"SELECT account_id, security_id, date AS "date: NaiveDate",
+                      kind AS "kind: TransactionKind", quantity_micro, amount_cents, fees_cents
+               FROM investment_transaction
+               WHERE date <= ?1
+               ORDER BY date, id"#,
+            to
+        )
+        .fetch_all(pool)
+        .await?;
+        let mut transactions: HashMap<i64, Vec<Transaction>> = HashMap::new();
+        for row in rows {
+            transactions
+                .entry(row.account_id)
+                .or_default()
+                .push(Transaction {
+                    date: row.date,
+                    security_id: row.security_id,
+                    kind: row.kind,
+                    quantity_micro: row.quantity_micro,
+                    amount_cents: row.amount_cents,
+                    fees_cents: row.fees_cents,
+                });
+        }
+        let rows = sqlx::query!(
+            r#"SELECT security_id, date AS "date: NaiveDate", price_cents
+               FROM security_price
+               WHERE date <= ?1
+               ORDER BY security_id, date"#,
+            to
+        )
+        .fetch_all(pool)
+        .await?;
+        let mut prices: HashMap<i64, Vec<PricePoint>> = HashMap::new();
+        for row in rows {
+            prices.entry(row.security_id).or_default().push(PricePoint {
+                date: row.date,
+                price_cents: row.price_cents,
+            });
+        }
+        Ok(Portfolios {
+            transactions,
+            prices,
+        })
+    }
+
+    /// Whether the account is valued by its portfolio at `date`: from its first transaction
+    /// on. Before, its valuations count.
+    pub fn values(&self, account_id: i64, date: NaiveDate) -> bool {
+        self.transactions
+            .get(&account_id)
+            .and_then(|t| t.first())
+            .is_some_and(|first| first.date <= date)
+    }
+
+    /// Holdings of each security of an account at the end of `date`.
+    fn holdings(&self, account_id: i64, date: NaiveDate) -> BTreeMap<i64, Holding> {
+        let mut holdings: BTreeMap<i64, Holding> = BTreeMap::new();
+        for t in self.transactions.get(&account_id).into_iter().flatten() {
+            if t.date > date {
+                break;
+            }
+            let holding = holdings.entry(t.security_id).or_default();
+            // The transactions are checked on every change: a sell never exceeds the holding.
+            *holding = holding
+                .apply(t.kind, t.quantity_micro, t.amount_cents, t.fees_cents)
+                .unwrap_or_default();
+        }
+        holdings
+    }
+
+    /// Last price of a security on or before `date`.
+    fn price(&self, security_id: i64, date: NaiveDate) -> Option<PricePoint> {
+        let prices = self.prices.get(&security_id)?;
+        let count = prices.partition_point(|p| p.date <= date);
+        count.checked_sub(1).map(|index| prices[index])
+    }
+
+    /// Market value of the units held in an account at the end of `date`, and the date of the
+    /// most recent price used.
+    pub fn value(&self, account_id: i64, date: NaiveDate) -> (i64, Option<NaiveDate>) {
+        let mut value = 0;
+        let mut priced_on: Option<NaiveDate> = None;
+        for (security_id, holding) in self.holdings(account_id, date) {
+            if holding.quantity_micro == 0 {
+                continue;
+            }
+            let price = self.price(security_id, date);
+            value += holding.market_value_cents(price);
+            priced_on = priced_on.max(price.map(|p| p.date));
+        }
+        (value, priced_on)
+    }
+
+    /// Gains of an account at the end of `date`.
+    fn performance(&self, account_id: i64, date: NaiveDate) -> Performance {
+        let holdings = self.holdings(account_id, date);
+        let (mut cost_cents, mut market_value_cents, mut realized_cents, mut dividends_cents) =
+            (0, 0, 0, 0);
+        for (&security_id, holding) in &holdings {
+            cost_cents += holding.cost_cents;
+            market_value_cents += holding.market_value_cents(self.price(security_id, date));
+            realized_cents += holding.realized_cents;
+            dividends_cents += holding.dividends_cents;
+        }
+        let unrealized_cents = market_value_cents - cost_cents;
+        let total_gain_cents = unrealized_cents + realized_cents + dividends_cents;
+
+        // Cash flows of the investor: buys out, sells and dividends in, the value at the end.
+        let mut flows: Vec<(NaiveDate, i64)> = Vec::new();
+        let mut years: BTreeMap<i32, YearGains> = BTreeMap::new();
+        let mut running: BTreeMap<i64, Holding> = BTreeMap::new();
+        let mut bought_cents = 0;
+        for t in self.transactions.get(&account_id).into_iter().flatten() {
+            if t.date > date {
+                break;
+            }
+            let holding = running.entry(t.security_id).or_default();
+            let after = holding
+                .apply(t.kind, t.quantity_micro, t.amount_cents, t.fees_cents)
+                .unwrap_or_default();
+            let year = years.entry(t.date.year()).or_insert(YearGains {
+                year: t.date.year(),
+                realized_cents: 0,
+                dividends_cents: 0,
+            });
+            year.realized_cents += after.realized_cents - holding.realized_cents;
+            year.dividends_cents += after.dividends_cents - holding.dividends_cents;
+            *holding = after;
+            match t.kind {
+                TransactionKind::Buy => {
+                    bought_cents += t.amount_cents + t.fees_cents;
+                    flows.push((t.date, -(t.amount_cents + t.fees_cents)));
+                }
+                TransactionKind::Sell | TransactionKind::Dividend => {
+                    flows.push((t.date, t.amount_cents - t.fees_cents));
+                }
+            }
+        }
+        flows.push((date, market_value_cents));
+        let first_buy = flows.first().map(|(day, _)| *day);
+        let annualized_basis_points = first_buy
+            .filter(|first| (date - *first).num_days() >= 365)
+            .and_then(|_| xirr(&flows))
+            .map(|rate| (rate * 10_000.0).round() as i64);
+
+        Performance {
+            cost_cents,
+            market_value_cents,
+            unrealized_cents,
+            realized_cents,
+            dividends_cents,
+            total_gain_cents,
+            bought_cents,
+            total_gain_basis_points: (bought_cents > 0)
+                .then(|| mul_div(total_gain_cents, 10_000, bought_cents)),
+            annualized_basis_points,
+            years: years
+                .into_values()
+                .rev()
+                .filter(|y| y.realized_cents != 0 || y.dividends_cents != 0)
+                .collect(),
+        }
+    }
+}
+
+/// Annual rate that makes the present value of the flows zero (dates in days of 365), by
+/// bisection; `None` when there is no such rate between −99.99 % and +1 000 %. A rate, not an
+/// amount: computed in floating point.
+pub(super) fn xirr(flows: &[(NaiveDate, i64)]) -> Option<f64> {
+    let start = flows.first()?.0;
+    let npv = |rate: f64| -> f64 {
+        flows
+            .iter()
+            .map(|(date, cents)| {
+                let years = (*date - start).num_days() as f64 / 365.0;
+                *cents as f64 / (1.0 + rate).powf(years)
+            })
+            .sum()
+    };
+    let (mut low, mut high) = (-0.9999, 10.0);
+    let (mut npv_low, npv_high) = (npv(low), npv(high));
+    if npv_low.signum() == npv_high.signum() {
+        return None;
+    }
+    for _ in 0..200 {
+        let middle = (low + high) / 2.0;
+        let npv_middle = npv(middle);
+        if npv_middle.signum() == npv_low.signum() {
+            low = middle;
+            npv_low = npv_middle;
+        } else {
+            high = middle;
+        }
+    }
+    Some((low + high) / 2.0)
 }
 
 /// Securities held in an investment account at the end of `date`, by name.
@@ -96,70 +369,47 @@ pub async fn positions(
     account_id: i64,
     date: NaiveDate,
 ) -> AppResult<Vec<Position>> {
-    let rows = sqlx::query!(
-        r#"SELECT t.security_id, s.name, s.isin, t.kind AS "kind: TransactionKind",
-                  t.quantity_micro, t.amount_cents, t.fees_cents
-           FROM investment_transaction t
-           JOIN security s ON s.id = t.security_id
-           WHERE t.account_id = ?1 AND t.date <= ?2
-           ORDER BY t.date, t.id"#,
-        account_id,
-        date
-    )
-    .fetch_all(pool)
-    .await?;
-    let mut holdings: BTreeMap<i64, (String, Option<String>, Holding)> = BTreeMap::new();
-    for row in rows {
-        let entry = holdings
-            .entry(row.security_id)
-            .or_insert_with(|| (row.name, row.isin, Holding::default()));
-        // The transactions are checked on every change: a sell never exceeds the holding.
-        entry.2 = entry
-            .2
-            .apply(
-                row.kind,
-                row.quantity_micro,
-                row.amount_cents,
-                row.fees_cents,
-            )
-            .unwrap_or_default();
-    }
-    let last_prices: HashMap<i64, PricePoint> = sqlx::query!(
-        r#"SELECT p.security_id, p.date AS "date: NaiveDate", p.price_cents
-           FROM security_price p
-           WHERE p.date = (SELECT MAX(q.date) FROM security_price q
-                           WHERE q.security_id = p.security_id AND q.date <= ?1)"#,
-        date
-    )
-    .fetch_all(pool)
-    .await?
-    .into_iter()
-    .map(|row| {
-        let point = PricePoint {
-            date: row.date,
-            price_cents: row.price_cents,
-        };
-        (row.security_id, point)
-    })
-    .collect();
-    let mut positions: Vec<Position> = holdings
+    let portfolios = Portfolios::load(pool, date).await?;
+    let securities: HashMap<i64, (String, Option<String>)> =
+        sqlx::query!(r#"SELECT id AS "id!", name, isin FROM security"#)
+            .fetch_all(pool)
+            .await?
+            .into_iter()
+            .map(|row| (row.id, (row.name, row.isin)))
+            .collect();
+    let mut positions: Vec<Position> = portfolios
+        .holdings(account_id, date)
         .into_iter()
-        .filter(|(_, (_, _, holding))| holding.quantity_micro > 0)
-        .map(|(security_id, (security_name, isin, holding))| Position {
-            security_id,
-            security_name,
-            isin,
-            quantity_micro: holding.quantity_micro,
-            cost_cents: holding.cost_cents,
-            unit_cost_cents: holding.unit_cost_cents(),
-            dividends_cents: holding.dividends_cents,
-            last_price: last_prices.get(&security_id).copied(),
+        .filter(|(_, holding)| holding.quantity_micro > 0)
+        .map(|(security_id, holding)| {
+            let (security_name, isin) = securities.get(&security_id).cloned().unwrap_or_default();
+            let last_price = portfolios.price(security_id, date);
+            let market_value_cents = holding.market_value_cents(last_price);
+            Position {
+                security_id,
+                security_name,
+                isin,
+                quantity_micro: holding.quantity_micro,
+                cost_cents: holding.cost_cents,
+                unit_cost_cents: holding.unit_cost_cents(),
+                dividends_cents: holding.dividends_cents,
+                last_price,
+                market_value_cents,
+                unrealized_cents: market_value_cents - holding.cost_cents,
+            }
         })
         .collect();
-    positions.sort_by(|a, b| {
-        a.security_name
-            .to_lowercase()
-            .cmp(&b.security_name.to_lowercase())
-    });
+    positions.sort_by_key(|p| p.security_name.to_lowercase());
     Ok(positions)
+}
+
+/// Gains of an investment account at the end of `date`.
+pub async fn performance(
+    pool: &SqlitePool,
+    account_id: i64,
+    date: NaiveDate,
+) -> AppResult<Performance> {
+    Ok(Portfolios::load(pool, date)
+        .await?
+        .performance(account_id, date))
 }

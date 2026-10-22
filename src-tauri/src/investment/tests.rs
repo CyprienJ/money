@@ -1,7 +1,7 @@
 use chrono::NaiveDate;
 use sqlx::SqlitePool;
 
-use super::position::Holding;
+use super::position::{Holding, xirr};
 use super::security::is_valid_isin;
 use super::*;
 use crate::account::{self, AccountType, NewAccount};
@@ -173,8 +173,10 @@ fn keeps_the_weighted_average_cost_with_buying_fees() {
     assert_eq!(holding.quantity_micro, units(10));
     assert_eq!(holding.cost_cents, 104_080);
     assert_eq!(holding.unit_cost_cents(), 10_408);
+    // Proceeds net of fees − cost of the units sold (130 100 − 104 080).
+    assert_eq!(holding.realized_cents, 99_999 - 500 - 26_020);
     let holding = holding
-        .apply(TransactionKind::Dividend, 0, 1_234, 0)
+        .apply(TransactionKind::Dividend, 0, 1_434, 200)
         .unwrap();
     assert_eq!(holding.dividends_cents, 1_234);
     assert_eq!(holding.cost_cents, 104_080);
@@ -467,5 +469,164 @@ fn checks_the_account_and_the_fields() {
             ),
             InvestmentError::SecurityNotFound(99)
         ));
+    });
+}
+
+#[test]
+fn computes_the_annual_return_of_dated_flows() {
+    let rate = xirr(&[(date("2025-01-01"), -10_000), (date("2026-01-01"), 11_000)]).unwrap();
+    assert!((rate - 0.10).abs() < 1e-6, "{rate}");
+    // Half the money a year later: same 10 % on each euro.
+    let rate = xirr(&[
+        (date("2025-01-01"), -10_000),
+        (date("2026-01-01"), -10_000),
+        (date("2027-01-01"), 12_100 + 11_000),
+    ])
+    .unwrap();
+    assert!((rate - 0.10).abs() < 1e-4, "{rate}");
+    assert_eq!(xirr(&[(date("2025-01-01"), 100)]), None);
+}
+
+#[test]
+fn reports_the_gains_of_an_account() {
+    tauri::async_runtime::block_on(async {
+        let pool = memory_pool().await;
+        let account_id = new_account(&pool, AccountType::Investment).await;
+        let world = new_security(&pool, "MSCI World", None).await;
+        let total = new_security(&pool, "TotalEnergies", None).await;
+        for transaction in [
+            input(
+                world,
+                "2026-01-10",
+                TransactionKind::Buy,
+                units(10),
+                100_000,
+                0,
+            ),
+            input(
+                total,
+                "2026-02-10",
+                TransactionKind::Buy,
+                units(20),
+                100_000,
+                0,
+            ),
+            input(total, "2026-06-10", TransactionKind::Dividend, 0, 3_000, 0),
+            input(
+                total,
+                "2027-03-10",
+                TransactionKind::Sell,
+                units(10),
+                60_000,
+                100,
+            ),
+        ] {
+            transactions::create(&pool, account_id, transaction)
+                .await
+                .unwrap();
+        }
+        prices::set_manual(&pool, world, date("2027-03-31"), 12_000)
+            .await
+            .unwrap();
+
+        let result = performance(&pool, account_id, date("2027-04-01"))
+            .await
+            .unwrap();
+        // World 1 200 € for 1 000 €; Total without price, at its cost of 500 €.
+        assert_eq!(result.cost_cents, 150_000);
+        assert_eq!(result.market_value_cents, 170_000);
+        assert_eq!(result.unrealized_cents, 20_000);
+        assert_eq!(result.realized_cents, 60_000 - 100 - 50_000);
+        assert_eq!(result.dividends_cents, 3_000);
+        assert_eq!(result.total_gain_cents, 20_000 + 9_900 + 3_000);
+        assert_eq!(result.bought_cents, 200_000);
+        assert_eq!(result.total_gain_basis_points, Some(1_645));
+        assert!(result.annualized_basis_points.is_some_and(|bp| bp > 0));
+        let years: Vec<(i32, i64, i64)> = result
+            .years
+            .iter()
+            .map(|y| (y.year, y.realized_cents, y.dividends_cents))
+            .collect();
+        assert_eq!(years, [(2027, 9_900, 0), (2026, 0, 3_000)]);
+
+        // Under a year after the first buy: no annual return.
+        let early = performance(&pool, account_id, date("2026-12-31"))
+            .await
+            .unwrap();
+        assert_eq!(early.annualized_basis_points, None);
+
+        let sells: Vec<Option<i64>> = transactions::list(&pool, account_id)
+            .await
+            .unwrap()
+            .iter()
+            .map(|t| t.realized_cents)
+            .collect();
+        assert_eq!(sells, [Some(9_900), None, None, None]);
+
+        let held = positions(&pool, account_id, date("2027-04-01"))
+            .await
+            .unwrap();
+        assert_eq!(
+            held.iter()
+                .map(|p| (p.market_value_cents, p.unrealized_cents))
+                .collect::<Vec<_>>(),
+            [(120_000, 20_000), (50_000, 0)]
+        );
+    });
+}
+
+#[test]
+fn values_the_account_by_its_portfolio_from_its_first_transaction() {
+    tauri::async_runtime::block_on(async {
+        let pool = memory_pool().await;
+        let account_id = new_account(&pool, AccountType::Investment).await;
+        let world = new_security(&pool, "MSCI World", None).await;
+        crate::account::valuation::create(
+            &pool,
+            account_id,
+            crate::account::valuation::ValuationInput {
+                date: date("2026-01-31"),
+                value_cents: 90_000,
+            },
+        )
+        .await
+        .unwrap();
+        transactions::create(
+            &pool,
+            account_id,
+            input(
+                world,
+                "2026-02-10",
+                TransactionKind::Buy,
+                units(10),
+                100_000,
+                0,
+            ),
+        )
+        .await
+        .unwrap();
+        prices::set_manual(&pool, world, date("2026-03-01"), 11_000)
+            .await
+            .unwrap();
+
+        let investments = |day: &'static str| {
+            let pool = pool.clone();
+            async move {
+                crate::stats::net_worth_at(&pool, date(day))
+                    .await
+                    .unwrap()
+                    .investments_cents
+            }
+        };
+        // The valuation before the first transaction, then the cost, then the price.
+        assert_eq!(investments("2026-02-01").await, 90_000);
+        assert_eq!(investments("2026-02-15").await, 100_000);
+        assert_eq!(investments("2026-03-15").await, 110_000);
+
+        let summaries = account::list_summaries(&pool, false, date("2026-03-15"))
+            .await
+            .unwrap();
+        assert_eq!(summaries[0].balance_cents, Some(110_000));
+        assert_eq!(summaries[0].valued_on, Some(date("2026-03-01")));
     });
 }

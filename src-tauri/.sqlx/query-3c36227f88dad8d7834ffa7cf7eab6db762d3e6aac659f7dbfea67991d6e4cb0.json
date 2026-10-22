@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT t.id AS \"id!\", t.account_id, t.security_id, s.name AS security_name,\n                  t.date AS \"date: NaiveDate\", t.kind AS \"kind: TransactionKind\",\n                  t.quantity_micro, t.amount_cents, t.fees_cents, t.note\n           FROM investment_transaction t\n           JOIN security s ON s.id = t.security_id\n           WHERE t.account_id = ?1\n           ORDER BY t.date DESC, t.id DESC",
+  "query": "SELECT t.id AS \"id!\", t.account_id, t.security_id, s.name AS security_name,\n                  t.date AS \"date: NaiveDate\", t.kind AS \"kind: TransactionKind\",\n                  t.quantity_micro, t.amount_cents, t.fees_cents, t.note,\n                  CAST(NULL AS INTEGER) AS \"realized_cents?: i64\"\n           FROM investment_transaction t\n           JOIN security s ON s.id = t.security_id\n           WHERE t.account_id = ?1\n           ORDER BY t.date DESC, t.id DESC",
   "describe": {
     "columns": [
       {
@@ -112,6 +112,12 @@
             "name": "note"
           }
         }
+      },
+      {
+        "name": "realized_cents?: i64",
+        "ordinal": 10,
+        "type_info": "Integer",
+        "origin": "Expression"
       }
     ],
     "parameters": {
@@ -127,8 +133,9 @@
       false,
       false,
       false,
+      true,
       true
     ]
   },
-  "hash": "6cffcbe9105d40dc77e6c58ca61195d4f31da866dad2aefc62fd944419d75726"
+  "hash": "3c36227f88dad8d7834ffa7cf7eab6db762d3e6aac659f7dbfea67991d6e4cb0"
 }

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -32,6 +34,8 @@ pub struct InvestmentTransaction {
     pub amount_cents: i64,
     pub fees_cents: i64,
     pub note: Option<String>,
+    /// Gain of a sell: proceeds net of fees − cost of the units sold; `None` otherwise.
+    pub realized_cents: Option<i64>,
 }
 
 #[derive(Debug, Clone, Deserialize, Type)]
@@ -53,7 +57,8 @@ pub async fn list(pool: &SqlitePool, account_id: i64) -> AppResult<Vec<Investmen
         InvestmentTransaction,
         r#"SELECT t.id AS "id!", t.account_id, t.security_id, s.name AS security_name,
                   t.date AS "date: NaiveDate", t.kind AS "kind: TransactionKind",
-                  t.quantity_micro, t.amount_cents, t.fees_cents, t.note
+                  t.quantity_micro, t.amount_cents, t.fees_cents, t.note,
+                  CAST(NULL AS INTEGER) AS "realized_cents?: i64"
            FROM investment_transaction t
            JOIN security s ON s.id = t.security_id
            WHERE t.account_id = ?1
@@ -62,7 +67,29 @@ pub async fn list(pool: &SqlitePool, account_id: i64) -> AppResult<Vec<Investmen
     )
     .fetch_all(pool)
     .await?;
-    Ok(transactions)
+    Ok(with_realized_gains(transactions))
+}
+
+/// Fills the gain of each sell, from the history of its security in chronological order.
+fn with_realized_gains(mut transactions: Vec<InvestmentTransaction>) -> Vec<InvestmentTransaction> {
+    let mut holdings: HashMap<i64, Holding> = HashMap::new();
+    // Listed the most recent first.
+    for transaction in transactions.iter_mut().rev() {
+        let holding = holdings.entry(transaction.security_id).or_default();
+        let after = holding
+            .apply(
+                transaction.kind,
+                transaction.quantity_micro,
+                transaction.amount_cents,
+                transaction.fees_cents,
+            )
+            .unwrap_or_default();
+        if transaction.kind == TransactionKind::Sell {
+            transaction.realized_cents = Some(after.realized_cents - holding.realized_cents);
+        }
+        *holding = after;
+    }
+    transactions
 }
 
 async fn get(pool: &SqlitePool, id: i64) -> AppResult<InvestmentTransaction> {
@@ -70,7 +97,8 @@ async fn get(pool: &SqlitePool, id: i64) -> AppResult<InvestmentTransaction> {
         InvestmentTransaction,
         r#"SELECT t.id AS "id!", t.account_id, t.security_id, s.name AS security_name,
                   t.date AS "date: NaiveDate", t.kind AS "kind: TransactionKind",
-                  t.quantity_micro, t.amount_cents, t.fees_cents, t.note
+                  t.quantity_micro, t.amount_cents, t.fees_cents, t.note,
+                  CAST(NULL AS INTEGER) AS "realized_cents?: i64"
            FROM investment_transaction t
            JOIN security s ON s.id = t.security_id
            WHERE t.id = ?1"#,

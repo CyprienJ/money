@@ -36,6 +36,11 @@ export const commands = {
 	deleteInvestmentTransaction: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_investment_transaction", { id })),
 	/**  Securities held in an investment account at the end of `date`, with their cost. */
 	portfolioPositions: (accountId: number, date: string) => typedError<Position[], AppError>(__TAURI_INVOKE("portfolio_positions", { accountId, date })),
+	/**
+	 *  Gains of an investment account at the end of `date`: unrealized, realized, dividends,
+	 *  annual return, and realized gains by year.
+	 */
+	portfolioPerformance: (accountId: number, date: string) => typedError<Performance, AppError>(__TAURI_INVOKE("portfolio_performance", { accountId, date })),
 	/**  Whether prices are fetched from Yahoo Finance, and the day of the last update. */
 	priceSettings: () => typedError<PriceSettings, AppError>(__TAURI_INVOKE("price_settings")),
 	/**  Allows or stops fetching prices from Yahoo Finance, the only network access. */
@@ -274,12 +279,16 @@ export type AccountError = { code: "notFound"; params: number } | { code: "empty
 export type AccountSummary = {
 	account: Account,
 	/**
-	 *  Balance from the operations; for investments and assets, the last valuation on or
-	 *  before the date; for liabilities, minus the last outstanding capital. `None` for a
+	 *  Balance from the operations; for an investment account, the market value of its
+	 *  portfolio from its first transaction on, else its last valuation on or before the date
+	 *  (as for assets); for liabilities, minus the last outstanding capital. `None` for a
 	 *  valued account without valuation yet.
 	 */
 	balanceCents: number | null,
-	/**  Date of the valuation behind the balance of a valued account. */
+	/**
+	 *  Date of the valuation behind the balance of a valued account, or of the most recent
+	 *  price of its portfolio.
+	 */
 	valuedOn: string | null,
 };
 
@@ -649,6 +658,8 @@ export type InvestmentTransaction = {
 	amountCents: number,
 	feesCents: number,
 	note: string | null,
+	/**  Gain of a sell: proceeds net of fees − cost of the units sold; `None` otherwise. */
+	realizedCents: number | null,
 };
 
 export type LargestExpense = {
@@ -830,6 +841,31 @@ export type PayeeExpense = {
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
 export type PdfError = { code: "libraryUnavailable"; params: string } | { code: "invalidPdf"; params: string } | { code: "unknownFormat" } | { code: "layout"; params: string };
 
+/**  Gains of an investment account at a date. */
+export type Performance = {
+	/**  Cost of the units held. */
+	costCents: number,
+	marketValueCents: number,
+	unrealizedCents: number,
+	/**  Gains of the sells: proceeds net of fees − cost of the units sold. */
+	realizedCents: number,
+	/**  Dividends net of their fees. */
+	dividendsCents: number,
+	/**  Unrealized + realized + dividends. */
+	totalGainCents: number,
+	/**  Every buy, fees included: the base of the percentage. */
+	boughtCents: number,
+	/**  Total gain ÷ bought, in hundredths of a percent; `None` without buys. */
+	totalGainBasisPoints: number | null,
+	/**
+	 *  Money-weighted annual return (XIRR) of the buys, sells, dividends and market value, in
+	 *  hundredths of a percent; `None` under a year after the first buy.
+	 */
+	annualizedBasisPoints: number | null,
+	/**  Realized gains and dividends by calendar year, the most recent first. */
+	years: YearGains[],
+};
+
 export type PeriodIncomeExpenses = {
 	/**  First day of the month or year. */
 	periodStart: string,
@@ -849,10 +885,14 @@ export type Position = {
 	costCents: number,
 	/**  Cost of one unit, rounded to the cent. */
 	unitCostCents: number,
-	/**  Dividends received since the first buy. */
+	/**  Dividends received since the first buy, net of their fees. */
 	dividendsCents: number,
 	/**  Last known price on or before the date. */
 	lastPrice: PricePoint | null,
+	/**  Quantity × last price, or the cost without a price. */
+	marketValueCents: number,
+	/**  Market value − cost; 0 without a price. */
+	unrealizedCents: number,
 };
 
 /**  A statement line in the import preview. */
@@ -1141,6 +1181,12 @@ export type Valuation = {
 export type ValuationInput = {
 	date: string,
 	valueCents: number,
+};
+
+export type YearGains = {
+	year: number,
+	realizedCents: number,
+	dividendsCents: number,
 };
 
 /* Tauri Specta runtime */
