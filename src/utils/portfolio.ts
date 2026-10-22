@@ -55,3 +55,19 @@ export function priceUpdateLines(update: PriceUpdate): string[] {
       : `Cours mis à jour pour ${updated} titre${updated > 1 ? "s" : ""}.`;
   return [summary, ...failures.map((f) => `${f.securityName} : ${priceMessage(f.error)}`)];
 }
+
+/** Hundredths of a percent as a signed percentage: `1645` → `"+16,45 %"`. */
+export function formatBasisPoints(basisPoints: number): string {
+  const abs = Math.abs(basisPoints);
+  const sign = basisPoints > 0 ? "+" : basisPoints < 0 ? "−" : "";
+  return `${sign}${Math.floor(abs / 100)},${String(abs % 100).padStart(2, "0")} %`;
+}
+
+/** Gain over cost in hundredths of a percent, rounded; `null` without cost. */
+export function gainBasisPoints(gainCents: number, costCents: number): number | null {
+  if (costCents <= 0) return null;
+  const [gain, cost] = [BigInt(gainCents), BigInt(costCents)];
+  const doubled = gain * 20_000n;
+  const rounded = doubled >= 0n ? (doubled + cost) / (2n * cost) : (doubled - cost) / (2n * cost);
+  return Number(rounded);
+}

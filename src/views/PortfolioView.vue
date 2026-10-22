@@ -5,6 +5,7 @@ import {
   commands,
   type Account,
   type InvestmentTransaction,
+  type Performance,
   type Position,
   type PriceSettings,
   type Security,
@@ -14,13 +15,20 @@ import PageHeader from "../components/PageHeader.vue";
 import SecurityFormModal from "../components/SecurityFormModal.vue";
 import { errorMessage, unwrap } from "../utils/commands";
 import { formatAmount, formatDate, todayIso } from "../utils/format";
-import { formatQuantity, kindLabel, priceUpdateLines } from "../utils/portfolio";
+import {
+  formatBasisPoints,
+  formatQuantity,
+  gainBasisPoints,
+  kindLabel,
+  priceUpdateLines,
+} from "../utils/portfolio";
 
 const route = useRoute();
 const accountId = computed(() => Number(route.params.id));
 
 const account = ref<Account | null>(null);
 const positions = ref<Position[]>([]);
+const performance = ref<Performance | null>(null);
 const transactions = ref<InvestmentTransaction[]>([]);
 const securities = ref<Security[]>([]);
 const priceSettings = ref<PriceSettings | null>(null);
@@ -35,14 +43,17 @@ const securityModalOpen = ref(false);
 const editedSecurity = ref<Security | null>(null);
 
 const totalCost = computed(() => positions.value.reduce((sum, p) => sum + p.costCents, 0));
+const totalValue = computed(() => positions.value.reduce((sum, p) => sum + p.marketValueCents, 0));
+const unpriced = computed(() => positions.value.filter((p) => p.lastPrice === null).length);
 const totalDividends = computed(() => positions.value.reduce((sum, p) => sum + p.dividendsCents, 0));
 
 async function load() {
   error.value = "";
   try {
     account.value = await unwrap(commands.getAccount(accountId.value));
-    [positions.value, transactions.value, securities.value, priceSettings.value] = await Promise.all([
+    [positions.value, performance.value, transactions.value, securities.value, priceSettings.value] = await Promise.all([
       unwrap(commands.portfolioPositions(accountId.value, todayIso())),
+      unwrap(commands.portfolioPerformance(accountId.value, todayIso())),
       unwrap(commands.listInvestmentTransactions(accountId.value)),
       unwrap(commands.listSecurities()),
       unwrap(commands.priceSettings()),
@@ -52,6 +63,15 @@ async function load() {
   } finally {
     loaded.value = true;
   }
+}
+
+function signClass(value: number): string {
+  return value > 0 ? "positive" : value < 0 ? "negative" : "";
+}
+
+function percent(gainCents: number, costCents: number): string {
+  const basisPoints = gainBasisPoints(gainCents, costCents);
+  return basisPoints === null ? "" : formatBasisPoints(basisPoints);
 }
 
 async function updatePrices() {
@@ -142,15 +162,83 @@ watch(accountId, load, { immediate: true });
 
   <template v-if="loaded && account">
     <p class="muted intro">
-      Le détail des titres ne change pas encore la valeur du compte : elle reste celle de ses valorisations.
+      Dès le premier mouvement, la valeur du compte (et du patrimoine net) est celle de ses titres au dernier
+      cours ; un titre sans cours compte pour son prix de revient. Les liquidités non investies ne sont pas suivies.
     </p>
+
+    <section v-if="performance && transactions.length > 0" class="card">
+      <div class="card-header">
+        <h2 class="card-title">Performance</h2>
+        <span class="muted">au {{ formatDate(todayIso()) }}</span>
+      </div>
+      <dl class="figures">
+        <div>
+          <dt>Valeur</dt>
+          <dd>{{ formatAmount(performance.marketValueCents) }}</dd>
+        </div>
+        <div>
+          <dt>Plus-value latente</dt>
+          <dd :class="signClass(performance.unrealizedCents)">
+            {{ formatAmount(performance.unrealizedCents, { signed: true }) }}
+          </dd>
+        </div>
+        <div>
+          <dt>Plus-values réalisées</dt>
+          <dd :class="signClass(performance.realizedCents)">
+            {{ formatAmount(performance.realizedCents, { signed: true }) }}
+          </dd>
+        </div>
+        <div>
+          <dt>Dividendes</dt>
+          <dd>{{ formatAmount(performance.dividendsCents) }}</dd>
+        </div>
+        <div>
+          <dt>Gain total</dt>
+          <dd :class="signClass(performance.totalGainCents)">
+            {{ formatAmount(performance.totalGainCents, { signed: true }) }}
+            <span v-if="performance.totalGainBasisPoints !== null" class="sub">
+              {{ formatBasisPoints(performance.totalGainBasisPoints) }} des achats
+            </span>
+          </dd>
+        </div>
+        <div>
+          <dt>Rendement annualisé</dt>
+          <dd v-if="performance.annualizedBasisPoints !== null" :class="signClass(performance.annualizedBasisPoints)">
+            {{ formatBasisPoints(performance.annualizedBasisPoints) }}
+          </dd>
+          <dd v-else class="sub">Après un an de détention</dd>
+        </div>
+      </dl>
+      <table v-if="performance.years.length > 0" class="years">
+        <thead>
+          <tr>
+            <th scope="col">Année</th>
+            <th scope="col" class="number">Plus-values réalisées</th>
+            <th scope="col" class="number">Dividendes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="year in performance.years" :key="year.year">
+            <td>{{ year.year }}</td>
+            <td class="number" :class="signClass(year.realizedCents)">
+              {{ formatAmount(year.realizedCents, { signed: true }) }}
+            </td>
+            <td class="number">{{ formatAmount(year.dividendsCents) }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="muted">
+        Rendement annualisé : taux qui égalise les achats, ventes, dividendes et la valeur actuelle à leurs dates (TRI).
+      </p>
+    </section>
 
     <section class="card">
       <div class="card-header">
         <h2 class="card-title">Positions</h2>
         <span class="muted">au {{ formatDate(todayIso()) }}</span>
       </div>
-      <table v-if="positions.length > 0">
+      <div v-if="positions.length > 0" class="table-scroll">
+      <table>
         <thead>
           <tr>
             <th scope="col">Titre</th>
@@ -158,6 +246,8 @@ watch(accountId, load, { immediate: true });
             <th scope="col" class="number">PRU</th>
             <th scope="col" class="number">Prix de revient</th>
             <th scope="col" class="number">Dernier cours</th>
+            <th scope="col" class="number">Valeur</th>
+            <th scope="col" class="number">Plus-value latente</th>
             <th scope="col" class="number">Dividendes</th>
           </tr>
         </thead>
@@ -175,6 +265,14 @@ watch(accountId, load, { immediate: true });
                 {{ formatAmount(position.lastPrice.priceCents) }}
                 <span class="sub">{{ formatDate(position.lastPrice.date) }}</span>
               </template>
+              <span v-else class="sub">sans cours</span>
+            </td>
+            <td class="number">{{ formatAmount(position.marketValueCents) }}</td>
+            <td class="number" :class="signClass(position.unrealizedCents)">
+              <template v-if="position.lastPrice">
+                {{ formatAmount(position.unrealizedCents, { signed: true }) }}
+                <span class="sub">{{ percent(position.unrealizedCents, position.costCents) }}</span>
+              </template>
               <template v-else>—</template>
             </td>
             <td class="number">{{ position.dividendsCents > 0 ? formatAmount(position.dividendsCents) : "—" }}</td>
@@ -185,11 +283,20 @@ watch(accountId, load, { immediate: true });
             <th scope="row" colspan="3">Total</th>
             <td class="number"><strong>{{ formatAmount(totalCost) }}</strong></td>
             <td />
+            <td class="number"><strong>{{ formatAmount(totalValue) }}</strong></td>
+            <td class="number" :class="signClass(totalValue - totalCost)">
+              {{ formatAmount(totalValue - totalCost, { signed: true }) }}
+            </td>
             <td class="number">{{ totalDividends > 0 ? formatAmount(totalDividends) : "—" }}</td>
           </tr>
         </tfoot>
       </table>
-      <p v-else class="muted">
+      </div>
+      <p v-if="unpriced > 0" class="muted">
+        {{ unpriced }} titre{{ unpriced > 1 ? "s" : "" }} sans cours, compté{{ unpriced > 1 ? "s" : "" }} pour son prix de
+        revient : saisis un cours dans la fiche du titre<template v-if="priceSettings?.updatesEnabled">, ou vérifie son symbole</template>.
+      </p>
+      <p v-if="positions.length === 0" class="muted">
         Aucun titre détenu. Ajoute tes achats avec « + Mouvement » : le prix de revient se calcule au coût moyen
         pondéré, frais d'achat inclus.
       </p>
@@ -210,6 +317,9 @@ watch(accountId, load, { immediate: true });
                 <span class="sub">
                   {{ movement(transaction) }}
                   <template v-if="transaction.feesCents > 0"> · frais {{ formatAmount(transaction.feesCents) }}</template>
+                  <template v-if="transaction.realizedCents !== null">
+                    · plus-value {{ formatAmount(transaction.realizedCents, { signed: true }) }}
+                  </template>
                   <template v-if="transaction.note"> · {{ transaction.note }}</template>
                 </span>
               </span>
@@ -276,6 +386,37 @@ watch(accountId, load, { immediate: true });
   font-weight: 600;
 }
 
+.figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px 24px;
+  margin: 0;
+}
+
+.figures dt {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.figures dd {
+  margin: 2px 0 0;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.years {
+  max-width: 480px;
+}
+
+.positive {
+  color: var(--color-positive);
+}
+
+.negative {
+  color: var(--cat-restaurants-fg);
+}
+
 .intro {
   margin-top: -8px;
 }
@@ -298,6 +439,10 @@ watch(accountId, load, { immediate: true });
   margin: 0;
   font-size: 13px;
   color: var(--color-text-muted);
+}
+
+.table-scroll {
+  overflow-x: auto;
 }
 
 table {

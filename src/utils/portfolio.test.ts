@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { formatQuantity, formatQuantityInput, parseQuantity, priceUpdateLines, unitPriceCents } from "./portfolio";
+import {
+  formatBasisPoints,
+  formatQuantity,
+  formatQuantityInput,
+  gainBasisPoints,
+  parseQuantity,
+  priceUpdateLines,
+  unitPriceCents,
+} from "./portfolio";
 
 describe("parseQuantity", () => {
   it("reads up to 6 decimals into millionths", () => {
@@ -42,5 +50,21 @@ describe("priceUpdateLines", () => {
       failures: [{ securityName: "Vieux titre", error: { code: "unknownSymbol", params: "OLD.PA" } }],
     });
     expect(lines).toEqual(["Aucun cours mis à jour.", "Vieux titre : Le symbole OLD.PA est inconnu de Yahoo Finance."]);
+  });
+});
+
+describe("formatBasisPoints", () => {
+  it("writes hundredths of a percent with their sign", () => {
+    expect(formatBasisPoints(1_645)).toBe("+16,45\u00a0%");
+    expect(formatBasisPoints(-5)).toBe("−0,05\u00a0%");
+    expect(formatBasisPoints(0)).toBe("0,00\u00a0%");
+  });
+});
+
+describe("gainBasisPoints", () => {
+  it("divides the gain by the cost, rounded", () => {
+    expect(gainBasisPoints(20_000, 100_000)).toBe(2_000);
+    expect(gainBasisPoints(-1, 3_000)).toBe(-3);
+    expect(gainBasisPoints(100, 0)).toBeNull();
   });
 });
