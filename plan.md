@@ -391,7 +391,9 @@ Décisions du 22/10/2026 : Yahoo Finance (sans clé, non officiel) et saisie man
 - [x] Seule exception au « tout local » : option « Récupérer les cours sur Yahoo Finance » dans les Paramètres, avec ce qui est envoyé et à qui.
 
 #### V2-13 · Performance et plus-values — M
-- [ ] Plus-values latentes et réalisées, performance ; patrimoine net basé sur la valorisation du portefeuille.
+Décisions du 22/10/2026 : un compte avec des mouvements vaut son portefeuille (à partir du premier mouvement), sinon ses valorisations ; titre sans cours au prix de revient ; gain simple (€ et % des achats) et rendement annualisé (TRI) après un an ; plus-value par vente et récapitulatif par année.
+- [x] Plus-values latentes et réalisées, dividendes, gain total, rendement annualisé, récapitulatif annuel (`investment::performance`) ; carte Performance et colonnes Valeur et Plus-value latente du portefeuille.
+- [x] Patrimoine net et solde des comptes basés sur la valorisation du portefeuille.
 
 ### Interface
 
