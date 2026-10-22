@@ -4,6 +4,7 @@ import {
   commands,
   type Account,
   type AccountSummary,
+  type Alert,
   type BalanceForecast,
   type BalancePoint,
   type Category,
@@ -24,6 +25,7 @@ import {
 } from "../charts/options";
 import { readTokens } from "../charts/theme";
 import { ACCOUNT_TYPES, valuationSubtitle } from "../utils/accounts";
+import { alertCount, describeAlert } from "../utils/alerts";
 import { categorySlices, legendSlices, variationPercent } from "../utils/analyses";
 import { errorMessage, unwrap } from "../utils/commands";
 import { formatAmount, formatDate, localDateOf, todayIso } from "../utils/format";
@@ -49,6 +51,8 @@ const expenses = ref<CategoryExpense[]>([]);
 const available = ref<BalancePoint[]>([]);
 const upcoming = ref<UpcomingOperation[]>([]);
 const forecast = ref<BalanceForecast | null>(null);
+const alerts = ref<Alert[]>([]);
+const alertError = ref("");
 const payees = ref<PayeeExpense[]>([]);
 const loaded = ref(false);
 const error = ref("");
@@ -66,6 +70,13 @@ const netWorthChange = computed(() => {
   const tenths = Math.round(((after.netWorthCents - before.netWorthCents) * 1000) / Math.abs(before.netWorthCents));
   const sign = tenths > 0 ? "+" : tenths < 0 ? "−" : "";
   return `${sign}${(Math.abs(tenths) / 10).toFixed(1).replace(".", ",")} %`;
+});
+const alertViews = computed(() => {
+  const names = {
+    accounts: new Map(summaries.value.map((s) => [s.account.id, s.account.name])),
+    categories: new Map(categories.value.map((c) => [c.id, c.name])),
+  };
+  return alerts.value.map((alert) => ({ alert, view: describeAlert(alert, names) }));
 });
 const projected = computed(() => forecast.value?.points[forecast.value.points.length - 1] ?? null);
 const thisMonth = computed(() => months.value[months.value.length - 1] ?? null);
@@ -134,6 +145,7 @@ async function load() {
       upcoming.value,
       payees.value,
       forecast.value,
+      alerts.value,
     ] = await Promise.all([
         unwrap(commands.listCategories()),
         unwrap(commands.netWorthHistory(previous.to, to, "month")),
@@ -143,12 +155,30 @@ async function load() {
         unwrap(commands.upcomingOperations(UPCOMING_DAYS)),
         unwrap(commands.topPayees(from, to, null, 5)),
         unwrap(commands.balanceForecast(FORECAST_DAYS[0], null)),
+        unwrap(commands.listAlerts()),
       ]);
+    alertCount.value = alerts.value.length;
     await loadAccounts();
   } catch (e) {
     error.value = errorMessage(e);
   } finally {
     loaded.value = true;
+  }
+}
+
+async function dismissAlert(alert: Alert) {
+  alertError.value = "";
+  try {
+    if (alert.kind === "unusualExpense") {
+      await unwrap(commands.dismissUnusualExpense(alert.categoryId, alert.month));
+    } else if (alert.kind === "missingOccurrence") {
+      const { scheduledOperationId, date } = alert.occurrence;
+      await unwrap(commands.dismissMissingOccurrence(scheduledOperationId, date));
+    }
+    alerts.value = await unwrap(commands.listAlerts());
+    alertCount.value = alerts.value.length;
+  } catch (e) {
+    alertError.value = errorMessage(e);
   }
 }
 
@@ -192,6 +222,24 @@ watch(offset, load);
   </section>
 
   <template v-else-if="loaded">
+    <section v-if="alertViews.length > 0" class="card alerts" aria-label="Alertes">
+      <div class="card-header">
+        <h2 class="card-title">Alertes</h2>
+        <span class="muted">{{ alertViews.length }}</span>
+      </div>
+      <p v-if="alertError" class="error-banner">{{ alertError }}</p>
+      <ul class="alert-list">
+        <li v-for="{ alert, view } in alertViews" :key="view.key" :class="{ danger: alert.kind === 'negativeForecast' }">
+          <span class="alert-mark" aria-hidden="true">!</span>
+          <span class="details">
+            <RouterLink :to="view.to" class="name alert-title">{{ view.title }}</RouterLink>
+            <span class="sub">{{ view.detail }}</span>
+          </span>
+          <button v-if="view.dismissible" type="button" class="btn btn-link" @click="dismissAlert(alert)">Masquer</button>
+        </li>
+      </ul>
+    </section>
+
     <section aria-label="Indicateurs clés" class="kpis">
       <div class="kpi dark">
         <div class="kpi-head"><span>Patrimoine net</span><span class="kpi-icon accent" /></div>
@@ -484,6 +532,51 @@ h1 {
 
 .kpi-icon.housing {
   background: var(--cat-housing-bg);
+}
+
+.alert-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.alert-list > li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.alert-list > li:last-child {
+  border-bottom: 0;
+}
+
+.alert-mark {
+  flex: 0 0 28px;
+  height: 28px;
+  border-radius: 14px;
+  background: var(--cat-groceries-bg);
+  color: var(--cat-groceries-fg);
+  font-weight: 800;
+  line-height: 28px;
+  text-align: center;
+}
+
+.danger .alert-mark {
+  background: var(--cat-restaurants-bg);
+  color: var(--cat-restaurants-fg);
+}
+
+.alert-title {
+  color: inherit;
+  text-decoration: none;
+}
+
+.alert-title:hover {
+  text-decoration: underline;
 }
 
 .kpi-icon.subscriptions {

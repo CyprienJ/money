@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { watch } from "vue";
+import { useRoute } from "vue-router";
+import { alertCount, refreshAlertCount } from "../utils/alerts";
+
 interface NavItem {
   to: string;
   label: string;
@@ -57,6 +61,11 @@ const settingsItem: NavItem = {
   label: "Paramètres",
   icon: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" stroke-linecap="round"/>',
 };
+
+// Imports, schedule and operation changes all happen on other screens: navigating refreshes
+// the alert badge.
+const route = useRoute();
+watch(() => route.path, refreshAlertCount, { immediate: true });
 </script>
 
 <template>
@@ -73,6 +82,14 @@ const settingsItem: NavItem = {
     <RouterLink v-for="item in mainItems" :key="item.to" :to="item.to" class="link">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" v-html="item.icon" />
       {{ item.label }}
+      <span
+        v-if="item.to === '/' && alertCount > 0"
+        class="badge"
+        :title="`${alertCount} alerte${alertCount > 1 ? 's' : ''}`"
+        :aria-label="`${alertCount} alerte${alertCount > 1 ? 's' : ''}`"
+      >
+        {{ alertCount }}
+      </span>
       <span class="active-dot" aria-hidden="true" />
     </RouterLink>
 
@@ -146,6 +163,25 @@ const settingsItem: NavItem = {
   margin-left: auto;
   border-radius: 3px;
   background: var(--color-accent);
+}
+
+.badge {
+  min-width: 20px;
+  height: 20px;
+  margin-left: auto;
+  padding: 0 6px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  background: var(--color-accent);
+  color: var(--color-on-primary);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 20px;
+  text-align: center;
+}
+
+.badge + .active-dot {
+  margin-left: 0;
 }
 
 .router-link-active .active-dot {
