@@ -307,6 +307,7 @@ Ordre validé le 21/10/2026, à la fin de la V1 :
 7. V2-11 à V2-13 · Placements détaillés
 8. V2-16, V2-15, V2-14 · Technique : sauvegarde complète, chiffrement, multi-devises
 9. V2-18 · Import OFX et QIF (ajouté le 22/10/2026, avancé depuis « Plus tard »)
+10. V2-19 · Mouvements titres des relevés Trade Republic (ajouté le 22/10/2026)
 
 Depuis la release 1.0.0, chaque évolution du schéma est une nouvelle migration.
 
@@ -394,6 +395,13 @@ Décisions du 22/10/2026 : solde négatif par compte courant ou d'épargne à 30
 Décisions du 22/10/2026 : quantités à 6 décimales ; prix de revient au coût moyen pondéré, frais d'achat inclus ; saisie à la main (import des ordres Trade Republic éventuellement dans un ticket à part) ; valeur du compte et patrimoine net inchangés jusqu'à V2-13 ; écran Portefeuille par compte de placement.
 - [x] Tables `security` et `investment_transaction` : titres, quantités, prix de revient, achats, ventes, dividendes (module `investment`).
 - [x] Écran Portefeuille (`/accounts/:id/portfolio`) : positions, mouvements, titres ; lien depuis l'écran Comptes.
+
+#### V2-19 · Mouvements titres des relevés Trade Republic — M
+Décisions du 22/10/2026 : import du PDF dans le compte de placement (un import par compte) ; montant total frais compris, frais à 0 ; titres inconnus créés automatiquement (ISIN et nom du relevé).
+- [x] Lecteur : section titres du relevé (soldes vérifiés), lignes « Buy trade », « Sell trade », « Savings plan execution » (cette dernière sans exemple réel) ; arrêt du tableau au pied de page.
+- [x] Module `importing/trade_import` : aperçu (doublons par ISIN, date, sens, quantité et montant + frais ; titres à créer ; antérieurs à l'ouverture), import d'un bloc après sauvegarde (`transactions::create_many`).
+- [x] Écran Importer : compte de placement comme destination, aperçu des mouvements, ouverture du portefeuille après l'import.
+- [ ] Dividendes : à ajouter avec un relevé qui en contient.
 
 #### V2-12 · Cours de bourse automatiques — M
 Décisions du 22/10/2026 : Yahoo Finance (sans clé, non officiel) et saisie manuelle ; consentement explicite dans les Paramètres, désactivé par défaut ; mise à jour quotidienne au démarrage et à la demande ; dépendance `reqwest` (rustls) ; symbole cherché par ISIN ou saisi.
