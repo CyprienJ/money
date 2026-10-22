@@ -11,6 +11,7 @@ import {
   type SupportedBank,
 } from "../bindings";
 import CsvMappingModal from "../components/CsvMappingModal.vue";
+import EncryptionCard from "../components/EncryptionCard.vue";
 import PageHeader from "../components/PageHeader.vue";
 import { errorMessage, unwrap } from "../utils/commands";
 import { DATE_FORMATS, DELIMITERS, ENCODINGS } from "../utils/csvMapping";
@@ -219,6 +220,8 @@ onMounted(load);
         </div>
       </template>
     </section>
+
+    <EncryptionCard />
 
     <section v-if="backupSettings" class="card">
       <h2 class="card-title">Sauvegardes</h2>
