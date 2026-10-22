@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR IGNORE INTO unusual_expense_dismissal (category_id, month) VALUES (?1, ?2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "f5e7b341aba04a91a1b29223af21caa2f9726c73f437c474e8b0a7279a885947"
+}

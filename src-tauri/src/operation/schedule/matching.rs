@@ -381,7 +381,7 @@ fn is_occurrence(schedule: &ScheduledOperation, date: NaiveDate) -> bool {
     occurrences(schedule, date, date).contains(&date)
 }
 
-async fn check_occurrence(
+pub(crate) async fn check_occurrence(
     pool: &SqlitePool,
     scheduled_operation_id: i64,
     occurrence_date: NaiveDate,

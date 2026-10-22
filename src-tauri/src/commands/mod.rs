@@ -6,6 +6,7 @@ use tauri_specta::{Builder, collect_commands};
 use crate::error::AppError;
 
 mod account;
+mod alert;
 mod app;
 mod attachment;
 mod csv_mapping;
@@ -35,6 +36,9 @@ pub fn builder() -> Builder<tauri::Wry> {
             account::create_valuation,
             account::update_valuation,
             account::delete_valuation,
+            alert::list_alerts,
+            alert::dismiss_unusual_expense,
+            alert::dismiss_missing_occurrence,
             operation::search_operations,
             operation::list_transfer_proposals,
             operation::detect_transfers,

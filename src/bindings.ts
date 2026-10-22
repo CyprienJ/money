@@ -22,6 +22,12 @@ export const commands = {
 	createValuation: (accountId: number, valuation: ValuationInput) => typedError<Valuation, AppError>(__TAURI_INVOKE("create_valuation", { accountId, valuation })),
 	updateValuation: (id: number, valuation: ValuationInput) => typedError<Valuation, AppError>(__TAURI_INVOKE("update_valuation", { id, valuation })),
 	deleteValuation: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_valuation", { id })),
+	/**  Alerts of today: negative forecasts, missing occurrences, unusual expenses. */
+	listAlerts: () => typedError<Alert[], AppError>(__TAURI_INVOKE("list_alerts")),
+	/**  Stops showing the unusual expense alert of a top-level category for the month of `month`. */
+	dismissUnusualExpense: (categoryId: number, month: string) => typedError<null, AppError>(__TAURI_INVOKE("dismiss_unusual_expense", { categoryId, month })),
+	/**  Stops showing an occurrence of a scheduled operation as missing. */
+	dismissMissingOccurrence: (scheduledOperationId: number, occurrenceDate: string) => typedError<null, AppError>(__TAURI_INVOKE("dismiss_missing_occurrence", { scheduledOperationId, occurrenceDate })),
 	/**
 	 *  Operations matching every filter, most recent first, with the balance of their account
 	 *  after each one.
@@ -261,6 +267,16 @@ export type AccountUpdate = {
 	openingBalanceCents: number,
 	openingDate: string,
 };
+
+export type Alert = { kind: "negativeForecast"; accountId: number; 
+/**  First day the projected balance is negative. */
+firstNegativeDate: string; lowest: BalancePoint } | { kind: "missingOccurrence"; occurrence: UpcomingOperation } | { kind: "unusualExpense"; categoryId: number; 
+/**  First day of the current month. */
+month: string; 
+/**  Net expenses of the month up to today. */
+expenseCents: number; 
+/**  Average monthly expenses of the history, rounded. */
+averageCents: number };
 
 export type AmbiguityReason = 
 /**  The account has this exact operation, but fewer times than the file. */

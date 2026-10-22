@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT category_id FROM unusual_expense_dismissal WHERE month = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "category_id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "unusual_expense_dismissal",
+            "name": "category_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "a30e23a919b3b2ad1595ab7c21984ed10d57164d3ca8fc15bf8c53932d168e0f"
+}

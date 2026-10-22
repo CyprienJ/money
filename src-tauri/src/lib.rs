@@ -1,4 +1,5 @@
 mod account;
+mod alert;
 mod attachment;
 mod commands;
 mod db;
