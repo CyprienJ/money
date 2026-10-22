@@ -37,6 +37,14 @@ pub fn run() {
                 attachment::sweep(&pool, &data_dir.join(attachment::ATTACHMENTS_DIR)).await?;
                 Ok::<_, error::AppError>(pool)
             })?;
+            // Trains the category classifier ahead of the first suggestion.
+            let classifier = labeling::classifier::ClassifierCache::default();
+            let (cache, warm_pool) = (classifier.clone(), pool.clone());
+            tauri::async_runtime::spawn(async move {
+                // A failed training is tried again on the first suggestion.
+                let _ = cache.refresh(&warm_pool).await;
+            });
+            app.manage(classifier);
             app.manage(pool);
             Ok(())
         })

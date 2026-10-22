@@ -15,6 +15,9 @@ tauri-build = { version = "2", features = [] }
 chrono = { version = "0.4.45", default-features = false, features = ["std", "clock", "serde"] }
 csv = "1.4.0"
 encoding_rs = "0.8.42"
+linfa = "0.8.1"
+linfa-logistic = "0.8.1"
+ndarray = "0.16"
 pdfium-render = { version = "0.9.4", default-features = false, features = ["pdfium_7881", "thread_safe"] }
 regex = "1.13.1"
 serde = { version = "1", features = ["derive"] }

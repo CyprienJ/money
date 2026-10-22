@@ -121,6 +121,12 @@ export const commands = {
 	scheduleMatchCandidates: (scheduledOperationId: number, occurrenceDate: string) => typedError<MatchedOperation[], AppError>(__TAURI_INVOKE("schedule_match_candidates", { scheduledOperationId, occurrenceDate })),
 	/**  Recurring series of operations the schedule does not cover, to add as scheduled operations. */
 	recurringSuggestions: () => typedError<RecurringSuggestion[], AppError>(__TAURI_INVOKE("recurring_suggestions")),
+	/**
+	 *  Today in the local time zone.
+	 *  Categories suggested by the local classifier for the operations to categorize among
+	 *  `operation_ids`; empty while too few operations are categorized.
+	 */
+	suggestCategories: (operationIds: number[]) => typedError<OperationSuggestion[], AppError>(__TAURI_INVOKE("suggest_categories", { operationIds })),
 	/**  Stops suggesting the series of a payee on an account, in one direction. */
 	dismissRecurringSuggestion: (accountId: number, payeeId: number, isCredit: boolean) => typedError<null, AppError>(__TAURI_INVOKE("dismiss_recurring_suggestion", { accountId, payeeId, isCredit })),
 	/**  Payees that have operations, by name, with their labels. */
@@ -180,7 +186,7 @@ export const commands = {
 	readFileHead: (path: string, encoding: CsvEncoding) => typedError<string[], AppError>(__TAURI_INVOKE("read_file_head", { path, encoding })),
 	/**
 	 *  Reads the statement file at `path` (CSV with a saved mapping, or PDF of a supported
-	 *  bank) and compares it with the account.
+	 *  bank) and compares it with the account. Lines of unknown labels get a suggested category.
 	 */
 	previewImport: (path: string, accountId: number, format: ImportFormat) => typedError<ImportPreview, AppError>(__TAURI_INVOKE("preview_import", { path, accountId, format })),
 	/**
@@ -719,6 +725,12 @@ export type OperationRow = {
 	balanceCents: number,
 };
 
+/**  A category suggested for an operation to categorize. */
+export type OperationSuggestion = {
+	operationId: number,
+	suggestion: Suggestion,
+};
+
 /**
  *  New values of an operation. For an imported operation, `date`, `amount_cents` and `label`
  *  must be left unchanged: only the value date, the category, the note and the tags can be
@@ -799,6 +811,11 @@ export type PreviewLine = {
 	categoryId: number | null,
 	/**  Text of the rule that gave the category; `None` when remembered or unknown. */
 	rulePattern: string | null,
+	/**
+	 *  Category suggested by the classifier for an unknown label, never applied without the
+	 *  user's validation.
+	 */
+	suggestion: Suggestion | null,
 };
 
 /**
@@ -915,6 +932,13 @@ export type StatsError = { code: "invalidPeriod"; params: {
 	from: string,
 	to: string,
 } };
+
+/**  A category suggested for a label. */
+export type Suggestion = {
+	categoryId: number,
+	/**  Probability of the category, in percent (50 to 100). */
+	confidencePercent: number,
+};
 
 /**  A bank whose PDF statements can be imported. */
 export type SupportedBank = {

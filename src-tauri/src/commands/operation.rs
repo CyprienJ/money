@@ -4,6 +4,7 @@ use tauri::{AppHandle, State};
 
 use crate::attachment;
 use crate::error::AppResult;
+use crate::labeling::classifier::{self, ClassifierCache, OperationSuggestion};
 use crate::labeling::rules::{self, Rule, RuleInput};
 use crate::operation::category::{self, Category, CategoryInput};
 use crate::operation::same_label::{self, SameLabel};
@@ -357,6 +358,23 @@ pub async fn schedule_match_candidates(
 }
 
 /// Today in the local time zone.
+/// Categories suggested by the local classifier for the operations to categorize among
+/// `operation_ids`; empty while too few operations are categorized.
+#[tauri::command]
+#[specta::specta]
+pub async fn suggest_categories(
+    pool: State<'_, SqlitePool>,
+    classifier: State<'_, ClassifierCache>,
+    operation_ids: Vec<i64>,
+) -> AppResult<Vec<OperationSuggestion>> {
+    match classifier.get(&pool).await? {
+        Some(classifier) => {
+            classifier::suggest_for_operations(&pool, &classifier, &operation_ids).await
+        }
+        None => Ok(Vec::new()),
+    }
+}
+
 pub(super) fn today() -> NaiveDate {
     chrono::Local::now().date_naive()
 }

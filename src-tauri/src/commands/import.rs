@@ -12,6 +12,7 @@ use crate::importing::pdf::{self, SupportedBank};
 use crate::importing::statement_import::{
     self, ImportFormat, ImportPreview, ImportSelection, StatementFile,
 };
+use crate::labeling::classifier::ClassifierCache;
 use crate::operation::schedule::matching;
 use crate::operation::transfer;
 
@@ -46,12 +47,13 @@ pub async fn read_file_head(path: String, encoding: CsvEncoding) -> AppResult<Ve
 }
 
 /// Reads the statement file at `path` (CSV with a saved mapping, or PDF of a supported
-/// bank) and compares it with the account.
+/// bank) and compares it with the account. Lines of unknown labels get a suggested category.
 #[tauri::command]
 #[specta::specta]
 pub async fn preview_import(
     app: AppHandle,
     pool: State<'_, SqlitePool>,
+    classifier: State<'_, ClassifierCache>,
     path: String,
     account_id: i64,
     format: ImportFormat,
@@ -59,7 +61,11 @@ pub async fn preview_import(
     let bytes = std::fs::read(&path)?;
     let pdfium_dir = pdfium_dir(&app)?;
     let file = statement_file(&path, account_id, format, &bytes, &pdfium_dir);
-    statement_import::preview(&pool, file).await
+    let mut preview = statement_import::preview(&pool, file).await?;
+    if let Some(classifier) = classifier.get(&pool).await? {
+        statement_import::add_suggestions(&mut preview, &classifier);
+    }
+    Ok(preview)
 }
 
 /// Result of an import.

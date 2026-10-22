@@ -17,6 +17,7 @@ use super::duplicates::{self, DuplicateStatus, ExistingOperation};
 use super::pdf::{self, PdfError};
 use crate::account;
 use crate::error::AppResult;
+use crate::labeling::classifier::{Classifier, Suggestion};
 use crate::labeling::rules::Rules;
 use crate::labeling::{memory, normalize_label};
 use crate::payee;
@@ -40,6 +41,9 @@ pub struct PreviewLine {
     pub category_id: Option<i64>,
     /// Text of the rule that gave the category; `None` when remembered or unknown.
     pub rule_pattern: Option<String>,
+    /// Category suggested by the classifier for an unknown label, never applied without the
+    /// user's validation.
+    pub suggestion: Option<Suggestion>,
 }
 
 /// How to read a statement file.
@@ -177,6 +181,7 @@ pub async fn preview(pool: &SqlitePool, file: StatementFile<'_>) -> AppResult<Im
                     .map(|(category_id, _)| category_id)
                     .or_else(|| remembered.get(&normalized_label).copied()),
                 rule_pattern: rule.map(|(_, pattern)| pattern.to_owned()),
+                suggestion: None,
                 payee_name: payee_names
                     .get(&normalized_label)
                     .cloned()
@@ -213,6 +218,16 @@ pub async fn preview(pool: &SqlitePool, file: StatementFile<'_>) -> AppResult<Im
             .collect(),
         previous_imports,
     })
+}
+
+/// Suggests a category for the lines of unknown labels.
+pub fn add_suggestions(preview: &mut ImportPreview, classifier: &Classifier) {
+    for line in &mut preview.lines {
+        if line.category_id.is_none() {
+            line.suggestion =
+                classifier.suggest(&line.normalized_label, line.line.amount_cents > 0);
+        }
+    }
 }
 
 /// A preview line to import, with the category the user kept or chose.

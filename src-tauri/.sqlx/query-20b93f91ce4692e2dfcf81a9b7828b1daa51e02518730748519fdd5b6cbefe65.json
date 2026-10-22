@@ -1,0 +1,35 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT COUNT(*) AS \"count!: i64\",\n                  COALESCE(SUM(s.category_id * o.id), 0) AS \"checksum!: i64\",\n                  COALESCE(MAX(o.updated_at), '') AS \"updated_at!: String\"\n           FROM operation o\n           JOIN operation_split s ON s.operation_id = o.id\n           WHERE s.category_id IS NOT NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "count!: i64",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": "Expression"
+      },
+      {
+        "name": "checksum!: i64",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": "Expression"
+      },
+      {
+        "name": "updated_at!: String",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "20b93f91ce4692e2dfcf81a9b7828b1daa51e02518730748519fdd5b6cbefe65"
+}
