@@ -90,14 +90,14 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 
 #### Placements
 - **Portefeuille détaillé** : titres, quantités, prix de revient, mouvements (achat, vente, dividende) *(décisions du 22/10/2026)*. Saisie à la main dans un écran Portefeuille par compte de placement (ouvert depuis l'écran Comptes) : positions (quantité, PRU, prix de revient, dividendes), mouvements et titres. Les titres (nom, ISIN facultatif vérifié par sa clé) sont communs à tous les comptes. Quantités à 6 décimales (fractions d'actions), stockées en millionièmes d'unité. Prix de revient au coût moyen pondéré, frais d'achat inclus ; une vente retire la part du prix de revient des parts vendues sans changer le PRU, et ne peut pas dépasser la quantité détenue à sa date (vérifié à chaque saisie, modification ou suppression). La valeur du compte suit le portefeuille depuis V2-13 (voir le calcul du patrimoine net).
-- **Cours de bourse récupérés automatiquement** *(décisions du 22/10/2026)* : seule exception au « tout local », désactivée par défaut et activée dans les Paramètres. Source : Yahoo Finance (point d'accès `chart`, non officiel et sans clé ; saisie manuelle toujours possible). Seuls les symboles des titres (et l'ISIN lors d'une recherche de symbole) sont envoyés à query1.finance.yahoo.com. Une fois activée, mise à jour au démarrage au plus une fois par jour et à la demande (Paramètres, Portefeuille) : un an de cours de clôture pour un titre sans cours, un mois ensuite. Un cours saisi à la main n'est jamais remplacé ; seuls les cours en euros sont gardés. Le symbole se saisit dans la fiche du titre, ou se trouve à partir de l'ISIN. Le portefeuille affiche le dernier cours de chaque position.
+- **Cours de bourse récupérés automatiquement** *(décisions du 22/10/2026)* : seule exception au « tout local », désactivée par défaut et activée dans les Paramètres. Source : Yahoo Finance (point d'accès `chart`, non officiel et sans clé ; saisie manuelle toujours possible). Seuls les symboles des titres (et l'ISIN lors d'une recherche de symbole) sont envoyés à query1.finance.yahoo.com. Une fois activée, mise à jour au démarrage au plus une fois par jour et à la demande (Paramètres, Portefeuille) : un an de cours de clôture pour un titre sans cours, un mois ensuite. Un cours saisi à la main n'est jamais remplacé ; les cours sont gardés dans la devise du titre (voir Multi-devises). Le symbole se saisit dans la fiche du titre, ou se trouve à partir de l'ISIN. Le portefeuille affiche le dernier cours de chaque position.
 - **Performance et plus-values**, latentes et réalisées *(décisions du 22/10/2026)*. Plus-value latente = valeur de marché − prix de revient ; plus-value réalisée d'une vente = prix de vente net de frais − part du prix de revient des parts vendues ; dividendes nets de leurs frais ; gain total = leur somme, en € et en % des achats (frais compris). Rendement annualisé pondéré par les flux (TRI : achats, ventes, dividendes et valeur actuelle à leurs dates), affiché après un an de détention. Plus-values réalisées et dividendes récapitulés par année civile ; chaque vente affiche sa plus-value.
 
 #### Interface
 - **Mode clair et mode sombre** : choix entre « clair », « sombre » et « système » (suit le réglage du système d'exploitation, par défaut), mémorisé dans les préférences. Le thème sombre redéfinit les variables CSS de `src/styles/tokens.css`, y compris les couleurs des catégories (pastilles et graphiques ECharts), pour garder un contraste lisible *(décisions du 22/10/2026)* : palette « violet nuit » (fond `#15111D`, cartes `#1F1A2B`, bouton principal violet clair `#8F7BD6`). Le choix est mémorisé dans le stockage local du webview, lu avant le premier affichage ; il ne fait pas partie du fichier de données.
 
 #### Technique
-- **Multi-devises** avec conversion vers la devise de référence.
+- **Multi-devises** avec conversion vers la devise de référence *(décisions du 22/10/2026)*. La devise de référence est l'euro, fixe. Chaque compte a une devise, choisie dans sa fiche parmi une liste fermée de devises à deux décimales (EUR, USD, GBP, CHF, CAD, AUD, NZD, SEK, NOK, DKK, PLN, CZK, HKD, SGD) et modifiable tant que le compte n'a ni opération, ni valorisation, ni mouvement de titres, ni échéance ; ses opérations prennent sa devise (un paiement en dollars sur un compte en euros reste en euros, comme sur le relevé). Les virements internes ne s'apparient qu'entre comptes de même devise. Taux de change : euros pour une unité, stockés en milliardièmes (entiers), saisis dans les Paramètres (carte « Devises ») ou récupérés avec les cours de bourse quand c'est activé (paires `USDEUR=X`…, un an pour une devise sans taux, un mois ensuite) ; un taux saisi à la main n'est jamais remplacé. Un titre a la devise de ses cours, reprise des premiers cours récupérés (pence ramenés en livres) et fixe une fois qu'il a des cours ; sa valeur de marché est convertie dans la devise du compte au taux du jour du cours. Les écrans d'un compte affichent ses montants dans sa devise ; les statistiques sont en euros (voir Règles de calcul).
 - **Chiffrement** du fichier de données, protégé par mot de passe *(décisions du 22/10/2026)*. Optionnel, activé dans les Paramètres (mot de passe de 8 caractères au moins, saisi deux fois, avec un avertissement : aucun moyen de récupérer un mot de passe oublié). SQLCipher avec OpenSSL embarqué. Le fichier est chiffré, rechiffré avec un nouveau mot de passe ou déchiffré par export (`sqlcipher_export`) vérifié puis renommé sur le fichier de données, et l'application redémarre. Un fichier chiffré n'est ouvert qu'après la saisie du mot de passe (écran « Données chiffrées ») ; les tâches de démarrage suivent le déverrouillage. Les sauvegardes du fichier de données sont chiffrées avec le mot de passe en vigueur lors de la sauvegarde ; les pièces jointes restent en clair.
 - **Sauvegarde complète** : sauvegardes planifiées, rotation, restauration depuis l'interface *(décisions du 22/10/2026)*. Une sauvegarde complète est un dossier `complete-AAAAMMJJ-HHMMSS/` contenant une copie cohérente du fichier de données (`VACUUM INTO`) et les pièces jointes. Elle est faite au démarrage une fois par jour (désactivable) et à la demande ; les 10 plus récentes sont gardées, ainsi que les 20 dernières sauvegardes faites avant un import. Le dossier des sauvegardes complètes est `backups/` par défaut, ou un dossier choisi (disque externe, dossier synchronisé). Restaurer (une sauvegarde complète, ou les données seules d'une sauvegarde avant import) sauvegarde d'abord l'état actuel, puis redémarre l'application : les fichiers sont remplacés avant l'ouverture du fichier de données.
 
@@ -128,7 +128,8 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
   - − dernier capital restant dû connu ≤ D de chaque dette
 - **Le disponible** (tableau de bord) est la somme des soldes des comptes courants, d'épargne et des cartes à débit différé : l'encours des cartes en est déduit.
 - **Par défaut, les comptes archivés** sont exclus des indicateurs. Un compte est pris en compte à partir de sa date d'ouverture, un compte valorisé à partir de sa première valorisation.
-- **Les montants** sont stockés en **centimes (entiers)**, jamais en virgule flottante.
+- **Les montants** sont stockés en **centimes (entiers)**, jamais en virgule flottante, dans la devise de leur compte.
+- **Les statistiques sont en euros** : un flux (revenu, dépense, tiers, plus grosses dépenses) est converti au taux de son jour ; un solde, une valorisation ou le patrimoine net à une date D au taux de D ; la prévision au dernier taux connu. Le taux d'un jour est le dernier connu à cette date, sinon le premier après. Un montant dans une devise sans aucun taux compte pour zéro, et une alerte « Taux de change manquant » le signale.
 - **Le signe** est négatif pour un débit et positif pour un crédit, du point de vue du compte.
 
 ## Règles de gestion des opérations
@@ -147,11 +148,11 @@ Les colonnes notées *(prévu)* sont créées dès la V1, mais ne sont exploité
 ```text
 account
   id, name, type (CHECKING | SAVINGS | CREDIT_CARD | INVESTMENT | ASSET | LIABILITY),
-  currency (prévu, default 'EUR'), institution, opening_balance_cents, opening_date, archived
+  currency (default 'EUR', fixed once the account has data), institution, opening_balance_cents, opening_date, archived
 
 operation
   id, account_id, date, value_date,
-  amount_cents, currency (prévu),
+  amount_cents, currency (the one of the account, kept by triggers),
   raw_label            -- original bank label, never modified
   normalized_label     -- cleaned label used for categorization and payees
   payee_id (prévu)     -- V2 payee management
@@ -218,7 +219,7 @@ attachment               -- V2 files copied into attachments/, deleted with thei
   id, operation_id, file_name (original), stored_name, size_bytes, added_at
 
 security                 -- V2 securities, shared by the investment accounts
-  id, name, isin (unique, nullable), symbol (Yahoo Finance, nullable), currency
+  id, name, isin (unique, nullable), symbol (Yahoo Finance, nullable), currency (of the prices)
 
 investment_transaction   -- V2 buys, sells and dividends of an investment account
   id, account_id, security_id, date, kind (BUY | SELL | DIVIDEND),
@@ -226,6 +227,9 @@ investment_transaction   -- V2 buys, sells and dividends of an investment accoun
 
 security_price           -- V2 daily price of a security; MANUAL prices are never overwritten
   security_id, date, price_cents, source (MANUAL | YAHOO)
+
+exchange_rate            -- V2 euros for one unit of a currency on a day; MANUAL rates are never overwritten
+  currency, date, rate_nano (billionths), source (MANUAL | YAHOO)
 
 app_setting              -- V2 settings kept with the data (price_updates_enabled, prices_updated_on)
   key, value
@@ -354,6 +358,7 @@ finances-perso/
 │       │   ├── csv/              # CSV parser + column mappings
 │       │   └── pdf/              # StatementParser trait, one impl per bank
 │       ├── labeling/             # label normalization, category memory, rules
+│       ├── currency/             # currencies, exchange rates, conversion to euros
 │       └── stats/                # aggregation queries for charts (future AI tools)
 ├── tests/fixtures/               # anonymized real statements + expected results
 ├── tools/                        # dev scripts (anonymize_pdf.py: PDF anonymization; fetch_pdfium.sh: PDFium library)

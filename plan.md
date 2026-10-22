@@ -405,7 +405,11 @@ Décisions du 22/10/2026 : choix mémorisé dans le stockage local du webview (l
 ### Technique
 
 #### V2-14 · Multi-devises — L
-- [ ] Exploitation des colonnes `currency` ; conversion vers la devise de référence dans toutes les statistiques.
+Décisions du 22/10/2026 : euro, devise de référence fixe ; devise portée par le compte (modifiable tant qu'il est vide), les opérations la prennent ; taux saisis à la main ou récupérés avec les cours Yahoo ; flux au taux de leur jour, soldes au taux du jour du solde, montants sans taux comptés zéro avec une alerte ; titres cotés dans une autre devise convertis dans la devise du compte.
+- [x] Exploitation des colonnes `currency` (comptes, opérations par déclencheur, titres) ; table `exchange_rate`, module `currency` (taux, `Rates`, `Amounts`).
+- [x] Conversion vers la devise de référence dans toutes les statistiques : dépenses par catégorie, revenus et dépenses, soldes, patrimoine net, tiers, plus grosses dépenses, prévision, alertes ; soldes des comptes en euros pour les totaux.
+- [x] Cours dans la devise du titre (pence en livres), taux récupérés avec les cours ; virements internes appariés entre comptes de même devise.
+- [x] Front : montants affichés dans la devise du compte, devise dans les fiches compte et titre, carte « Devises » des Paramètres, alerte « Taux de change manquant ».
 
 #### V2-15 · Chiffrement du fichier de données — M
 Décisions du 22/10/2026 : optionnel, dans les Paramètres ; fichier de données seul (pièces jointes en clair) ; OpenSSL embarqué ; aucune récupération d'un mot de passe oublié, avertissement à l'activation.
