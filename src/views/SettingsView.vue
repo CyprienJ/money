@@ -11,6 +11,7 @@ import {
   type SupportedBank,
 } from "../bindings";
 import CsvMappingModal from "../components/CsvMappingModal.vue";
+import CurrencyCard from "../components/CurrencyCard.vue";
 import EncryptionCard from "../components/EncryptionCard.vue";
 import PageHeader from "../components/PageHeader.vue";
 import { errorMessage, unwrap } from "../utils/commands";
@@ -324,9 +325,10 @@ onMounted(load);
       </label>
       <p class="muted">
         C'est le seul accès à Internet de l'application. Elle envoie à query1.finance.yahoo.com uniquement les
-        symboles de tes titres (par exemple CW8.PA), et leur code ISIN quand tu cherches un symbole : aucun
-        montant, aucune quantité. Les cours sont mis à jour au démarrage, une fois par jour, et à la demande
-        depuis le portefeuille. Un cours saisi à la main n'est jamais remplacé.
+        symboles de tes titres (par exemple CW8.PA), leur code ISIN quand tu cherches un symbole, et les paires de
+        devises de tes comptes (par exemple USDEUR=X) : aucun montant, aucune quantité. Les cours et les taux sont
+        mis à jour au démarrage, une fois par jour, et à la demande depuis le portefeuille. Un cours saisi à la main
+        n'est jamais remplacé.
       </p>
       <template v-if="priceSettings.updatesEnabled">
         <p class="muted">
@@ -342,6 +344,8 @@ onMounted(load);
         </ul>
       </template>
     </section>
+
+    <CurrencyCard />
 
     <section class="card">
       <h2 class="card-title">Relevés PDF pris en charge</h2>
