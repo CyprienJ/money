@@ -54,6 +54,15 @@ export const commands = {
 	/**  Records the price of a day by hand; fetched prices never overwrite it. */
 	setSecurityPrice: (securityId: number, date: string, priceCents: number) => typedError<null, AppError>(__TAURI_INVOKE("set_security_price", { securityId, date, priceCents })),
 	deleteSecurityPrice: (securityId: number, date: string) => typedError<null, AppError>(__TAURI_INVOKE("delete_security_price", { securityId, date })),
+	lockStatus: () => typedError<LockStatus, AppError>(__TAURI_INVOKE("lock_status")),
+	/**  Opens the encrypted data file with its password. */
+	unlock: (password: string) => typedError<null, AppError>(__TAURI_INVOKE("unlock", { password })),
+	/**  Encrypts the data file with a password, then restarts the application. */
+	encryptData: (password: string) => typedError<null, AppError>(__TAURI_INVOKE("encrypt_data", { password })),
+	/**  Encrypts the data file with a new password, then restarts the application. */
+	changeDataPassword: (currentPassword: string, newPassword: string) => typedError<null, AppError>(__TAURI_INVOKE("change_data_password", { currentPassword, newPassword })),
+	/**  Decrypts the data file, then restarts the application. */
+	decryptData: (currentPassword: string) => typedError<null, AppError>(__TAURI_INVOKE("decrypt_data", { currentPassword })),
 	/**  Daily full backups, their folder and the day of the last one. */
 	backupSettings: () => typedError<BackupSettings, AppError>(__TAURI_INVOKE("backup_settings")),
 	setDailyBackups: (daily: boolean) => typedError<BackupSettings, AppError>(__TAURI_INVOKE("set_daily_backups", { daily })),
@@ -579,8 +588,11 @@ export type DuplicateStatus = { status: "new" } | { status: "duplicate"; operati
 /**  Existing operations the line may duplicate. */
 candidateIds: number[] };
 
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type EncryptionError = { code: "wrongPassword" } | { code: "passwordTooShort"; params: number } | { code: "alreadyEncrypted" } | { code: "notEncrypted" };
+
 /**  Business error with its code and parameters, for a message in French on the frontend. */
-export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "rule"; error: RuleError } | { domain: "payee"; error: PayeeError } | { domain: "tag"; error: TagError } | { domain: "attachment"; error: AttachmentError } | { domain: "transfer"; error: TransferError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError } | { domain: "investment"; error: InvestmentError } | { domain: "price"; error: PriceError } | { domain: "backup"; error: BackupError };
+export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "rule"; error: RuleError } | { domain: "payee"; error: PayeeError } | { domain: "tag"; error: TagError } | { domain: "attachment"; error: AttachmentError } | { domain: "transfer"; error: TransferError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError } | { domain: "investment"; error: InvestmentError } | { domain: "price"; error: PriceError } | { domain: "backup"; error: BackupError } | { domain: "encryption"; error: EncryptionError };
 
 /**  Stable identifier the frontend can match on. */
 export type ErrorKind = "database" | "migration" | "io" | 
@@ -710,6 +722,13 @@ export type LargestExpense = {
 	/**  Amount spent, positive. */
 	expenseCents: number,
 	categoryId: number | null,
+};
+
+export type LockStatus = {
+	/**  The data file is encrypted. */
+	encrypted: boolean,
+	/**  The data is open: false until the password of an encrypted file is given. */
+	unlocked: boolean,
 };
 
 /**  A saved mapping that reads a file without error. */

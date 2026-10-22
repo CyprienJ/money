@@ -5,6 +5,7 @@ import type {
   CategoryError,
   CsvError,
   CsvMappingError,
+  EncryptionError,
   ErrorDetail,
   ImportError,
   InvestmentError,
@@ -335,6 +336,20 @@ function backup(error: BackupError): string {
   return unreachable(error);
 }
 
+function encryption(error: EncryptionError): string {
+  switch (error.code) {
+    case "wrongPassword":
+      return "Mot de passe incorrect.";
+    case "passwordTooShort":
+      return `Le mot de passe doit faire au moins ${error.params} caractères.`;
+    case "alreadyEncrypted":
+      return "Les données sont déjà chiffrées.";
+    case "notEncrypted":
+      return "Les données ne sont pas chiffrées.";
+  }
+  return unreachable(error);
+}
+
 /** French message of a business error. */
 export function businessMessage(detail: ErrorDetail): string {
   switch (detail.domain) {
@@ -372,6 +387,8 @@ export function businessMessage(detail: ErrorDetail): string {
       return priceMessage(detail.error);
     case "backup":
       return backup(detail.error);
+    case "encryption":
+      return encryption(detail.error);
   }
   return unreachable(detail);
 }

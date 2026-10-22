@@ -11,6 +11,7 @@ mod labeling;
 mod operation;
 mod payee;
 mod setting;
+mod startup;
 mod stats;
 mod tag;
 
@@ -34,46 +35,16 @@ pub fn run() {
             if let Err(error) = backup::apply_pending_restore(&data_dir) {
                 eprintln!("restore failed, the current data is kept: {error}");
             }
-            let pool = tauri::async_runtime::block_on(async {
-                let pool = db::open(&data_dir.join(db::DATA_FILE_NAME)).await?;
-                // Applies label normalization changes to existing operations.
-                labeling::renormalize_all(&pool).await?;
-                // Gives a payee to operations recorded before payees existed.
-                payee::assign_missing(&pool).await?;
-                // Removes the files of attachments deleted with their operation.
-                attachment::sweep(&pool, &data_dir.join(attachment::ATTACHMENTS_DIR)).await?;
-                Ok::<_, error::AppError>(pool)
-            })?;
-            // Trains the category classifier ahead of the first suggestion.
-            let classifier = labeling::classifier::ClassifierCache::default();
-            let (cache, warm_pool) = (classifier.clone(), pool.clone());
-            tauri::async_runtime::spawn(async move {
-                // A failed training is tried again on the first suggestion.
-                let _ = cache.refresh(&warm_pool).await;
-            });
-            app.manage(classifier);
-            // Daily full backup, unless disabled.
-            let (backup_pool, dirs) = (pool.clone(), backup::Dirs::new(data_dir.clone()));
-            tauri::async_runtime::spawn(async move {
-                let today = chrono::Local::now().date_naive();
-                if let Ok(true) = backup::full_due(&backup_pool, today).await
-                    && let Err(error) = backup::full(&backup_pool, &dirs, true).await
-                {
-                    eprintln!("daily backup failed: {error}");
-                }
-            });
-            // Daily update of the security prices, once the user allowed it.
-            let price_pool = pool.clone();
-            tauri::async_runtime::spawn(async move {
-                let today = chrono::Local::now().date_naive();
-                if let Ok(true) = investment::prices::update_due(&price_pool, today).await
-                    && let Ok(yahoo) = investment::yahoo::Yahoo::new()
-                {
-                    // Failures show on the next update from the portfolio screen.
-                    let _ = investment::prices::update(&price_pool, &yahoo, today).await;
-                }
-            });
-            app.manage(pool);
+            app.manage(labeling::classifier::ClassifierCache::default());
+            let data_file = data_dir.join(db::DATA_FILE_NAME);
+            // An encrypted data file waits for its password (unlock command).
+            if !db::encryption::is_encrypted(&data_file)? {
+                let handle = app.handle().clone();
+                tauri::async_runtime::block_on(async {
+                    let pool = db::open(&data_file).await?;
+                    startup::start(&handle, pool).await
+                })?;
+            }
             Ok(())
         })
         .run(tauri::generate_context!())
