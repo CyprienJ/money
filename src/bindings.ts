@@ -262,6 +262,16 @@ export const commands = {
 	 *  `source_categories` are the categories chosen for the categories of a QIF file.
 	 */
 	importStatement: (path: string, accountId: number, format: ImportFormat, fileHash: string, selections: ImportSelection[], sourceCategories: SourceCategoryChoice[]) => typedError<ImportOutcome, AppError>(__TAURI_INVOKE("import_statement", { path, accountId, format, fileHash, selections, sourceCategories })),
+	/**
+	 *  Reads the securities trades of a statement (Trade Republic) and compares them with the
+	 *  portfolio of the investment account.
+	 */
+	previewTrades: (path: string, accountId: number) => typedError<TradePreview, AppError>(__TAURI_INVOKE("preview_trades", { path, accountId })),
+	/**
+	 *  Imports the selected trades of the statement into the portfolio, creating the missing
+	 *  securities. `file_hash` comes from the preview.
+	 */
+	importTrades: (path: string, accountId: number, fileHash: string, indexes: number[]) => typedError<TradeImport, AppError>(__TAURI_INVOKE("import_trades", { path, accountId, fileHash, indexes })),
 	/**  Banks whose PDF statements can be imported. */
 	supportedBanks: () => __TAURI_INVOKE<SupportedBank[]>("supported_banks"),
 	/**  Bank of the PDF statement at `path`, `null` when no parser recognizes it. */
@@ -960,7 +970,7 @@ export type PayeeExpense = {
 };
 
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
-export type PdfError = { code: "libraryUnavailable"; params: string } | { code: "invalidPdf"; params: string } | { code: "unknownFormat" } | { code: "layout"; params: string };
+export type PdfError = { code: "libraryUnavailable"; params: string } | { code: "invalidPdf"; params: string } | { code: "unknownFormat" } | { code: "layout"; params: string } | { code: "noTrades"; params: string };
 
 /**  Gains of an investment account at a date. */
 export type Performance = {
@@ -1283,6 +1293,47 @@ export type Tag = {
 
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
 export type TagError = { code: "notFound"; params: number } | { code: "emptyName" } | { code: "nameTaken"; params: string };
+
+/**
+ *  A buy or a sell of securities read from a statement. The amount is the total paid or
+ *  received, fees included.
+ */
+export type Trade = {
+	date: string,
+	kind: TransactionKind,
+	isin: string,
+	/**  Name of the security as written by the bank, e.g. "ASML HOLDING EO -,09". */
+	name: string,
+	/**  Millionths of a unit. */
+	quantityMicro: number,
+	/**  Positive. */
+	amountCents: number,
+};
+
+export type TradeImport = {
+	imported: number,
+	createdSecurities: number,
+};
+
+export type TradeLine = {
+	trade: Trade,
+	/**  Security of the ISIN; `None`: created at import. */
+	securityId: number | null,
+	/**  Already in the account: never imported. */
+	duplicate: boolean,
+	/**  Dated before the account opening: never imported. */
+	beforeOpening: boolean,
+};
+
+export type TradePreview = {
+	fileName: string,
+	/**  To check at import time that the file did not change. */
+	fileHash: string,
+	/**  Bank recognized from the statement. */
+	bank: string,
+	/**  Trades in file order; the import refers to them by index. */
+	lines: TradeLine[],
+};
 
 export type TransactionInput = {
 	securityId: number,

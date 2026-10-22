@@ -18,6 +18,23 @@ use specta::Type;
 
 pub use super::Statement;
 use crate::error::ErrorKind;
+use crate::investment::TransactionKind;
+
+/// A buy or a sell of securities read from a statement. The amount is the total paid or
+/// received, fees included.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct Trade {
+    pub date: chrono::NaiveDate,
+    pub kind: TransactionKind,
+    pub isin: String,
+    /// Name of the security as written by the bank, e.g. "ASML HOLDING EO -,09".
+    pub name: String,
+    /// Millionths of a unit.
+    pub quantity_micro: i64,
+    /// Positive.
+    pub amount_cents: i64,
+}
 
 /// A parser for the PDF statements of one bank.
 pub trait StatementParser: Send + Sync {
@@ -29,6 +46,11 @@ pub trait StatementParser: Send + Sync {
     fn recognizes(&self, document: &DocumentText) -> bool;
     /// Reads a statement recognized by this parser.
     fn parse(&self, document: &DocumentText) -> Result<Statement, PdfError>;
+    /// Reads the securities trades of a statement recognized by this parser; `None` when the
+    /// statements of this bank give none.
+    fn parse_trades(&self, _document: &DocumentText) -> Result<Option<Vec<Trade>>, PdfError> {
+        Ok(None)
+    }
 }
 
 /// Parsers of the supported banks, tried in this order.
@@ -93,6 +115,9 @@ pub enum PdfError {
 
     #[error("unexpected statement layout: {0}")]
     Layout(String),
+
+    #[error("the statements of {0} give no securities transactions")]
+    NoTrades(String),
 }
 
 impl PdfError {

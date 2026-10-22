@@ -1,20 +1,53 @@
-//! Trade Republic statements ("Relevé de compte"), current account section only.
+//! Trade Republic statements ("Relevé de compte").
 //!
-//! A statement may hold several products: the current account ("Compte courant"), then the
-//! PEA with its trades. Investment accounts are tracked by valuations (README), so only the
-//! current account transactions are read; the summary row gives their opening and closing
-//! balances.
+//! A statement may hold several products: the current account ("Compte courant"), then a
+//! securities account ("Compte PEA") with its trades. The statement of the current account is
+//! its transactions, the summary row giving their opening and closing balances; the trades of
+//! the first securities account ("Buy trade FR0000120073 AIR LIQUIDE INH. EO 5,50, quantity:
+//! 1") go to the portfolio of an investment account. Its cash movements (payments into the
+//! PEA) are not read: the cash account of a PEA is not tracked.
 //!
 //! A transaction spreads over three close baselines: the date (`27 juil.`), then the type,
 //! description and amounts, then the year (`2026`); long descriptions wrap. Items are thus
 //! grouped around each date. Every row gives the balance after it, which is checked.
 
+use std::sync::LazyLock;
+
 use chrono::NaiveDate;
+use regex::Regex;
 
 use super::french::{is_amount, parse_amount, parse_long_date};
 use super::text::{TextItem, TextLine};
-use super::{DocumentText, PdfError, Statement, StatementParser};
+use super::{DocumentText, PdfError, Statement, StatementParser, Trade};
 use crate::importing::RawLine;
+use crate::investment::{QUANTITY_SCALE, TransactionKind};
+
+/// A product of the statement, by the first words of its summary row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Product {
+    CurrentAccount,
+    /// The first other product: a PEA or a securities account.
+    Securities,
+}
+
+impl Product {
+    fn summary_of(self, text: &str) -> bool {
+        match self {
+            Product::CurrentAccount => text.starts_with("Compte courant"),
+            Product::Securities => {
+                text.starts_with("Compte ") && !text.starts_with("Compte courant")
+            }
+        }
+    }
+}
+
+/// Description of a trade: kind, ISIN, name and quantity.
+static TRADE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(Buy trade|Sell trade|Savings plan execution) ([A-Z]{2}[A-Z0-9]{9}[0-9]) (.+?),?\s*quantity:\s*([0-9]+(?:[.,][0-9]+)?)\s*$",
+    )
+    .expect("valid regex")
+});
 
 pub struct TradeRepublic;
 
@@ -51,34 +84,94 @@ impl StatementParser for TradeRepublic {
     }
 
     fn parse(&self, document: &DocumentText) -> Result<Statement, PdfError> {
-        // Summary row: opening balance, money in, money out, closing balance.
-        let summary = document
-            .lines()
-            .find(|line| line.text().starts_with("Compte courant"))
+        let (start_balance, end_balance) = summary(document, Product::CurrentAccount)?
             .ok_or_else(|| PdfError::Layout("no \"Compte courant\" summary".to_owned()))?;
-        let amounts: Vec<i64> = amounts(summary).collect();
-        let (Some(&start_balance), Some(&end_balance)) = (amounts.first(), amounts.last()) else {
-            return Err(PdfError::Layout(format!(
-                "summary row \"{}\"",
-                summary.text()
-            )));
-        };
         Ok(Statement {
-            lines: transactions(document, start_balance)?,
+            lines: transactions(document, Product::CurrentAccount, start_balance)?,
             start_balance_cents: Some(start_balance),
             end_balance_cents: Some(end_balance),
             period: period(document),
         })
     }
+
+    fn parse_trades(&self, document: &DocumentText) -> Result<Option<Vec<Trade>>, PdfError> {
+        let Some((start_balance, _)) = summary(document, Product::Securities)? else {
+            return Ok(Some(Vec::new()));
+        };
+        let trades = transactions(document, Product::Securities, start_balance)?
+            .iter()
+            .filter_map(trade)
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Some(trades))
+    }
 }
 
-/// Transactions of the current account, page by page, each checked against the balance
-/// printed after it. The table ends with "APERÇU DU SOLDE" or the summary of another
-/// product ("Compte PEA").
-fn transactions(document: &DocumentText, start_balance: i64) -> Result<Vec<RawLine>, PdfError> {
+/// Opening and closing balances of the summary row of a product: opening balance, money in,
+/// money out, closing balance. `None` when the statement does not hold the product.
+fn summary(document: &DocumentText, product: Product) -> Result<Option<(i64, i64)>, PdfError> {
+    let Some(summary) = document
+        .lines()
+        .find(|line| product.summary_of(&line.text()))
+    else {
+        return Ok(None);
+    };
+    let amounts: Vec<i64> = amounts(summary).collect();
+    match (amounts.first(), amounts.last()) {
+        (Some(&start), Some(&end)) => Ok(Some((start, end))),
+        _ => Err(PdfError::Layout(format!(
+            "summary row \"{}\"",
+            summary.text()
+        ))),
+    }
+}
+
+/// The trade of a transaction of the securities account; `None` for a payment.
+fn trade(line: &RawLine) -> Option<Result<Trade, PdfError>> {
+    let captures = TRADE.captures(&line.label)?;
+    let kind = match &captures[1] {
+        "Sell trade" => TransactionKind::Sell,
+        _ => TransactionKind::Buy,
+    };
+    let Some(quantity_micro) = quantity_micro(&captures[4]) else {
+        return Some(Err(PdfError::Layout(format!(
+            "quantity of \"{}\" on {}",
+            line.label, line.date
+        ))));
+    };
+    Some(Ok(Trade {
+        date: line.date,
+        kind,
+        isin: captures[2].to_owned(),
+        name: captures[3].trim().to_owned(),
+        quantity_micro,
+        amount_cents: line.amount_cents.abs(),
+    }))
+}
+
+/// Millionths of a quantity written "4", "0.612345" or "0,5"; `None` beyond 6 decimals.
+fn quantity_micro(text: &str) -> Option<i64> {
+    let (units, decimals) = text.split_once(['.', ',']).unwrap_or((text, ""));
+    if decimals.len() > 6 {
+        return None;
+    }
+    let units: i64 = units.parse().ok()?;
+    let decimals: i64 = format!("{decimals:0<6}").parse().ok()?;
+    let micro = units.checked_mul(QUANTITY_SCALE)?.checked_add(decimals)?;
+    (micro > 0).then_some(micro)
+}
+
+/// Transactions of a product, page by page, each checked against the balance printed after
+/// it. The table ends with "APERÇU DU SOLDE", the remarks, the footer of the page, or the
+/// summary of another product.
+fn transactions(
+    document: &DocumentText,
+    product: Product,
+    start_balance: i64,
+) -> Result<Vec<RawLine>, PdfError> {
     let mut lines = Vec::new();
     let mut balance = start_balance;
-    let mut in_current_account = false;
+    let mut in_section = false;
+    let mut seen = false;
 
     for page in &document.pages {
         let mut columns: Option<Columns> = None;
@@ -86,16 +179,21 @@ fn transactions(document: &DocumentText, start_balance: i64) -> Result<Vec<RawLi
         let mut table_over = false;
         for line in &page.lines {
             let text = line.text();
-            if text.starts_with("Compte courant") {
-                in_current_account = true;
-            } else if text.starts_with("Compte ") && in_current_account {
-                in_current_account = false;
+            if product.summary_of(&text) && !seen {
+                in_section = true;
+                seen = true;
+            } else if text.starts_with("Compte ") && in_section {
+                in_section = false;
                 table_over = true;
-            } else if !in_current_account || table_over {
+            } else if !in_section || table_over {
                 continue;
             } else if let Some(header) = table_header(&page.lines, line) {
                 columns = Some(header);
-            } else if text.starts_with("APERÇU DU SOLDE") || text.starts_with("Généré le") {
+            } else if text.starts_with("APERÇU DU SOLDE")
+                || text.starts_with("REMARQUES SUR LE RELEVÉ")
+                || text.starts_with("Trade Republic Bank GmbH")
+                || text.starts_with("Généré le")
+            {
                 table_over = true;
             } else if columns.is_some() && !text.contains("D'ARGENT") {
                 items.extend(line.items.iter().map(|item| Placed { y: line.y, item }));
@@ -258,4 +356,57 @@ fn transaction(row: &[&Placed], columns: &Columns) -> Result<(RawLine, i64), Pdf
         source_category: None,
     };
     Ok((line, balance))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn line(label: &str, amount_cents: i64) -> RawLine {
+        RawLine {
+            date: NaiveDate::from_ymd_opt(2026, 9, 15).unwrap(),
+            value_date: None,
+            label: label.to_owned(),
+            amount_cents,
+            note: None,
+            source_category: None,
+        }
+    }
+
+    #[test]
+    fn reads_buys_sells_and_savings_plans() {
+        let sell = trade(&line(
+            "Exécution d'ordre Sell trade NL0010273215 ASML HOLDING EO -,09, quantity: 0.5",
+            80_000,
+        ))
+        .unwrap()
+        .unwrap();
+        assert_eq!(
+            (sell.kind, sell.isin.as_str(), sell.name.as_str()),
+            (
+                TransactionKind::Sell,
+                "NL0010273215",
+                "ASML HOLDING EO -,09"
+            )
+        );
+        assert_eq!((sell.quantity_micro, sell.amount_cents), (500_000, 80_000));
+
+        let plan = trade(&line(
+            "Plan d'épargne Savings plan execution IE00B4L5Y983 ISHSIII-CORE MSCI WORLD U.ETF, quantity: 0,612345",
+            -5_000,
+        ))
+        .unwrap()
+        .unwrap();
+        assert_eq!(plan.kind, TransactionKind::Buy);
+        assert_eq!((plan.quantity_micro, plan.amount_cents), (612_345, 5_000));
+
+        assert!(trade(&line("Virement Versement PEA", 5_000)).is_none());
+        assert!(matches!(
+            trade(&line(
+                "Buy trade FR0000120073 AIR LIQUIDE, quantity: 0.1234567",
+                -100
+            )),
+            Some(Err(PdfError::Layout(_)))
+        ));
+    }
 }

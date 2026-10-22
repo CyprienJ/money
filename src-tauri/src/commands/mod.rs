@@ -140,6 +140,8 @@ pub fn builder() -> Builder<tauri::Wry> {
             import::read_file_head,
             import::preview_import,
             import::import_statement,
+            import::preview_trades,
+            import::import_trades,
             import::supported_banks,
             import::detect_pdf_statement,
             stats::expenses_by_category,

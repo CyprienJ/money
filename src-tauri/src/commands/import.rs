@@ -13,6 +13,7 @@ use crate::importing::source_category::SourceCategoryChoice;
 use crate::importing::statement_import::{
     self, ImportFormat, ImportPreview, ImportSelection, StatementFile,
 };
+use crate::importing::trade_import::{self, TradeFile, TradeImport, TradePreview};
 use crate::labeling::classifier::ClassifierCache;
 use crate::operation::schedule::matching;
 use crate::operation::transfer;
@@ -117,6 +118,63 @@ pub async fn import_statement(
         linked_transfers,
         matched_occurrences,
     })
+}
+
+/// Reads the securities trades of a statement (Trade Republic) and compares them with the
+/// portfolio of the investment account.
+#[tauri::command]
+#[specta::specta]
+pub async fn preview_trades(
+    app: AppHandle,
+    pool: State<'_, SqlitePool>,
+    path: String,
+    account_id: i64,
+) -> AppResult<TradePreview> {
+    let bytes = std::fs::read(&path)?;
+    let pdfium_dir = pdfium_dir(&app)?;
+    trade_import::preview(&pool, trade_file(&path, account_id, &bytes, &pdfium_dir)).await
+}
+
+/// Imports the selected trades of the statement into the portfolio, creating the missing
+/// securities. `file_hash` comes from the preview.
+#[tauri::command]
+#[specta::specta]
+pub async fn import_trades(
+    app: AppHandle,
+    pool: State<'_, SqlitePool>,
+    path: String,
+    account_id: i64,
+    file_hash: String,
+    indexes: Vec<u32>,
+) -> AppResult<TradeImport> {
+    let bytes = std::fs::read(&path)?;
+    let pdfium_dir = pdfium_dir(&app)?;
+    trade_import::import(
+        &pool,
+        &super::app::backups_dir(&app)?,
+        trade_file(&path, account_id, &bytes, &pdfium_dir),
+        &file_hash,
+        &indexes,
+    )
+    .await
+}
+
+fn trade_file<'a>(
+    path: &'a str,
+    account_id: i64,
+    bytes: &'a [u8],
+    pdfium_dir: &'a Path,
+) -> TradeFile<'a> {
+    let file_name = Path::new(path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(path);
+    TradeFile {
+        account_id,
+        file_name,
+        bytes,
+        pdfium_dir,
+    }
 }
 
 fn statement_file<'a>(

@@ -15,6 +15,7 @@ pub mod interchange;
 pub mod pdf;
 pub mod source_category;
 pub mod statement_import;
+pub mod trade_import;
 
 use chrono::NaiveDate;
 use serde::Serialize;

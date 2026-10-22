@@ -23,7 +23,7 @@ pub mod securities {
     pub use super::security::{create, delete, list, update};
 }
 pub mod transactions {
-    pub use super::transaction::{create, delete, list, update};
+    pub use super::transaction::{create, create_many, delete, list, update};
 }
 
 use chrono::NaiveDate;

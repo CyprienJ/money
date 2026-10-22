@@ -10,7 +10,7 @@ use super::position::Holding;
 use crate::account::{self, AccountType};
 use crate::error::AppResult;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type, sqlx::Type)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Type, sqlx::Type)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[sqlx(type_name = "TEXT", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TransactionKind {
@@ -135,6 +135,44 @@ pub async fn create(
     check_holdings(&mut tx, account_id, input.security_id).await?;
     tx.commit().await?;
     get(pool, id).await
+}
+
+/// Records several transactions at once, all or none (an import).
+pub async fn create_many(
+    pool: &SqlitePool,
+    account_id: i64,
+    inputs: &[TransactionInput],
+) -> AppResult<()> {
+    let mut notes = Vec::with_capacity(inputs.len());
+    for input in inputs {
+        notes.push(check(pool, account_id, input).await?);
+    }
+    let mut tx = pool.begin().await?;
+    for (input, note) in inputs.iter().zip(notes) {
+        sqlx::query!(
+            "INSERT INTO investment_transaction
+             (account_id, security_id, date, kind, quantity_micro, amount_cents, fees_cents, note)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            account_id,
+            input.security_id,
+            input.date,
+            input.kind,
+            input.quantity_micro,
+            input.amount_cents,
+            input.fees_cents,
+            note
+        )
+        .execute(&mut *tx)
+        .await?;
+    }
+    let mut securities: Vec<i64> = inputs.iter().map(|input| input.security_id).collect();
+    securities.sort_unstable();
+    securities.dedup();
+    for security_id in securities {
+        check_holdings(&mut tx, account_id, security_id).await?;
+    }
+    tx.commit().await?;
+    Ok(())
 }
 
 /// Changes a transaction; its account stays the same.
