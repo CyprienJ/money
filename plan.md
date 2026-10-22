@@ -368,7 +368,9 @@ Décisions du 21/10/2026 : 3 opérations au moins (2 pour l'annuel) ; toutes les
 - [x] « Ajouter » pré-remplit le formulaire d'échéance puis associe les opérations passées ; « Ignorer » mémorisé dans `recurring_dismissal`.
 
 #### V2-09 · Prévision de trésorerie — M
-- [ ] Solde projeté à partir du solde actuel et de l'échéancier.
+Décisions du 22/10/2026 : carte dans l'échéancier et KPI sur le tableau de bord ; horizon 30, 60 ou 90 jours ; occurrence en retard de moins de 5 jours comptée aujourd'hui ; échéances de virement interne ignorées quand la vue couvre plusieurs comptes.
+- [x] Solde projeté jour par jour à partir du solde actuel et des occurrences non réalisées (`stats::balance_forecast`), avec le point bas.
+- [x] Carte « Prévision de trésorerie » (compte, horizon, courbe, échéances prises en compte) et KPI « Solde projeté à 30 j ».
 
 #### V2-10 · Alertes — M
 - [ ] Solde projeté négatif, dépense inhabituelle pour une catégorie, échéance manquante.
