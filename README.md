@@ -77,6 +77,9 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 - **Gestion des tiers** : fusion de plusieurs libellés normalisés en un seul tiers (alias) et renommage.
 - **Appariement automatique des virements internes** : le débit sur le compte A et le crédit correspondant sur le compte B sont liés *(décisions du 21/10/2026)*. Candidats : comptes différents, montants opposés, au plus 3 jours d'écart, deux opérations non liées, à catégoriser ou en Virement interne, et pas déjà ignorées. Un appariement est sûr quand chaque opération est le seul candidat de l'autre : il est lié automatiquement après chaque import (et à la demande sur tout l'historique) ; les autres sont proposés dans l'écran Opérations (Lier / Ignorer). Lier deux opérations leur donne la catégorie « Virement interne », sans toucher à la mémoire des libellés : l'exclusion des statistiques reste dérivée de la catégorie. Quitter cette catégorie délie les deux opérations ; « Délier » garde leur catégorie. La fiche d'une opération montre son pendant et permet de la lier à la main (n'importe quelle catégorie, à 15 jours près).
 
+#### Import
+- **Import OFX et QIF** *(décisions du 22/10/2026, avancé depuis « Plus tard »)*, pour reprendre l'historique de Microsoft Money (export QIF, un compte par fichier) et les téléchargements OFX des banques. Le format est reconnu à l'extension (`.ofx`, `.qfx`, `.qif`), sans mapping ; les fichiers passent par le même aperçu que les CSV et PDF (doublons, ouverture du compte, règles, mémoire, suggestions). Un seul compte bancaire ou carte par fichier : un fichier de plusieurs comptes ou de placements est refusé. OFX 1.x (SGML) et 2.x (XML) : date `DTPOSTED`, montant `TRNAMT`, libellé `NAME` ; solde final `LEDGERBAL` affiché ; la devise `CURDEF` doit être celle du compte. QIF : UTF-8 ou Windows-1252, ordre jour/mois des dates déduit du fichier (jour d'abord par défaut), montants avec séparateurs de milliers ; le premier enregistrement « Solde d'ouverture » de Money donne le solde initial et n'est pas importé. Le mémo (QIF `M`, OFX `MEMO`) va dans la note ; sans tiers, il devient le libellé. Catégories d'un fichier QIF : associées à une catégorie de l'application par un choix retenu d'un import précédent, sinon par le nom (« Parent:Enfant », ou le dernier nom s'il est unique, sans tenir compte des accents ni de la casse), modifiables dans l'aperçu (carte « Catégories du fichier ») et retenues pour les fichiers suivants ; elles passent avant les règles, et la catégorie importée est retenue pour le libellé. Un virement `[Compte]` reçoit la catégorie « Virement interne » (l'appariement suit). Une opération ventilée est importée en une ligne : la catégorie commune à toutes ses parts, sinon à catégoriser, et le détail des parts dans la note.
+
 #### Opérations
 - **Tags et notes** libres *(décisions du 21/10/2026)* : un tag se crée en le tapant sur une opération, sans tenir compte des majuscules pour retrouver un tag existant, et se renomme ou se supprime depuis l'écran Catégories. Les tags n'ont pas de couleur (pastille neutre). Tags et note s'affichent sous le libellé dans la liste des opérations et sont couverts par la recherche libre ; ils sont modifiables sur toutes les opérations, importées comprises.
 - **Pièces jointes** (factures, justificatifs), copiées à côté du fichier de données *(décisions du 21/10/2026)* : 25 Mo au plus par fichier, ouverture avec l'application par défaut du système. Les fichiers d'une opération supprimée ou d'un import annulé sont supprimés avec elle ; les fichiers orphelins sont aussi nettoyés au démarrage. La sauvegarde avant import ne copie que le fichier de données : les pièces jointes relèvent de la sauvegarde complète.
@@ -103,7 +106,6 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 
 ### Plus tard
 
-- Import OFX / QIF
 - Synchronisation bancaire automatique (agrégateur DSP2)
 - Catégorisation par embeddings ou LLM local
 - Opérations ventilées (une opération répartie sur plusieurs catégories)
@@ -168,7 +170,7 @@ category
   id, name, parent_id, color, is_internal_transfer (system flag), is_income
 
 import_batch
-  id, account_id, source_type (CSV | PDF), source_file_name, source_file_hash,
+  id, account_id, source_type (CSV | PDF | OFX | QIF), source_file_name, source_file_hash,
   imported_at, statement_start_balance_cents, statement_end_balance_cents,
   balance_check_status (OK | MISMATCH | NOT_AVAILABLE)
 
@@ -177,6 +179,9 @@ csv_mapping
   column_date, column_label, column_amount, column_debit, column_credit, skip_lines,
   column_fee,                 -- optional, subtracted from the amount
   column_state, state_keep    -- optional, lines in another state are skipped
+
+source_category_mapping  -- V2 category chosen for a category of a QIF file ("Alimentation:Courses")
+  source_category, category_id
 
 label_category_memory    -- V1 automatic category reuse
   normalized_label, category_id, last_used_at

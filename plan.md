@@ -306,6 +306,7 @@ Ordre validé le 21/10/2026, à la fin de la V1 :
 6. V2-17 · Mode clair et mode sombre (indépendant, peut être intercalé)
 7. V2-11 à V2-13 · Placements détaillés
 8. V2-16, V2-15, V2-14 · Technique : sauvegarde complète, chiffrement, multi-devises
+9. V2-18 · Import OFX et QIF (ajouté le 22/10/2026, avancé depuis « Plus tard »)
 
 Depuis la release 1.0.0, chaque évolution du schéma est une nouvelle migration.
 
@@ -332,6 +333,15 @@ Décisions du 21/10/2026 : lier = catégorie « Virement interne » (l'exclusion
 - [x] Liaison automatique débit compte A ↔ crédit compte B (montant opposé, dates proches) via `transfer_pair_id`, après chaque import et à la demande sur l'historique.
 - [x] Validation manuelle des appariements incertains (Lier / Ignorer, refus mémorisés dans `transfer_dismissal`).
 - [x] Fiche d'une opération : pendant affiché, Délier, Lier à la main ; changer de catégorie délie.
+
+### Import
+
+#### V2-18 · Import OFX et QIF — L
+Décisions du 22/10/2026 : catégories QIF associées par nom ou par un choix retenu, modifiables dans l'aperçu ; ventilations importées en une ligne, détail dans la note ; mémo dans la note ; un seul compte par fichier, placements refusés.
+- [x] Lecteurs OFX 1.x / 2.x et QIF écrits à la main (module `importing/interchange`), sans dépendance ; migration 0012 (`source_type` OFX et QIF, table `source_category_mapping`).
+- [x] Branchement dans l'aperçu et l'import : solde d'ouverture QIF, solde final OFX, devise OFX contrôlée, virements `[Compte]` en Virement interne, notes.
+- [x] Écran Importer : format reconnu à l'extension, carte « Catégories du fichier ».
+- [x] Tests : exports Money 2000 (Windows-1252, dates `31/12' 0`, ventilations), OFX SGML et XML, refus (plusieurs comptes, placements, dates et montants illisibles), import complet avec choix retenus.
 
 ### Opérations
 
