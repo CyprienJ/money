@@ -308,6 +308,7 @@ Ordre validé le 21/10/2026, à la fin de la V1 :
 8. V2-16, V2-15, V2-14 · Technique : sauvegarde complète, chiffrement, multi-devises
 9. V2-18 · Import OFX et QIF (ajouté le 22/10/2026, avancé depuis « Plus tard »)
 10. V2-19 · Mouvements titres des relevés Trade Republic (ajouté le 22/10/2026)
+11. V2-20 · Mémoire des relevés importés (ajouté le 22/10/2026)
 
 Depuis la release 1.0.0, chaque évolution du schéma est une nouvelle migration.
 
@@ -343,6 +344,13 @@ Décisions du 22/10/2026 : catégories QIF associées par nom ou par un choix re
 - [x] Branchement dans l'aperçu et l'import : solde d'ouverture QIF, solde final OFX, devise OFX contrôlée, virements `[Compte]` en Virement interne, notes.
 - [x] Écran Importer : format reconnu à l'extension, carte « Catégories du fichier ».
 - [x] Tests : exports Money 2000 (Windows-1252, dates `31/12' 0`, ventilations), OFX SGML et XML, refus (plusieurs comptes, placements, dates et montants illisibles), import complet avec choix retenus.
+
+#### V2-20 · Mémoire des relevés importés — M
+Décisions du 22/10/2026 : une copie par contenu (empreinte SHA-256) ; PDF ouverts dans le lecteur du système (pas de rendu des pages, pas de nouvelle dépendance), fichiers texte dans une visionneuse intégrée ; mouvements titres liés aussi ; relevés dans les sauvegardes complètes, en clair.
+- [x] Migration 0013 : `import_batch.stored_file`, `operation.source_page` / `source_line`, `investment_transaction.import_batch_id` / `source_page`.
+- [x] Position de chaque ligne relevée par tous les lecteurs (page PDF, ligne CSV, OFX, QIF) ; module `importing/source_document` (copie, nettoyage, lecture du texte) ; import des mouvements titres en lot sans opération.
+- [x] Fiches d'opération et de mouvement : « Relevé source », visionneuse texte avec la ligne surlignée.
+- [x] Sauvegardes complètes : copie et restauration de `statements/`.
 
 ### Opérations
 
