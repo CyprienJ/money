@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!\" FROM account\n           WHERE type IN ('CHECKING', 'SAVINGS', 'CREDIT_CARD')\n             AND CASE WHEN ?1 IS NULL\n                      THEN archived = 0\n                      ELSE id IN (SELECT value FROM json_each(?1)) END",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "adff1ec61df0656d00c0d5b516f9baed9bf91c422925471d5a095f2e2bd718db"
+}

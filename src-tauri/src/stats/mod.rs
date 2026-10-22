@@ -18,10 +18,12 @@ use sqlx::SqlitePool;
 use crate::error::{AppResult, ErrorKind};
 
 mod comparison;
+mod forecast;
 mod net_worth;
 mod payees;
 
 pub use comparison::{CategoryComparison, DateRange, compare_expenses_by_category};
+pub use forecast::{BalanceForecast, balance_forecast};
 pub use net_worth::{NetWorth, net_worth_at, net_worth_history};
 pub use payees::{LargestExpense, PayeeExpense, largest_expenses, top_payees};
 

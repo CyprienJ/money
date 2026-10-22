@@ -199,6 +199,11 @@ export const commands = {
 	incomeVsExpenses: (from: string, to: string, accounts: number[] | null, granularity: Granularity) => typedError<PeriodIncomeExpenses[], AppError>(__TAURI_INVOKE("income_vs_expenses", { from, to, accounts, granularity })),
 	/**  Total balance of the accounts at the end of each day, week or month. */
 	balanceHistory: (from: string, to: string, accounts: number[] | null, step: BalanceStep) => typedError<BalancePoint[], AppError>(__TAURI_INVOKE("balance_history", { from, to, accounts, step })),
+	/**
+	 *  Projected balance from today over `days` days, from the schedule occurrences not realized
+	 *  yet. `accounts`: `null` for every account with operations.
+	 */
+	balanceForecast: (days: number, accounts: number[] | null) => typedError<BalanceForecast, AppError>(__TAURI_INVOKE("balance_forecast", { days, accounts })),
 	/**  Net worth at the end of `date`, with its breakdown (cash, investments, assets, debts). */
 	netWorthAt: (date: string) => typedError<NetWorth, AppError>(__TAURI_INVOKE("net_worth_at", { date })),
 	/**  Net worth at the end of each day, week or month between `from` and `to`. */
@@ -309,6 +314,17 @@ export type BalanceCheck = {
 export type BalanceCheckStatus = "OK" | "MISMATCH" | 
 /**  The statement gives no balances (CSV files). */
 "NOT_AVAILABLE";
+
+export type BalanceForecast = {
+	/**  Balance at the end of today from the operations only. */
+	currentBalanceCents: number,
+	/**  Projected balance at the end of each day from today to the horizon. */
+	points: BalancePoint[],
+	/**  The first day with the lowest projected balance. */
+	lowest: BalancePoint,
+	/**  Occurrences counted, by date. */
+	occurrences: ForecastOccurrence[],
+};
 
 export type BalancePoint = {
 	date: string,
@@ -482,6 +498,19 @@ export type ExistingOperation = {
 	amountCents: number,
 	rawLabel: string,
 	isManual: boolean,
+};
+
+/**  An occurrence counted in the forecast. */
+export type ForecastOccurrence = {
+	scheduledOperationId: number,
+	/**  Date of the occurrence in the schedule. */
+	occurrenceDate: string,
+	/**  Date it counts in the forecast: today for a late occurrence. */
+	date: string,
+	accountId: number,
+	label: string,
+	amountCents: number,
+	categoryId: number | null,
 };
 
 export type Frequency = "WEEKLY" | "MONTHLY" | "QUARTERLY" | "SEMIANNUAL" | "YEARLY";

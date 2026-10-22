@@ -1,11 +1,12 @@
-use chrono::NaiveDate;
+use chrono::{Days, NaiveDate};
 use sqlx::SqlitePool;
 use tauri::State;
 
 use crate::error::AppResult;
 use crate::stats::{
-    self, BalancePoint, BalanceStep, CategoryComparison, CategoryExpense, CategoryLevel, DateRange,
-    Granularity, LargestExpense, NetWorth, PayeeExpense, PeriodIncomeExpenses,
+    self, BalanceForecast, BalancePoint, BalanceStep, CategoryComparison, CategoryExpense,
+    CategoryLevel, DateRange, Granularity, LargestExpense, NetWorth, PayeeExpense,
+    PeriodIncomeExpenses,
 };
 
 /// Net expenses by category between `from` and `to` (included), internal transfers excluded.
@@ -46,6 +47,22 @@ pub async fn balance_history(
     step: BalanceStep,
 ) -> AppResult<Vec<BalancePoint>> {
     stats::balance_history(&pool, from, to, accounts.as_deref(), step).await
+}
+
+/// Projected balance from today over `days` days, from the schedule occurrences not realized
+/// yet. `accounts`: `null` for every account with operations.
+#[tauri::command]
+#[specta::specta]
+pub async fn balance_forecast(
+    pool: State<'_, SqlitePool>,
+    days: u32,
+    accounts: Option<Vec<i64>>,
+) -> AppResult<BalanceForecast> {
+    let today = super::operation::today();
+    let to = today
+        .checked_add_days(Days::new(days.into()))
+        .unwrap_or(today);
+    stats::balance_forecast(&pool, today, to, accounts.as_deref()).await
 }
 
 /// Net worth at the end of `date`, with its breakdown (cash, investments, assets, debts).

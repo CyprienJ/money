@@ -103,6 +103,7 @@ pub fn builder() -> Builder<tauri::Wry> {
             stats::expenses_by_category,
             stats::income_vs_expenses,
             stats::balance_history,
+            stats::balance_forecast,
             stats::net_worth_at,
             stats::net_worth_history,
             stats::compare_expenses_by_category,
