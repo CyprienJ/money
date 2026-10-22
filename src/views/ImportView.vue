@@ -12,9 +12,11 @@ import {
   type SavedCsvMapping,
   type SourceCategory,
   type SupportedBank,
+  type TradePreview,
 } from "../bindings";
 import CategoryPicker from "../components/CategoryPicker.vue";
 import CsvMappingModal from "../components/CsvMappingModal.vue";
+import TradeImportPreview from "../components/TradeImportPreview.vue";
 import { ACCOUNT_TYPES } from "../utils/accounts";
 import { errorMessage, unwrap } from "../utils/commands";
 import { displayLabel, formatAmount, formatDate, localDateOf, operationCount } from "../utils/format";
@@ -50,6 +52,8 @@ const banks = ref<SupportedBank[]>([]);
 /** Bank recognized from the chosen PDF; `null` when not recognized. */
 const detectedBank = ref<SupportedBank | null>(null);
 const preview = ref<ImportPreview | null>(null);
+/** Trades of a statement imported into an investment account. */
+const tradePreview = ref<TradePreview | null>(null);
 const selected = ref(new Set<number>());
 /** Categories chosen by the user in the preview, by line index. */
 const chosen = ref(new Map<number, number | null>());
@@ -72,6 +76,8 @@ const stepIndex = computed(() => steps.findIndex((s) => s.id === step.value));
 
 const fileName = computed(() => path.value?.split(/[\\/]/).pop() ?? "");
 const account = computed(() => accounts.value.find((s) => s.account.id === accountId.value)?.account);
+/** An investment account receives the securities trades of a PDF statement. */
+const isInvestment = computed(() => account.value?.type === "INVESTMENT");
 /** Currency of the amounts of the statement: the one of the account. */
 const currency = computed(() => account.value?.currency);
 const mapping = computed(() => mappings.value.find((m) => m.id === mappingId.value));
@@ -93,7 +99,12 @@ const format = computed<ImportFormat | null>(() => {
   return mappingId.value === null ? null : { kind: "csv", mappingId: mappingId.value };
 });
 const canPreview = computed(
-  () => path.value !== null && accountId.value !== null && format.value !== null && !busy.value,
+  () =>
+    path.value !== null &&
+    accountId.value !== null &&
+    format.value !== null &&
+    !busy.value &&
+    (!isInvestment.value || isPdf.value),
 );
 
 const groups = computed(() => (preview.value ? groupPreview(preview.value) : null));
@@ -113,7 +124,9 @@ const accountNames = computed(() => new Map(accounts.value.map((s) => [s.account
 async function load() {
   try {
     const summaries = await unwrap(commands.listAccountSummaries(false));
-    accounts.value = summaries.filter((s) => ACCOUNT_TYPES[s.account.type].hasOperations);
+    accounts.value = summaries.filter(
+      (s) => ACCOUNT_TYPES[s.account.type].hasOperations || s.account.type === "INVESTMENT",
+    );
     mappings.value = await unwrap(commands.listCsvMappings());
     categories.value = await unwrap(commands.listCategories());
     banks.value = await commands.supportedBanks();
@@ -204,7 +217,14 @@ async function showPreview() {
   if (!path.value || accountId.value === null || format.value === null) return;
   busy.value = true;
   error.value = "";
+  preview.value = null;
+  tradePreview.value = null;
   try {
+    if (isInvestment.value) {
+      tradePreview.value = await unwrap(commands.previewTrades(path.value, accountId.value));
+      step.value = "preview";
+      return;
+    }
     preview.value = await unwrap(commands.previewImport(path.value, accountId.value, format.value));
     selected.value = defaultSelection(preview.value);
     chosen.value = new Map();
@@ -292,6 +312,21 @@ function toggle(index: number) {
 function back() {
   step.value = "file";
   error.value = "";
+  tradePreview.value = null;
+}
+
+async function runTradeImport(indexes: number[]) {
+  const current = tradePreview.value;
+  if (!current || !path.value || accountId.value === null) return;
+  step.value = "importing";
+  error.value = "";
+  try {
+    await unwrap(commands.importTrades(path.value, accountId.value, current.fileHash, indexes));
+    await router.push({ name: "portfolio", params: { id: String(accountId.value) } });
+  } catch (e) {
+    error.value = errorMessage(e);
+    step.value = "preview";
+  }
 }
 
 async function runImport() {
@@ -379,8 +414,16 @@ onMounted(load);
         <label class="field">
           Compte de destination
           <select v-model="accountId">
-            <option v-for="s in accounts" :key="s.account.id" :value="s.account.id">{{ s.account.name }}</option>
+            <option v-for="s in accounts" :key="s.account.id" :value="s.account.id">
+              {{ s.account.type === "INVESTMENT" ? `${s.account.name} (portefeuille)` : s.account.name }}
+            </option>
           </select>
+          <span v-if="isInvestment" class="field-hint">
+            Un compte de placement reçoit les achats et ventes de titres d'un relevé PDF Trade Republic.
+          </span>
+          <span v-if="isInvestment && path && !isPdf" class="field-error">
+            Choisis un relevé PDF Trade Republic, ou un compte courant pour ce fichier.
+          </span>
         </label>
         <div v-if="isPdf" class="field">
           Format du relevé
@@ -432,6 +475,16 @@ onMounted(load);
   </section>
 
   <!-- Step 2: check and preview -->
+  <TradeImportPreview
+    v-else-if="tradePreview && account"
+    :preview="tradePreview"
+    :account-name="account.name"
+    :currency="account.currency"
+    :importing="step === 'importing'"
+    @back="back"
+    @import="runTradeImport"
+  />
+
   <template v-else-if="preview && groups">
     <section class="cards">
       <div class="card file-card">

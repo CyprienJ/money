@@ -300,6 +300,8 @@ function pdf(error: PdfError): string {
       return "Ce PDF n'est pas un relevé d'une banque prise en charge.";
     case "layout":
       return `La mise en page de ce relevé n'est pas celle attendue (${error.params}).`;
+    case "noTrades":
+      return `Les relevés ${error.params} ne contiennent pas de mouvements de titres : importe-le dans un compte courant.`;
   }
   return unreachable(error);
 }
