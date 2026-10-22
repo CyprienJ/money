@@ -89,7 +89,7 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 - **Prévision de trésorerie** : solde projeté à partir du solde actuel et de l'échéancier *(décisions du 22/10/2026)*. Le solde de fin de journée d'aujourd'hui (comptes courants, épargne et cartes non archivés, ou un seul compte) reçoit, jour par jour, les occurrences pas encore réalisées jusqu'à l'horizon (30, 60 ou 90 jours) ; une occurrence en retard de moins de 5 jours (la fenêtre de rapprochement) est comptée aujourd'hui, une plus ancienne est considérée comme manquée. Quand la vue couvre plusieurs comptes, les échéances de catégorie Virement interne sont ignorées : l'argent reste dans le total. La carte de l'échéancier montre la courbe, le solde à l'horizon, le point bas (signalé s'il est négatif) et les échéances prises en compte ; le tableau de bord affiche le solde projeté à 30 jours et son point bas.
 
 #### Placements
-- **Portefeuille détaillé** : titres, quantités, prix de revient, mouvements (achat, vente, dividende).
+- **Portefeuille détaillé** : titres, quantités, prix de revient, mouvements (achat, vente, dividende) *(décisions du 22/10/2026)*. Saisie à la main dans un écran Portefeuille par compte de placement (ouvert depuis l'écran Comptes) : positions (quantité, PRU, prix de revient, dividendes), mouvements et titres. Les titres (nom, ISIN facultatif vérifié par sa clé) sont communs à tous les comptes. Quantités à 6 décimales (fractions d'actions), stockées en millionièmes d'unité. Prix de revient au coût moyen pondéré, frais d'achat inclus ; une vente retire la part du prix de revient des parts vendues sans changer le PRU, et ne peut pas dépasser la quantité détenue à sa date (vérifié à chaque saisie, modification ou suppression). La valeur du compte et le patrimoine net restent ceux des valorisations jusqu'à V2-13.
 - **Cours de bourse récupérés automatiquement**.
 - **Performance et plus-values**, latentes et réalisées.
 
@@ -216,8 +216,14 @@ transfer_dismissal       -- V2 proposed transfer pairs the user dismissed
 attachment               -- V2 files copied into attachments/, deleted with their operation
   id, operation_id, file_name (original), stored_name, size_bytes, added_at
 
--- Prévus (V2+) : payee, payee_alias,
---               security, security_price, investment_transaction
+security                 -- V2 securities, shared by the investment accounts
+  id, name, isin (unique, nullable), currency
+
+investment_transaction   -- V2 buys, sells and dividends of an investment account
+  id, account_id, security_id, date, kind (BUY | SELL | DIVIDEND),
+  quantity_micro (millionths of a unit, 0 for a dividend), amount_cents (> 0), fees_cents, note
+
+-- Prévus (V2+) : security_price
 ```
 
 Note : la catégorie est portée par `operation_split` dès la V1. Ainsi, l'arrivée de la ventilation ne change aucune requête de statistique.

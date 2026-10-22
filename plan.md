@@ -381,7 +381,9 @@ Décisions du 22/10/2026 : solde négatif par compte courant ou d'épargne à 30
 ### Placements
 
 #### V2-11 · Portefeuille détaillé — L
-- [ ] Tables `security` et `investment_transaction` : titres, quantités, prix de revient, achats, ventes, dividendes.
+Décisions du 22/10/2026 : quantités à 6 décimales ; prix de revient au coût moyen pondéré, frais d'achat inclus ; saisie à la main (import des ordres Trade Republic éventuellement dans un ticket à part) ; valeur du compte et patrimoine net inchangés jusqu'à V2-13 ; écran Portefeuille par compte de placement.
+- [x] Tables `security` et `investment_transaction` : titres, quantités, prix de revient, achats, ventes, dividendes (module `investment`).
+- [x] Écran Portefeuille (`/accounts/:id/portfolio`) : positions, mouvements, titres ; lien depuis l'écran Comptes.
 
 #### V2-12 · Cours de bourse automatiques — M
 - [ ] Table `security_price` ; récupération des cours.
