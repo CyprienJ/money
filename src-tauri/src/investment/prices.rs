@@ -1,6 +1,8 @@
 //! Security prices: entered by hand, or fetched from Yahoo Finance once the user enabled it
 //! (the only network access of the application). Fetched prices never overwrite a price
-//! entered by hand. Only prices in euros are kept until multi-currency support.
+//! entered by hand. Prices are in the currency of the security, set by the first fetched
+//! prices; prices in pence are converted to pounds. The exchange rates of the currencies in
+//! use are fetched with the prices.
 
 use chrono::NaiveDate;
 use serde::Serialize;
@@ -8,6 +10,8 @@ use specta::Type;
 use sqlx::SqlitePool;
 
 use super::InvestmentError;
+use crate::amount::mul_div;
+use crate::currency::{self, RATE_SCALE};
 use crate::error::{AppResult, ErrorKind};
 use crate::setting;
 
@@ -55,7 +59,7 @@ pub struct SymbolCandidate {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct PriceUpdate {
-    /// Securities whose prices were fetched.
+    /// Securities and currencies whose prices or rates were fetched.
     pub updated: u32,
     pub failures: Vec<PriceFailure>,
 }
@@ -63,7 +67,8 @@ pub struct PriceUpdate {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct PriceFailure {
-    pub security_name: String,
+    /// Name of the security, or "USD/EUR" for an exchange rate.
+    pub name: String,
     pub error: PriceError,
 }
 
@@ -88,8 +93,15 @@ pub enum PriceError {
     #[error("the symbol {0} is unknown to the price source")]
     UnknownSymbol(String),
 
-    #[error("the prices of {symbol} are in {currency}, only euros are supported")]
+    #[error("the prices of {symbol} are in {currency}, which is not supported")]
     UnsupportedCurrency { symbol: String, currency: String },
+
+    #[error("the prices of {symbol} are in {currency}, the security in {expected}")]
+    CurrencyMismatch {
+        symbol: String,
+        currency: String,
+        expected: String,
+    },
 
     #[error("the price must be positive")]
     InvalidPrice,
@@ -112,8 +124,28 @@ pub enum HistoryRange {
 /// Daily closes of a listing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Closes {
+    /// Currency code as given by the source, e.g. "GBp" for pence.
     pub currency: String,
+    /// Close of each day, in billionths of a unit of the currency.
     pub prices: Vec<(NaiveDate, i64)>,
+}
+
+impl Closes {
+    /// Currency code and prices in cents; pence become pounds. `None` for an unsupported
+    /// currency.
+    fn in_cents(self) -> Option<(String, Vec<(NaiveDate, i64)>)> {
+        let (currency, unit_cents) = match self.currency.as_str() {
+            "GBp" | "GBX" => ("GBP".to_owned(), 1),
+            code => (currency::check_supported(code).ok()?, 100),
+        };
+        let prices = self
+            .prices
+            .into_iter()
+            .map(|(date, nano)| (date, mul_div(nano, unit_cents, RATE_SCALE)))
+            .filter(|(_, cents)| *cents > 0)
+            .collect();
+        Some((currency, prices))
+    }
 }
 
 /// A source of prices, Yahoo Finance or a fake one in tests.
@@ -226,7 +258,9 @@ pub async fn search_symbols(
 }
 
 /// Fetches the recent closes of every security with a symbol (a year for a security without
-/// prices yet), and records the day of the update. Refused while fetching is disabled.
+/// prices yet), then the exchange rates of the currencies in use, and records the day of the
+/// update. A security without prices takes the currency of its closes. Refused while fetching
+/// is disabled.
 pub async fn update(
     pool: &SqlitePool,
     source: &impl PriceSource,
@@ -234,7 +268,7 @@ pub async fn update(
 ) -> AppResult<PriceUpdate> {
     ensure_enabled(pool).await?;
     let securities = sqlx::query!(
-        r#"SELECT s.id AS "id!", s.name, s.symbol AS "symbol!",
+        r#"SELECT s.id AS "id!", s.name, s.symbol AS "symbol!", s.currency,
                   EXISTS (SELECT 1 FROM security_price p WHERE p.security_id = s.id)
                       AS "has_prices!: bool"
            FROM security s
@@ -254,43 +288,66 @@ pub async fn update(
             HistoryRange::Year
         };
         let closes = match source.closes(&security.symbol, range).await {
-            Ok(closes) if closes.currency == "EUR" => closes,
-            Ok(closes) => {
-                result.failures.push(PriceFailure {
-                    security_name: security.name,
-                    error: PriceError::UnsupportedCurrency {
-                        symbol: security.symbol,
-                        currency: closes.currency,
-                    },
-                });
-                continue;
-            }
+            Ok(closes) => closes,
             Err(error) => {
                 result.failures.push(PriceFailure {
-                    security_name: security.name,
+                    name: security.name,
                     error,
                 });
                 continue;
             }
         };
-        let mut tx = pool.begin().await?;
-        for (date, price_cents) in closes.prices.into_iter().filter(|(date, _)| *date <= today) {
-            sqlx::query!(
-                "INSERT INTO security_price (security_id, date, price_cents, source)
-                 VALUES (?1, ?2, ?3, 'YAHOO')
-                 ON CONFLICT (security_id, date)
-                 DO UPDATE SET price_cents = excluded.price_cents
-                 WHERE security_price.source = 'YAHOO'",
-                security.id,
-                date,
-                price_cents
-            )
-            .execute(&mut *tx)
-            .await?;
+        let quoted_in = closes.currency.clone();
+        let error = match closes.in_cents() {
+            None => Some(PriceError::UnsupportedCurrency {
+                symbol: security.symbol.clone(),
+                currency: quoted_in,
+            }),
+            Some((currency, _)) if currency != security.currency && security.has_prices => {
+                Some(PriceError::CurrencyMismatch {
+                    symbol: security.symbol.clone(),
+                    currency,
+                    expected: security.currency.clone(),
+                })
+            }
+            Some((currency, prices)) => {
+                let mut tx = pool.begin().await?;
+                sqlx::query!(
+                    "UPDATE security SET currency = ?2 WHERE id = ?1",
+                    security.id,
+                    currency
+                )
+                .execute(&mut *tx)
+                .await?;
+                for (date, price_cents) in prices.into_iter().filter(|(date, _)| *date <= today) {
+                    sqlx::query!(
+                        "INSERT INTO security_price (security_id, date, price_cents, source)
+                         VALUES (?1, ?2, ?3, 'YAHOO')
+                         ON CONFLICT (security_id, date)
+                         DO UPDATE SET price_cents = excluded.price_cents
+                         WHERE security_price.source = 'YAHOO'",
+                        security.id,
+                        date,
+                        price_cents
+                    )
+                    .execute(&mut *tx)
+                    .await?;
+                }
+                tx.commit().await?;
+                result.updated += 1;
+                None
+            }
+        };
+        if let Some(error) = error {
+            result.failures.push(PriceFailure {
+                name: security.name,
+                error,
+            });
         }
-        tx.commit().await?;
-        result.updated += 1;
     }
+    let (rates_updated, rate_failures) = currency::update_rates(pool, source, today).await?;
+    result.updated += rates_updated;
+    result.failures.extend(rate_failures);
     setting::set(pool, UPDATED_ON, &today.to_string()).await?;
     Ok(result)
 }

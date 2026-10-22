@@ -68,6 +68,7 @@ async fn operation_in(pool: &SqlitePool, category_id: i64) -> i64 {
         NewAccount {
             name: format!("Compte {category_id}"),
             account_type: AccountType::Checking,
+            currency: "EUR".to_owned(),
             institution: None,
             opening_balance_cents: 0,
             opening_date: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),

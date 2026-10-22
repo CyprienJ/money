@@ -11,6 +11,7 @@ mod app;
 mod attachment;
 mod backup;
 mod csv_mapping;
+mod currency;
 mod encryption;
 mod import;
 mod investment;
@@ -56,6 +57,11 @@ pub fn builder() -> Builder<tauri::Wry> {
             investment::list_security_prices,
             investment::set_security_price,
             investment::delete_security_price,
+            currency::supported_currencies,
+            currency::currencies_in_use,
+            currency::list_exchange_rates,
+            currency::set_exchange_rate,
+            currency::delete_exchange_rate,
             encryption::lock_status,
             encryption::unlock,
             encryption::encrypt_data,

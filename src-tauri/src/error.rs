@@ -5,6 +5,7 @@ use specta::datatype::DataType;
 use crate::account::AccountError;
 use crate::attachment::AttachmentError;
 use crate::backup::BackupError;
+use crate::currency::CurrencyError;
 use crate::db::encryption::EncryptionError;
 use crate::importing::batch::ImportError;
 use crate::importing::csv::{CsvError, CsvMappingError};
@@ -81,6 +82,9 @@ pub enum AppError {
     Price(#[from] PriceError),
 
     #[error(transparent)]
+    Currency(#[from] CurrencyError),
+
+    #[error(transparent)]
     Backup(#[from] BackupError),
 
     #[error(transparent)]
@@ -120,6 +124,7 @@ enum ErrorDetail {
     Pdf(PdfError),
     Investment(InvestmentError),
     Price(PriceError),
+    Currency(CurrencyError),
     Backup(BackupError),
     Encryption(EncryptionError),
 }
@@ -156,6 +161,7 @@ impl AppError {
             AppError::Pdf(error) => error.kind(),
             AppError::Investment(error) => error.kind(),
             AppError::Price(error) => error.kind(),
+            AppError::Currency(error) => error.kind(),
             AppError::Backup(error) => error.kind(),
             AppError::Encryption(error) => error.kind(),
         }
@@ -182,6 +188,7 @@ impl AppError {
             AppError::Pdf(error) => ErrorDetail::Pdf(error.clone()),
             AppError::Investment(error) => ErrorDetail::Investment(error.clone()),
             AppError::Price(error) => ErrorDetail::Price(error.clone()),
+            AppError::Currency(error) => ErrorDetail::Currency(error.clone()),
             AppError::Backup(error) => ErrorDetail::Backup(error.clone()),
             AppError::Encryption(error) => ErrorDetail::Encryption(error.clone()),
         })

@@ -34,6 +34,7 @@ async fn new_account(
         NewAccount {
             name: name.to_owned(),
             account_type,
+            currency: "EUR".to_owned(),
             institution: None,
             opening_balance_cents: opening,
             opening_date: date("2026-01-01"),

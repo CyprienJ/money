@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT currency, date AS \"date: NaiveDate\", rate_nano\n               FROM exchange_rate\n               ORDER BY currency, date",
+  "describe": {
+    "columns": [
+      {
+        "name": "currency",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "exchange_rate",
+            "name": "currency"
+          }
+        }
+      },
+      {
+        "name": "date: NaiveDate",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "exchange_rate",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "name": "rate_nano",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "exchange_rate",
+            "name": "rate_nano"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "0702d43f8cba3a6242e29b8625e79ca19b452a3cff8607ef3ad039d8452c19c3"
+}

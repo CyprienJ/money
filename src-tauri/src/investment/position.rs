@@ -6,6 +6,8 @@ use specta::Type;
 use sqlx::SqlitePool;
 
 use super::{QUANTITY_SCALE, TransactionKind};
+use crate::amount::mul_div;
+use crate::currency::{REFERENCE, Rates};
 use crate::error::AppResult;
 
 /// A security held in an account at a date.
@@ -23,9 +25,12 @@ pub struct Position {
     pub unit_cost_cents: i64,
     /// Dividends received since the first buy, net of their fees.
     pub dividends_cents: i64,
-    /// Last known price on or before the date.
+    /// Last known price on or before the date, in the currency of the security.
     pub last_price: Option<PricePoint>,
-    /// Quantity × last price, or the cost without a price.
+    /// Currency of the prices of the security.
+    pub currency: String,
+    /// Quantity × last price, converted to the currency of the account at the rate of the day
+    /// of the price; the cost without a price or a rate.
     pub market_value_cents: i64,
     /// Market value − cost; 0 without a price.
     pub unrealized_cents: i64,
@@ -80,18 +85,6 @@ pub(super) struct Holding {
     pub dividends_cents: i64,
 }
 
-/// `a × b / c` rounded half up, for non-negative `b` and positive `c`.
-pub(super) fn mul_div(a: i64, b: i64, c: i64) -> i64 {
-    let (a, b, c) = (i128::from(a), i128::from(b), i128::from(c));
-    let product = a * b * 2;
-    let rounded = if product >= 0 {
-        (product + c) / (c * 2)
-    } else {
-        (product - c) / (c * 2)
-    };
-    rounded as i64
-}
-
 impl Holding {
     /// Applies a transaction; `None` when it sells more than held.
     pub fn apply(
@@ -136,11 +129,9 @@ impl Holding {
         }
     }
 
-    /// Quantity × price, or the cost without a price.
-    pub fn market_value_cents(&self, price: Option<PricePoint>) -> i64 {
-        price.map_or(self.cost_cents, |p| {
-            mul_div(p.price_cents, self.quantity_micro, QUANTITY_SCALE)
-        })
+    /// Quantity × price, in the currency of the price.
+    pub fn market_value_cents(&self, price: PricePoint) -> i64 {
+        mul_div(price.price_cents, self.quantity_micro, QUANTITY_SCALE)
     }
 }
 
@@ -155,11 +146,15 @@ struct Transaction {
 }
 
 /// Transactions and prices of the portfolios, loaded once to value them at many dates.
+/// Amounts are in the currency of the account, prices in the currency of the security.
 pub struct Portfolios {
     /// Transactions of each account, by date.
     transactions: HashMap<i64, Vec<Transaction>>,
     /// Prices of each security, by date.
     prices: HashMap<i64, Vec<PricePoint>>,
+    account_currencies: HashMap<i64, String>,
+    security_currencies: HashMap<i64, String>,
+    rates: Rates,
 }
 
 impl Portfolios {
@@ -205,9 +200,24 @@ impl Portfolios {
                 price_cents: row.price_cents,
             });
         }
+        let account_currencies = sqlx::query!(r#"SELECT id AS "id!", currency FROM account"#)
+            .fetch_all(pool)
+            .await?
+            .into_iter()
+            .map(|row| (row.id, row.currency))
+            .collect();
+        let security_currencies = sqlx::query!(r#"SELECT id AS "id!", currency FROM security"#)
+            .fetch_all(pool)
+            .await?
+            .into_iter()
+            .map(|row| (row.id, row.currency))
+            .collect();
         Ok(Portfolios {
             transactions,
             prices,
+            account_currencies,
+            security_currencies,
+            rates: Rates::load(pool).await?,
         })
     }
 
@@ -243,8 +253,40 @@ impl Portfolios {
         count.checked_sub(1).map(|index| prices[index])
     }
 
-    /// Market value of the units held in an account at the end of `date`, and the date of the
-    /// most recent price used.
+    fn currency(currencies: &HashMap<i64, String>, id: i64) -> &str {
+        currencies.get(&id).map_or(REFERENCE, String::as_str)
+    }
+
+    /// Currency of the amounts of an account.
+    pub fn account_currency(&self, account_id: i64) -> &str {
+        Self::currency(&self.account_currencies, account_id)
+    }
+
+    /// Market value of a holding of an account in the currency of the account, converted at
+    /// the rate of the day of the price, and the date of that price; the cost without a price
+    /// or a rate.
+    fn market_value(
+        &self,
+        account_id: i64,
+        security_id: i64,
+        holding: &Holding,
+        date: NaiveDate,
+    ) -> (i64, Option<NaiveDate>) {
+        self.price(security_id, date)
+            .and_then(|price| {
+                let value = self.rates.convert(
+                    holding.market_value_cents(price),
+                    Self::currency(&self.security_currencies, security_id),
+                    self.account_currency(account_id),
+                    price.date,
+                )?;
+                Some((value, Some(price.date)))
+            })
+            .unwrap_or((holding.cost_cents, None))
+    }
+
+    /// Market value of the units held in an account at the end of `date`, in the currency of
+    /// the account, and the date of the most recent price used.
     pub fn value(&self, account_id: i64, date: NaiveDate) -> (i64, Option<NaiveDate>) {
         let mut value = 0;
         let mut priced_on: Option<NaiveDate> = None;
@@ -252,9 +294,10 @@ impl Portfolios {
             if holding.quantity_micro == 0 {
                 continue;
             }
-            let price = self.price(security_id, date);
-            value += holding.market_value_cents(price);
-            priced_on = priced_on.max(price.map(|p| p.date));
+            let (market_value, price_date) =
+                self.market_value(account_id, security_id, &holding, date);
+            value += market_value;
+            priced_on = priced_on.max(price_date);
         }
         (value, priced_on)
     }
@@ -266,7 +309,7 @@ impl Portfolios {
             (0, 0, 0, 0);
         for (&security_id, holding) in &holdings {
             cost_cents += holding.cost_cents;
-            market_value_cents += holding.market_value_cents(self.price(security_id, date));
+            market_value_cents += self.market_value(account_id, security_id, holding, date).0;
             realized_cents += holding.realized_cents;
             dividends_cents += holding.dividends_cents;
         }
@@ -384,11 +427,14 @@ pub async fn positions(
         .map(|(security_id, holding)| {
             let (security_name, isin) = securities.get(&security_id).cloned().unwrap_or_default();
             let last_price = portfolios.price(security_id, date);
-            let market_value_cents = holding.market_value_cents(last_price);
+            let (market_value_cents, _) =
+                portfolios.market_value(account_id, security_id, &holding, date);
             Position {
                 security_id,
                 security_name,
                 isin,
+                currency: Portfolios::currency(&portfolios.security_currencies, security_id)
+                    .to_owned(),
                 quantity_micro: holding.quantity_micro,
                 cost_cents: holding.cost_cents,
                 unit_cost_cents: holding.unit_cost_cents(),

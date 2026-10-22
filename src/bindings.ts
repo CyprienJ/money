@@ -54,6 +54,18 @@ export const commands = {
 	/**  Records the price of a day by hand; fetched prices never overwrite it. */
 	setSecurityPrice: (securityId: number, date: string, priceCents: number) => typedError<null, AppError>(__TAURI_INVOKE("set_security_price", { securityId, date, priceCents })),
 	deleteSecurityPrice: (securityId: number, date: string) => typedError<null, AppError>(__TAURI_INVOKE("delete_security_price", { securityId, date })),
+	/**  Supported currencies, euros (the reference) first. */
+	supportedCurrencies: () => __TAURI_INVOKE<string[]>("supported_currencies"),
+	/**  Currencies other than euros used by the accounts and securities, with their latest rate. */
+	currenciesInUse: () => typedError<CurrencyUse[], AppError>(__TAURI_INVOKE("currencies_in_use")),
+	/**  Rates of a currency, the most recent first. */
+	listExchangeRates: (currency: string) => typedError<ExchangeRate[], AppError>(__TAURI_INVOKE("list_exchange_rates", { currency })),
+	/**
+	 *  Records the rate of a day by hand (euros for one unit, in billionths); fetched rates never
+	 *  overwrite it.
+	 */
+	setExchangeRate: (currency: string, date: string, rateNano: number) => typedError<null, AppError>(__TAURI_INVOKE("set_exchange_rate", { currency, date, rateNano })),
+	deleteExchangeRate: (currency: string, date: string) => typedError<null, AppError>(__TAURI_INVOKE("delete_exchange_rate", { currency, date })),
 	lockStatus: () => typedError<LockStatus, AppError>(__TAURI_INVOKE("lock_status")),
 	/**  Opens the encrypted data file with its password. */
 	unlock: (password: string) => typedError<null, AppError>(__TAURI_INVOKE("unlock", { password })),
@@ -302,9 +314,11 @@ export type AccountSummary = {
 	 *  Balance from the operations; for an investment account, the market value of its
 	 *  portfolio from its first transaction on, else its last valuation on or before the date
 	 *  (as for assets); for liabilities, minus the last outstanding capital. `None` for a
-	 *  valued account without valuation yet.
+	 *  valued account without valuation yet. In the currency of the account.
 	 */
 	balanceCents: number | null,
+	/**  The balance in euros at the rate of the date; 0 without a rate. */
+	referenceBalanceCents: number | null,
 	/**
 	 *  Date of the valuation behind the balance of a valued account, or of the most recent
 	 *  price of its portfolio.
@@ -322,15 +336,19 @@ export type AccountType = "CHECKING" | "SAVINGS" |
 /**  Loan, tracked by its outstanding capital. */
 "LIABILITY";
 
-/**  Editable fields of an existing account. The type is fixed at creation. */
+/**
+ *  Editable fields of an existing account. The type is fixed at creation, the currency once
+ *  the account has data.
+ */
 export type AccountUpdate = {
 	name: string,
+	currency: string,
 	institution: string | null,
 	openingBalanceCents: number,
 	openingDate: string,
 };
 
-export type Alert = { kind: "negativeForecast"; accountId: number; 
+export type Alert = { kind: "missingRate"; currency: string } | { kind: "negativeForecast"; accountId: number; 
 /**  First day the projected balance is negative. */
 firstNegativeDate: string; lowest: BalancePoint } | { kind: "missingOccurrence"; occurrence: UpcomingOperation } | { kind: "unusualExpense"; categoryId: number; 
 /**  First day of the current month. */
@@ -423,7 +441,7 @@ export type BalanceCheckStatus = "OK" | "MISMATCH" |
 "NOT_AVAILABLE";
 
 export type BalanceForecast = {
-	/**  Balance at the end of today from the operations only. */
+	/**  Balance at the end of today from the operations only, in euros like the points. */
 	currentBalanceCents: number,
 	/**  Projected balance at the end of each day from today to the horizon. */
 	points: BalancePoint[],
@@ -559,6 +577,16 @@ export type CsvMapping = {
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
 export type CsvMappingError = { code: "notFound"; params: number } | { code: "emptyName" } | { code: "duplicateName"; params: string } | { code: "corrupt"; params: number };
 
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type CurrencyError = { code: "unsupported"; params: string } | { code: "referenceRate" } | { code: "invalidRate" } | { code: "accountCurrencyLocked" } | { code: "securityCurrencyLocked" };
+
+/**  A currency other than euros used by an account or a security. */
+export type CurrencyUse = {
+	currency: string,
+	/**  Most recent rate; `None` when the currency has none, and its amounts count 0. */
+	latest: ExchangeRate | null,
+};
+
 /**  Where the application keeps its data, for the Settings screen. */
 export type DataLocation = {
 	/**  The SQLite data file. */
@@ -592,7 +620,7 @@ candidateIds: number[] };
 export type EncryptionError = { code: "wrongPassword" } | { code: "passwordTooShort"; params: number } | { code: "alreadyEncrypted" } | { code: "notEncrypted" };
 
 /**  Business error with its code and parameters, for a message in French on the frontend. */
-export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "rule"; error: RuleError } | { domain: "payee"; error: PayeeError } | { domain: "tag"; error: TagError } | { domain: "attachment"; error: AttachmentError } | { domain: "transfer"; error: TransferError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError } | { domain: "investment"; error: InvestmentError } | { domain: "price"; error: PriceError } | { domain: "backup"; error: BackupError } | { domain: "encryption"; error: EncryptionError };
+export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "rule"; error: RuleError } | { domain: "payee"; error: PayeeError } | { domain: "tag"; error: TagError } | { domain: "attachment"; error: AttachmentError } | { domain: "transfer"; error: TransferError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError } | { domain: "investment"; error: InvestmentError } | { domain: "price"; error: PriceError } | { domain: "currency"; error: CurrencyError } | { domain: "backup"; error: BackupError } | { domain: "encryption"; error: EncryptionError };
 
 /**  Stable identifier the frontend can match on. */
 export type ErrorKind = "database" | "migration" | "io" | 
@@ -600,6 +628,14 @@ export type ErrorKind = "database" | "migration" | "io" |
 "not_found" | 
 /**  The input breaks a business rule; the message says which. */
 "validation";
+
+export type ExchangeRate = {
+	currency: string,
+	date: string,
+	/**  Euros for one unit of the currency, in billionths. */
+	rateNano: number,
+	source: PriceSourceKind,
+};
 
 /**  An existing operation of the account, as needed for duplicate detection. */
 export type ExistingOperation = {
@@ -619,7 +655,9 @@ export type ForecastOccurrence = {
 	date: string,
 	accountId: number,
 	label: string,
+	/**  In the currency of the account. */
 	amountCents: number,
+	currency: string,
 	categoryId: number | null,
 };
 
@@ -763,6 +801,7 @@ export type NetWorth = {
 export type NewAccount = {
 	name: string,
 	type: AccountType,
+	currency: string,
 	institution: string | null,
 	openingBalanceCents: number,
 	openingDate: string,
@@ -946,9 +985,14 @@ export type Position = {
 	unitCostCents: number,
 	/**  Dividends received since the first buy, net of their fees. */
 	dividendsCents: number,
-	/**  Last known price on or before the date. */
+	/**  Last known price on or before the date, in the currency of the security. */
 	lastPrice: PricePoint | null,
-	/**  Quantity × last price, or the cost without a price. */
+	/**  Currency of the prices of the security. */
+	currency: string,
+	/**
+	 *  Quantity × last price, converted to the currency of the account at the rate of the day
+	 *  of the price; the cost without a price or a rate.
+	 */
 	marketValueCents: number,
 	/**  Market value − cost; 0 without a price. */
 	unrealizedCents: number,
@@ -986,10 +1030,15 @@ export type PreviewLine = {
 export type PriceError = { code: "disabled" } | { code: "network"; params: string } | { code: "unexpectedResponse"; params: string } | { code: "unknownSymbol"; params: string } | { code: "unsupportedCurrency"; params: {
 	symbol: string,
 	currency: string,
+} } | { code: "currencyMismatch"; params: {
+	symbol: string,
+	currency: string,
+	expected: string,
 } } | { code: "invalidPrice" };
 
 export type PriceFailure = {
-	securityName: string,
+	/**  Name of the security, or "USD/EUR" for an exchange rate. */
+	name: string,
 	error: PriceError,
 };
 
@@ -1009,7 +1058,7 @@ export type PriceSourceKind = "MANUAL" | "YAHOO";
 
 /**  Result of an update of the prices. */
 export type PriceUpdate = {
-	/**  Securities whose prices were fetched. */
+	/**  Securities and currencies whose prices or rates were fetched. */
 	updated: number,
 	failures: PriceFailure[],
 };
@@ -1120,14 +1169,18 @@ export type Security = {
 	isin: string | null,
 	/**  Yahoo Finance symbol of the listing whose prices are fetched, e.g. `CW8.PA`. */
 	symbol: string | null,
+	/**  Currency of the prices; fixed once the security has prices. */
+	currency: string,
 	/**  Transactions of the security, in every account. */
 	transactionCount: number,
+	hasPrices: boolean,
 };
 
 export type SecurityInput = {
 	name: string,
 	isin: string | null,
 	symbol: string | null,
+	currency: string,
 };
 
 export type SecurityPrice = {
@@ -1197,7 +1250,7 @@ export type TransactionInput = {
 export type TransactionKind = "BUY" | "SELL" | "DIVIDEND";
 
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
-export type TransferError = { code: "sameAccount" } | { code: "amountsNotOpposite" } | { code: "alreadyLinked"; params: number };
+export type TransferError = { code: "sameAccount" } | { code: "amountsNotOpposite" } | { code: "differentCurrencies" } | { code: "alreadyLinked"; params: number };
 
 /**  A detected transfer the user has to confirm. */
 export type TransferProposal = {

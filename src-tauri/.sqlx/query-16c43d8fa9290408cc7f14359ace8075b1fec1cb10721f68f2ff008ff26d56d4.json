@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO security (name, isin, symbol, currency) VALUES (?1, ?2, ?3, ?4)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "16c43d8fa9290408cc7f14359ace8075b1fec1cb10721f68f2ff008ff26d56d4"
+}

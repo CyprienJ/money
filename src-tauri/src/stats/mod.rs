@@ -7,6 +7,9 @@
 //!
 //! `accounts` restricts a query to these account ids; `None` means every non-archived
 //! account with operations (checking, savings, credit card).
+//!
+//! Amounts are in euros: an operation is converted at the rate of its day, a balance at the
+//! rate of the day of the balance (see `currency`).
 
 use std::collections::BTreeMap;
 
@@ -15,6 +18,7 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use sqlx::SqlitePool;
 
+use crate::currency::{Amounts, Rates};
 use crate::error::{AppResult, ErrorKind};
 
 mod comparison;
@@ -126,9 +130,9 @@ pub async fn expenses_by_category(
     check_period(from, to)?;
     let accounts = accounts_json(accounts);
     let top_level = level == CategoryLevel::TopLevel;
-    let rows = sqlx::query_as!(
-        CategoryExpense,
+    let rows = sqlx::query!(
         r#"SELECT CASE WHEN ?4 THEN COALESCE(c.parent_id, c.id) ELSE c.id END AS "category_id?: i64",
+                  a.currency, o.date AS "date!: NaiveDate",
                   -SUM(s.amount_cents) AS "expense_cents!: i64"
            FROM operation_split s
            JOIN operation o ON o.id = s.operation_id
@@ -140,8 +144,7 @@ pub async fn expenses_by_category(
                       THEN a.archived = 0
                       ELSE o.account_id IN (SELECT value FROM json_each(?3)) END
              AND NOT COALESCE(c.is_income, s.amount_cents > 0)
-           GROUP BY 1
-           ORDER BY 2 DESC, 1"#,
+           GROUP BY 1, a.currency, o.date"#,
         from,
         to,
         accounts,
@@ -149,7 +152,23 @@ pub async fn expenses_by_category(
     )
     .fetch_all(pool)
     .await?;
-    Ok(rows)
+
+    let rates = Rates::load(pool).await?;
+    let mut totals: BTreeMap<Option<i64>, i64> = BTreeMap::new();
+    for row in rows {
+        *totals.entry(row.category_id).or_default() +=
+            rates.to_reference(row.expense_cents, &row.currency, row.date);
+    }
+    let mut expenses: Vec<CategoryExpense> = totals
+        .into_iter()
+        .map(|(category_id, expense_cents)| CategoryExpense {
+            category_id,
+            expense_cents,
+        })
+        .collect();
+    // Stable: equal expenses stay by category, uncategorized first.
+    expenses.sort_by_key(|e| std::cmp::Reverse(e.expense_cents));
+    Ok(expenses)
 }
 
 /// Income and net expenses for each month or year between `from` and `to` (included),
@@ -164,7 +183,7 @@ pub async fn income_vs_expenses(
     check_period(from, to)?;
     let accounts = accounts_json(accounts);
     let rows = sqlx::query!(
-        r#"SELECT o.date AS "date!: NaiveDate",
+        r#"SELECT o.date AS "date!: NaiveDate", a.currency,
                   SUM(CASE WHEN COALESCE(c.is_income, s.amount_cents > 0)
                            THEN s.amount_cents ELSE 0 END) AS "income_cents!: i64",
                   -SUM(CASE WHEN COALESCE(c.is_income, s.amount_cents > 0)
@@ -178,7 +197,7 @@ pub async fn income_vs_expenses(
              AND CASE WHEN ?3 IS NULL
                       THEN a.archived = 0
                       ELSE o.account_id IN (SELECT value FROM json_each(?3)) END
-           GROUP BY o.date"#,
+           GROUP BY o.date, a.currency"#,
         from,
         to,
         accounts
@@ -186,6 +205,7 @@ pub async fn income_vs_expenses(
     .fetch_all(pool)
     .await?;
 
+    let rates = Rates::load(pool).await?;
     let mut periods: BTreeMap<NaiveDate, PeriodIncomeExpenses> =
         period_starts(from, to, granularity)
             .map(|period_start| {
@@ -201,8 +221,8 @@ pub async fn income_vs_expenses(
         let period = periods
             .get_mut(&period_start(row.date, granularity))
             .expect("every date of the range is in a period");
-        period.income_cents += row.income_cents;
-        period.expense_cents += row.expense_cents;
+        period.income_cents += rates.to_reference(row.income_cents, &row.currency, row.date);
+        period.expense_cents += rates.to_reference(row.expense_cents, &row.currency, row.date);
     }
     Ok(periods.into_values().collect())
 }
@@ -243,7 +263,8 @@ pub async fn balance_history(
     check_period(from, to)?;
     let accounts = accounts_json(accounts);
     let openings = sqlx::query!(
-        r#"SELECT opening_date AS "date!: NaiveDate", opening_balance_cents AS "amount_cents!: i64"
+        r#"SELECT opening_date AS "date!: NaiveDate", currency,
+                  opening_balance_cents AS "amount_cents!: i64"
            FROM account
            WHERE type IN ('CHECKING', 'SAVINGS', 'CREDIT_CARD')
              AND CASE WHEN ?1 IS NULL
@@ -254,7 +275,8 @@ pub async fn balance_history(
     .fetch_all(pool)
     .await?;
     let movements = sqlx::query!(
-        r#"SELECT o.date AS "date!: NaiveDate", SUM(o.amount_cents) AS "amount_cents!: i64"
+        r#"SELECT o.date AS "date!: NaiveDate", a.currency,
+                  SUM(o.amount_cents) AS "amount_cents!: i64"
            FROM operation o
            JOIN account a ON a.id = o.account_id
            WHERE o.date <= ?2
@@ -262,7 +284,7 @@ pub async fn balance_history(
              AND CASE WHEN ?1 IS NULL
                       THEN a.archived = 0
                       ELSE o.account_id IN (SELECT value FROM json_each(?1)) END
-           GROUP BY o.date"#,
+           GROUP BY o.date, a.currency"#,
         accounts,
         to
     )
@@ -270,24 +292,28 @@ pub async fn balance_history(
     .await?;
 
     // Balance changes by date: account openings and operations.
-    let mut changes: BTreeMap<NaiveDate, i64> = BTreeMap::new();
-    for opening in openings {
-        *changes.entry(opening.date).or_default() += opening.amount_cents;
-    }
-    for movement in movements {
-        *changes.entry(movement.date).or_default() += movement.amount_cents;
-    }
+    let mut changes: Vec<(NaiveDate, String, i64)> = openings
+        .into_iter()
+        .map(|o| (o.date, o.currency, o.amount_cents))
+        .chain(
+            movements
+                .into_iter()
+                .map(|m| (m.date, m.currency, m.amount_cents)),
+        )
+        .collect();
+    changes.sort();
 
+    let rates = Rates::load(pool).await?;
     let mut changes = changes.into_iter().peekable();
-    let mut balance = 0;
+    let mut balance = Amounts::default();
     let mut points = Vec::new();
     for date in step_ends(from, to, step) {
-        while let Some((_, amount)) = changes.next_if(|(day, _)| *day <= date) {
-            balance += amount;
+        while let Some((_, currency, amount)) = changes.next_if(|(day, _, _)| *day <= date) {
+            balance.add(&currency, amount);
         }
         points.push(BalancePoint {
             date,
-            balance_cents: balance,
+            balance_cents: balance.to_reference(&rates, date),
         });
     }
     Ok(points)

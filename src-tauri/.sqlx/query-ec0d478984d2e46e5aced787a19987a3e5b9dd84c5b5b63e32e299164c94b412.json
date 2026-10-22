@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT opening_date AS \"date!: NaiveDate\", opening_balance_cents AS \"amount!: i64\"\n           FROM account\n           WHERE archived = 0 AND type IN ('CHECKING', 'SAVINGS', 'CREDIT_CARD')",
+  "query": "SELECT opening_date AS \"date!: NaiveDate\", currency,\n                  opening_balance_cents AS \"amount!: i64\"\n           FROM account\n           WHERE archived = 0 AND type IN ('CHECKING', 'SAVINGS', 'CREDIT_CARD')",
   "describe": {
     "columns": [
       {
@@ -15,8 +15,19 @@
         }
       },
       {
-        "name": "amount!: i64",
+        "name": "currency",
         "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "currency"
+          }
+        }
+      },
+      {
+        "name": "amount!: i64",
+        "ordinal": 2,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -31,8 +42,9 @@
     },
     "nullable": [
       false,
+      false,
       false
     ]
   },
-  "hash": "9e3b76f80930ad9c855cecd0df4938e89a06facb193771c09aae6c771e8aa548"
+  "hash": "ec0d478984d2e46e5aced787a19987a3e5b9dd84c5b5b63e32e299164c94b412"
 }

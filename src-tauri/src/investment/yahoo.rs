@@ -9,6 +9,7 @@ use serde::Deserialize;
 use serde_json::Number;
 
 use super::prices::{Closes, HistoryRange, PriceError, PriceSource, SymbolCandidate};
+use crate::currency::RATE_SCALE;
 
 const CHART_URL: &str = "https://query1.finance.yahoo.com/v8/finance/chart/";
 const SEARCH_URL: &str = "https://query1.finance.yahoo.com/v1/finance/search";
@@ -136,15 +137,15 @@ pub(super) fn parse_chart(symbol: &str, body: &str) -> Result<Closes, PriceError
         .zip(closes)
         .filter_map(|(timestamp, close)| {
             let date = DateTime::from_timestamp(timestamp + result.meta.gmtoffset, 0)?.date_naive();
-            Some((date, cents(&close?.to_string())?))
+            Some((date, nano(&close?.to_string())?))
         })
         .collect::<Vec<(NaiveDate, i64)>>();
     Ok(Closes { currency, prices })
 }
 
-/// Price in cents of a decimal number as written in JSON, rounded half up, without going
-/// through floating point; `None` for a negative, zero or exponent notation.
-pub(super) fn cents(text: &str) -> Option<i64> {
+/// Billionths of a decimal number as written in JSON (a price or a rate), rounded half up,
+/// without going through floating point; `None` for a negative, zero or exponent notation.
+pub(super) fn nano(text: &str) -> Option<i64> {
     let (units, decimals) = text.split_once('.').unwrap_or((text, ""));
     if units.is_empty()
         || !units.bytes().all(|b| b.is_ascii_digit())
@@ -159,8 +160,11 @@ pub(super) fn cents(text: &str) -> Option<i64> {
             .map_or(0, |b| i64::from(b - b'0'))
     };
     let units: i64 = units.parse().ok()?;
-    let cents = units.checked_mul(100)? + digit(0) * 10 + digit(1) + i64::from(digit(2) >= 5);
-    (cents > 0).then_some(cents)
+    let fraction = (0..9).fold(0, |value, index| value * 10 + digit(index));
+    let nano = units
+        .checked_mul(RATE_SCALE)?
+        .checked_add(fraction + i64::from(digit(9) >= 5))?;
+    (nano > 0).then_some(nano)
 }
 
 #[derive(Deserialize)]

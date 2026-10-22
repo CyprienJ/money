@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT s.id AS \"id!\", s.name, s.isin, s.symbol,\n                  (SELECT COUNT(*) FROM investment_transaction t WHERE t.security_id = s.id)\n                      AS \"transaction_count!: i64\"\n           FROM security s\n           ORDER BY s.name COLLATE NOCASE",
+  "query": "SELECT s.id AS \"id!\", s.name, s.isin, s.symbol, s.currency,\n                  (SELECT COUNT(*) FROM investment_transaction t WHERE t.security_id = s.id)\n                      AS \"transaction_count!: i64\",\n                  EXISTS (SELECT 1 FROM security_price p WHERE p.security_id = s.id)\n                      AS \"has_prices!: bool\"\n           FROM security s\n           ORDER BY s.name COLLATE NOCASE",
   "describe": {
     "columns": [
       {
@@ -48,8 +48,25 @@
         }
       },
       {
-        "name": "transaction_count!: i64",
+        "name": "currency",
         "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "security",
+            "name": "currency"
+          }
+        }
+      },
+      {
+        "name": "transaction_count!: i64",
+        "ordinal": 5,
+        "type_info": "Integer",
+        "origin": "Expression"
+      },
+      {
+        "name": "has_prices!: bool",
+        "ordinal": 6,
         "type_info": "Integer",
         "origin": "Expression"
       }
@@ -62,8 +79,10 @@
       false,
       true,
       true,
+      false,
+      false,
       false
     ]
   },
-  "hash": "c94a2acd8bff5236e399b7e1c16fced1d8956099ecf3ffbe1a15a347e96983f7"
+  "hash": "e05050d426ca5e2fa6a976104a3a6b5f40a7fd11ff73d1904c9349682ecae5c0"
 }

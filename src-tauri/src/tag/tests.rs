@@ -24,6 +24,7 @@ async fn tagged(pool: &SqlitePool, label: &str, tags: &[&str]) -> Operation {
         NewAccount {
             name: format!("Compte {label}"),
             account_type: AccountType::Checking,
+            currency: "EUR".to_owned(),
             institution: None,
             opening_balance_cents: 0,
             opening_date: date("2026-01-01"),

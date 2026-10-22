@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT s.id AS \"id!\", s.name, s.symbol AS \"symbol!\",\n                  EXISTS (SELECT 1 FROM security_price p WHERE p.security_id = s.id)\n                      AS \"has_prices!: bool\"\n           FROM security s\n           WHERE s.symbol IS NOT NULL\n           ORDER BY s.name",
+  "query": "SELECT s.id AS \"id!\", s.name, s.symbol AS \"symbol!\", s.currency,\n                  EXISTS (SELECT 1 FROM security_price p WHERE p.security_id = s.id)\n                      AS \"has_prices!: bool\"\n           FROM security s\n           WHERE s.symbol IS NOT NULL\n           ORDER BY s.name",
   "describe": {
     "columns": [
       {
@@ -37,8 +37,19 @@
         }
       },
       {
-        "name": "has_prices!: bool",
+        "name": "currency",
         "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "security",
+            "name": "currency"
+          }
+        }
+      },
+      {
+        "name": "has_prices!: bool",
+        "ordinal": 4,
         "type_info": "Integer",
         "origin": "Expression"
       }
@@ -50,8 +61,9 @@
       false,
       false,
       true,
+      false,
       false
     ]
   },
-  "hash": "dc7b6e068babee87f83a3e09e6eb718fe9849e3db6745cf56fa9a5f45dd1f2fc"
+  "hash": "ddde31cc378cee6206a38b926cedc674f6f0e4e8067e90f144e753af99c843e4"
 }

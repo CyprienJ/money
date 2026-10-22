@@ -18,6 +18,7 @@ async fn new_account(pool: &SqlitePool, account_type: AccountType) -> i64 {
         NewAccount {
             name: "PEA".to_owned(),
             account_type,
+            currency: "EUR".to_owned(),
             institution: None,
             opening_balance_cents: 0,
             opening_date: date("2026-01-01"),
@@ -35,6 +36,7 @@ async fn new_security(pool: &SqlitePool, name: &str, isin: Option<&str>) -> i64 
             name: name.to_owned(),
             isin: isin.map(str::to_owned),
             symbol: None,
+            currency: "EUR".to_owned(),
         },
     )
     .await
@@ -85,6 +87,7 @@ fn manages_securities() {
                 name: "  iShares MSCI World ".to_owned(),
                 isin: Some(" ie00 b4l5y983 ".to_owned()),
                 symbol: Some(" iwda.as ".to_owned()),
+                currency: "EUR".to_owned(),
             },
         )
         .await
@@ -99,6 +102,7 @@ fn manages_securities() {
                 name: "Autre".to_owned(),
                 isin: Some("IE00B4L5Y983".to_owned()),
                 symbol: None,
+                currency: "EUR".to_owned(),
             },
         )
         .await;
@@ -112,6 +116,7 @@ fn manages_securities() {
                 name: "Autre".to_owned(),
                 isin: Some("IE00B4L5Y984".to_owned()),
                 symbol: None,
+                currency: "EUR".to_owned(),
             },
         )
         .await;
@@ -628,5 +633,79 @@ fn values_the_account_by_its_portfolio_from_its_first_transaction() {
             .unwrap();
         assert_eq!(summaries[0].balance_cents, Some(110_000));
         assert_eq!(summaries[0].valued_on, Some(date("2026-03-01")));
+    });
+}
+
+#[test]
+fn values_a_security_quoted_in_another_currency_in_the_currency_of_the_account() {
+    tauri::async_runtime::block_on(async {
+        let pool = memory_pool().await;
+        let account_id = new_account(&pool, AccountType::Investment).await;
+        let apple = securities::create(
+            &pool,
+            SecurityInput {
+                name: "Apple".to_owned(),
+                isin: None,
+                symbol: None,
+                currency: "USD".to_owned(),
+            },
+        )
+        .await
+        .unwrap()
+        .id;
+        transactions::create(
+            &pool,
+            account_id,
+            input(
+                apple,
+                "2026-03-02",
+                TransactionKind::Buy,
+                units(10),
+                180_000,
+                0,
+            ),
+        )
+        .await
+        .unwrap();
+        prices::set_manual(&pool, apple, date("2026-10-20"), 25_000)
+            .await
+            .unwrap();
+        // Without a rate, the cost.
+        let held = positions(&pool, account_id, date("2026-10-21"))
+            .await
+            .unwrap();
+        assert_eq!(held[0].market_value_cents, 180_000);
+        assert_eq!(held[0].currency, "USD");
+
+        // 10 × 250 $ at 0.90 € on the day of the price.
+        crate::currency::set_manual_rate(&pool, "USD", date("2026-10-20"), 900_000_000)
+            .await
+            .unwrap();
+        crate::currency::set_manual_rate(&pool, "USD", date("2026-10-21"), 800_000_000)
+            .await
+            .unwrap();
+        let held = positions(&pool, account_id, date("2026-10-21"))
+            .await
+            .unwrap();
+        assert_eq!(held[0].market_value_cents, 225_000);
+        assert_eq!(held[0].unrealized_cents, 45_000);
+
+        // Its currency is fixed once it has prices.
+        assert!(matches!(
+            securities::update(
+                &pool,
+                apple,
+                SecurityInput {
+                    name: "Apple".to_owned(),
+                    isin: None,
+                    symbol: None,
+                    currency: "EUR".to_owned(),
+                },
+            )
+            .await,
+            Err(AppError::Currency(
+                crate::currency::CurrencyError::SecurityCurrencyLocked
+            ))
+        ));
     });
 }

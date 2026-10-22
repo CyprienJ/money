@@ -162,6 +162,7 @@ fn renormalizes_stored_labels() {
             NewAccount {
                 name: "Courant".to_owned(),
                 account_type: AccountType::Checking,
+                currency: "EUR".to_owned(),
                 institution: None,
                 opening_balance_cents: 0,
                 opening_date: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),

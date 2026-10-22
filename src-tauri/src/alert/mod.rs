@@ -5,7 +5,8 @@
 //!   by `MIN_EXCESS_CENTS` their average over the `HISTORY_MONTHS` previous full months, when
 //!   the category was spent in `MIN_SPENT_MONTHS` of them at least;
 //! - an occurrence of the last `MISSING_LOOKBACK_DAYS` days not realized although the account
-//!   has an operation dated more than `matching::DETECTION_WINDOW_DAYS` days after it.
+//!   has an operation dated more than `matching::DETECTION_WINDOW_DAYS` days after it;
+//! - a currency in use without any exchange rate: its amounts count 0 in the statistics.
 //!
 //! Unusual expenses and missing occurrences can be dismissed; a negative forecast only goes
 //! away with the forecast itself.
@@ -18,6 +19,7 @@ use specta::Type;
 use sqlx::SqlitePool;
 
 use crate::account::{self, AccountType};
+use crate::currency;
 use crate::error::AppResult;
 use crate::operation::category::CategoryError;
 use crate::operation::schedule::{self, UpcomingOperation, matching};
@@ -46,6 +48,9 @@ pub const MISSING_LOOKBACK_DAYS: u64 = 60;
     rename_all_fields = "camelCase"
 )]
 pub enum Alert {
+    MissingRate {
+        currency: String,
+    },
     NegativeForecast {
         account_id: i64,
         /// First day the projected balance is negative.
@@ -66,10 +71,18 @@ pub enum Alert {
     },
 }
 
-/// Alerts of `today`: negative forecasts by account, missing occurrences by date, then
-/// unusual expenses, the largest excess first.
+/// Alerts of `today`: missing rates, negative forecasts by account, missing occurrences by
+/// date, then unusual expenses, the largest excess first.
 pub async fn list(pool: &SqlitePool, today: NaiveDate) -> AppResult<Vec<Alert>> {
-    let mut alerts = negative_forecasts(pool, today).await?;
+    let mut alerts: Vec<Alert> = currency::in_use(pool)
+        .await?
+        .into_iter()
+        .filter(|use_| use_.latest.is_none())
+        .map(|use_| Alert::MissingRate {
+            currency: use_.currency,
+        })
+        .collect();
+    alerts.extend(negative_forecasts(pool, today).await?);
     alerts.extend(missing_occurrences(pool, today).await?);
     alerts.extend(unusual_expenses(pool, today).await?);
     Ok(alerts)

@@ -1,0 +1,45 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT o.date AS \"date!: NaiveDate\", a.currency, SUM(o.amount_cents) AS \"amount!: i64\"\n           FROM operation o\n           JOIN account a ON a.id = o.account_id\n           WHERE a.archived = 0 AND a.type IN ('CHECKING', 'SAVINGS', 'CREDIT_CARD')\n             AND o.date <= ?1\n           GROUP BY o.date, a.currency",
+  "describe": {
+    "columns": [
+      {
+        "name": "date!: NaiveDate",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "name": "currency",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "currency"
+          }
+        }
+      },
+      {
+        "name": "amount!: i64",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "354053b70dbd9f0632064e27e4503e2111df694ec05dde62b6a8a4ad8a33b664"
+}

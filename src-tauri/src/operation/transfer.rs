@@ -61,6 +61,9 @@ pub enum TransferError {
     #[error("the amounts of a transfer must be opposite")]
     AmountsNotOpposite,
 
+    #[error("both accounts of a transfer must have the same currency")]
+    DifferentCurrencies,
+
     #[error("operation {0} is already linked to another transfer")]
     AlreadyLinked(i64),
 }
@@ -78,8 +81,9 @@ struct Candidate {
     credit_id: i64,
 }
 
-/// Unlinked debits and credits of different accounts with opposite amounts, at most
-/// `DETECTION_WINDOW_DAYS` apart, both uncategorized or internal transfers, and not dismissed.
+/// Unlinked debits and credits of different accounts of the same currency with opposite
+/// amounts, at most `DETECTION_WINDOW_DAYS` apart, both uncategorized or internal transfers,
+/// and not dismissed.
 async fn candidates(pool: &SqlitePool) -> AppResult<Vec<Candidate>> {
     let rows = sqlx::query!(
         r#"SELECT d.id AS "debit_id!", c.id AS "credit_id!"
@@ -87,6 +91,7 @@ async fn candidates(pool: &SqlitePool) -> AppResult<Vec<Candidate>> {
            JOIN operation c
              ON c.amount_cents = -d.amount_cents
             AND c.account_id <> d.account_id
+            AND c.currency = d.currency
             AND ABS(julianday(c.date) - julianday(d.date)) <= ?1
            JOIN operation_split ds ON ds.operation_id = d.id
            JOIN operation_split cs ON cs.operation_id = c.id
@@ -168,13 +173,17 @@ pub async fn proposals(pool: &SqlitePool) -> AppResult<Vec<TransferProposal>> {
 }
 
 /// Links two operations as the two sides of a transfer, and gives both the internal transfer
-/// category. They must be on different accounts, with opposite amounts, and not linked yet.
+/// category. They must be on different accounts of the same currency, with opposite amounts,
+/// and not linked yet.
 pub async fn link(pool: &SqlitePool, id: i64, other_id: i64) -> AppResult<()> {
     let mut tx = pool.begin().await?;
     let first = pairing_state(&mut tx, id).await?;
     let second = pairing_state(&mut tx, other_id).await?;
     if first.account_id == second.account_id {
         return Err(TransferError::SameAccount.into());
+    }
+    if first.currency != second.currency {
+        return Err(TransferError::DifferentCurrencies.into());
     }
     if first.amount_cents != -second.amount_cents {
         return Err(TransferError::AmountsNotOpposite.into());
@@ -237,6 +246,7 @@ pub async fn link_candidates(pool: &SqlitePool, id: i64) -> AppResult<Vec<Transf
            JOIN operation c
              ON c.amount_cents = -o.amount_cents
             AND c.account_id <> o.account_id
+            AND c.currency = o.currency
             AND ABS(julianday(c.date) - julianday(o.date)) <= ?2
            WHERE o.id = ?1 AND c.transfer_pair_id IS NULL
            ORDER BY ABS(julianday(c.date) - julianday(o.date)), c.date, c.id"#,
@@ -300,13 +310,15 @@ struct PairingState {
     id: i64,
     account_id: i64,
     amount_cents: i64,
+    currency: String,
     transfer_pair_id: Option<i64>,
 }
 
 async fn pairing_state(conn: &mut SqliteConnection, id: i64) -> AppResult<PairingState> {
     let state = sqlx::query_as!(
         PairingState,
-        "SELECT id, account_id, amount_cents, transfer_pair_id FROM operation WHERE id = ?1",
+        "SELECT id, account_id, amount_cents, currency, transfer_pair_id FROM operation
+         WHERE id = ?1",
         id
     )
     .fetch_optional(conn)

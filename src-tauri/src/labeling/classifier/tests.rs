@@ -124,6 +124,7 @@ fn learns_the_most_frequent_category_of_each_label_and_retrains_on_changes() {
             NewAccount {
                 name: "Courant".to_owned(),
                 account_type: AccountType::Checking,
+                currency: "EUR".to_owned(),
                 institution: None,
                 opening_balance_cents: 0,
                 opening_date: date("2026-01-01"),

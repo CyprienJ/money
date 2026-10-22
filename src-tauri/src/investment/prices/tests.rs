@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use super::*;
 use crate::db::tests::memory_pool;
 use crate::error::AppError;
-use crate::investment::yahoo::{cents, parse_chart, parse_search};
+use crate::investment::yahoo::{nano, parse_chart, parse_search};
 use crate::investment::{SecurityInput, securities};
 
 fn date(text: &str) -> NaiveDate {
@@ -11,14 +11,14 @@ fn date(text: &str) -> NaiveDate {
 }
 
 #[test]
-fn reads_prices_in_cents_without_floating_point() {
-    assert_eq!(cents("123.4"), Some(12_340));
-    assert_eq!(cents("99.37999725341797"), Some(9_938));
-    assert_eq!(cents("100"), Some(10_000));
-    assert_eq!(cents("0.125"), Some(13));
-    assert_eq!(cents("0.004"), None);
-    assert_eq!(cents("1e-5"), None);
-    assert_eq!(cents("-1.5"), None);
+fn reads_prices_in_billionths_without_floating_point() {
+    assert_eq!(nano("123.4"), Some(123_400_000_000));
+    assert_eq!(nano("99.37999725341797"), Some(99_379_997_253));
+    assert_eq!(nano("100"), Some(100_000_000_000));
+    assert_eq!(nano("0.8924"), Some(892_400_000));
+    assert_eq!(nano("0.0000000004"), None);
+    assert_eq!(nano("1e-5"), None);
+    assert_eq!(nano("-1.5"), None);
 }
 
 #[test]
@@ -31,7 +31,10 @@ fn parses_the_daily_closes_of_a_chart() {
     assert_eq!(closes.currency, "EUR");
     assert_eq!(
         closes.prices,
-        [(date("2025-10-19"), 51_225), (date("2025-10-21"), 51_540)]
+        [
+            (date("2025-10-19"), 512_250_000_000),
+            (date("2025-10-21"), 515_399_993_896)
+        ]
     );
 
     let unknown = r#"{"chart":{"result":null,"error":{"code":"Not Found","description":"No data found, symbol may be delisted"}}}"#;
@@ -80,15 +83,28 @@ impl PriceSource for FakeSource {
             "CW8.PA" => Ok(Closes {
                 currency: "EUR".to_owned(),
                 prices: vec![
-                    (date("2026-10-19"), 51_225),
-                    (date("2026-10-20"), 51_540),
+                    (date("2026-10-19"), 512_250_000_000),
+                    (date("2026-10-20"), 515_400_000_000),
                     // After today: ignored.
-                    (date("2026-10-21"), 1),
+                    (date("2026-10-21"), 1_000_000_000),
                 ],
             }),
+            // In pence: 90.155 pounds.
             "VUSA.L" => Ok(Closes {
                 currency: "GBp".to_owned(),
-                prices: vec![(date("2026-10-20"), 9_000)],
+                prices: vec![(date("2026-10-20"), 9_015_500_000_000)],
+            }),
+            "AAPL" => Ok(Closes {
+                currency: "USD".to_owned(),
+                prices: vec![(date("2026-10-20"), 250_000_000_000)],
+            }),
+            "7203.T" => Ok(Closes {
+                currency: "JPY".to_owned(),
+                prices: vec![(date("2026-10-20"), 3_000_000_000_000)],
+            }),
+            "GBPEUR=X" => Ok(Closes {
+                currency: "EUR".to_owned(),
+                prices: vec![(date("2026-10-20"), 1_150_000_000)],
             }),
             other => Err(PriceError::UnknownSymbol(other.to_owned())),
         }
@@ -106,6 +122,7 @@ async fn security(pool: &SqlitePool, name: &str, symbol: Option<&str>) -> i64 {
             name: name.to_owned(),
             isin: None,
             symbol: symbol.map(str::to_owned),
+            currency: "EUR".to_owned(),
         },
     )
     .await
@@ -122,9 +139,15 @@ fn updates_the_prices_once_allowed_and_keeps_the_manual_ones() {
         };
         let today = date("2026-10-20");
         let world = security(&pool, "MSCI World", Some("CW8.PA")).await;
-        security(&pool, "S&P 500", Some("VUSA.L")).await;
+        let sp500 = security(&pool, "S&P 500", Some("VUSA.L")).await;
         security(&pool, "Délisté", Some("OLD.PA")).await;
         security(&pool, "Fonds euros", None).await;
+        security(&pool, "Toyota", Some("7203.T")).await;
+        // Has prices in euros: its quotes in dollars are refused.
+        let apple = security(&pool, "Apple", Some("AAPL")).await;
+        set_manual(&pool, apple, date("2026-10-01"), 21_000)
+            .await
+            .unwrap();
 
         assert!(matches!(
             update(&pool, &source, today).await,
@@ -142,25 +165,45 @@ fn updates_the_prices_once_allowed_and_keeps_the_manual_ones() {
             .await
             .unwrap();
         let result = update(&pool, &source, today).await.unwrap();
-        assert_eq!(result.updated, 1);
+        // Two securities, and the rate of the pound taken by the S&P 500.
+        assert_eq!(result.updated, 3);
         let failures: Vec<(&str, &PriceError)> = result
             .failures
             .iter()
-            .map(|f| (f.security_name.as_str(), &f.error))
+            .map(|f| (f.name.as_str(), &f.error))
             .collect();
         assert_eq!(
             failures,
             [
+                (
+                    "Apple",
+                    &PriceError::CurrencyMismatch {
+                        symbol: "AAPL".to_owned(),
+                        currency: "USD".to_owned(),
+                        expected: "EUR".to_owned()
+                    }
+                ),
                 ("Délisté", &PriceError::UnknownSymbol("OLD.PA".to_owned())),
                 (
-                    "S&P 500",
+                    "Toyota",
                     &PriceError::UnsupportedCurrency {
-                        symbol: "VUSA.L".to_owned(),
-                        currency: "GBp".to_owned()
+                        symbol: "7203.T".to_owned(),
+                        currency: "JPY".to_owned()
                     }
                 ),
             ]
         );
+        let sp500_security = securities::list(&pool)
+            .await
+            .unwrap()
+            .into_iter()
+            .find(|s| s.id == sp500)
+            .unwrap();
+        assert_eq!(sp500_security.currency, "GBP");
+        assert_eq!(list(&pool, sp500).await.unwrap()[0].price_cents, 9_016);
+        let rates = crate::currency::list_rates(&pool, "GBP").await.unwrap();
+        assert_eq!(rates.len(), 1);
+        assert_eq!(rates[0].rate_nano, 1_150_000_000);
         let prices: Vec<(NaiveDate, i64, PriceSourceKind)> = list(&pool, world)
             .await
             .unwrap()
@@ -182,6 +225,8 @@ fn updates_the_prices_once_allowed_and_keeps_the_manual_ones() {
         let asked = source.asked.lock().unwrap().clone();
         assert!(asked.contains(&("CW8.PA".to_owned(), HistoryRange::Month)));
         assert!(asked.contains(&("VUSA.L".to_owned(), HistoryRange::Year)));
+        assert!(asked.contains(&("GBPEUR=X".to_owned(), HistoryRange::Year)));
+        assert!(asked.contains(&("GBPEUR=X".to_owned(), HistoryRange::Month)));
         assert_eq!(asked.iter().filter(|(s, _)| s == "CW8.PA").count(), 2);
     });
 }

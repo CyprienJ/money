@@ -9,6 +9,7 @@ use specta::Type;
 use sqlx::SqlitePool;
 
 use super::{accounts_json, check_period};
+use crate::currency::Rates;
 use crate::error::AppResult;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Type)]
@@ -48,7 +49,7 @@ pub async fn top_payees(
     let accounts = accounts_json(accounts);
     let rows = sqlx::query!(
         r#"SELECT o.payee_id, COALESCE(p.name, o.normalized_label) AS "payee_name!: String",
-                  s.category_id,
+                  s.category_id, a.currency, o.date AS "date!: NaiveDate",
                   -SUM(s.amount_cents) AS "expense_cents!: i64",
                   COUNT(*) AS "operation_count!: i64"
            FROM operation_split s
@@ -62,7 +63,7 @@ pub async fn top_payees(
                       THEN a.archived = 0
                       ELSE o.account_id IN (SELECT value FROM json_each(?3)) END
              AND NOT COALESCE(c.is_income, s.amount_cents > 0)
-           GROUP BY o.payee_id, 2, s.category_id"#,
+           GROUP BY o.payee_id, 2, s.category_id, a.currency, o.date"#,
         from,
         to,
         accounts
@@ -70,24 +71,39 @@ pub async fn top_payees(
     .fetch_all(pool)
     .await?;
 
+    // Totals in euros and counts by (payee id, payee name, category).
+    let rates = Rates::load(pool).await?;
+    type Key = (Option<i64>, String, Option<i64>);
+    let mut by_category: HashMap<Key, (i64, i64)> = HashMap::new();
+    for row in rows {
+        let total = by_category
+            .entry((row.payee_id, row.payee_name, row.category_id))
+            .or_default();
+        total.0 += rates.to_reference(row.expense_cents, &row.currency, row.date);
+        total.1 += row.operation_count;
+    }
+
     // Totals by payee, keeping the category with the largest share.
     let mut payees: HashMap<String, (PayeeExpense, i64)> = HashMap::new();
-    for row in rows {
-        let (payee, best) = payees.entry(row.payee_name.clone()).or_insert_with(|| {
+    for ((payee_id, payee_name, category_id), (expense_cents, operation_count)) in by_category {
+        let (payee, best) = payees.entry(payee_name.clone()).or_insert_with(|| {
             let payee = PayeeExpense {
-                payee_id: row.payee_id,
-                payee_name: row.payee_name.clone(),
+                payee_id,
+                payee_name,
                 expense_cents: 0,
                 operation_count: 0,
                 category_id: None,
             };
             (payee, i64::MIN)
         });
-        payee.expense_cents += row.expense_cents;
-        payee.operation_count += row.operation_count;
-        if row.expense_cents > *best {
-            *best = row.expense_cents;
-            payee.category_id = row.category_id;
+        payee.expense_cents += expense_cents;
+        payee.operation_count += operation_count;
+        // Ties go to the smallest category id, whatever the order of the map.
+        if (expense_cents, std::cmp::Reverse(category_id))
+            > (*best, std::cmp::Reverse(payee.category_id))
+        {
+            *best = expense_cents;
+            payee.category_id = category_id;
         }
     }
     let mut payees: Vec<PayeeExpense> = payees
@@ -114,11 +130,10 @@ pub async fn largest_expenses(
 ) -> AppResult<Vec<LargestExpense>> {
     check_period(from, to)?;
     let accounts = accounts_json(accounts);
-    let expenses = sqlx::query_as!(
-        LargestExpense,
+    let rows = sqlx::query!(
         r#"SELECT o.id AS "operation_id!", o.date AS "date!: NaiveDate", o.normalized_label,
                   COALESCE(p.name, o.normalized_label) AS "payee_name!: String",
-                  -s.amount_cents AS "expense_cents!: i64", s.category_id
+                  a.currency, -s.amount_cents AS "expense_cents!: i64", s.category_id
            FROM operation_split s
            JOIN operation o ON o.id = s.operation_id
            JOIN account a ON a.id = o.account_id
@@ -130,16 +145,27 @@ pub async fn largest_expenses(
                       THEN a.archived = 0
                       ELSE o.account_id IN (SELECT value FROM json_each(?3)) END
              AND s.amount_cents < 0
-             AND NOT COALESCE(c.is_income, 0)
-           ORDER BY s.amount_cents, o.date, o.id
-           LIMIT ?4"#,
+             AND NOT COALESCE(c.is_income, 0)"#,
         from,
         to,
-        accounts,
-        limit
+        accounts
     )
     .fetch_all(pool)
     .await?;
+    let rates = Rates::load(pool).await?;
+    let mut expenses: Vec<LargestExpense> = rows
+        .into_iter()
+        .map(|row| LargestExpense {
+            operation_id: row.operation_id,
+            date: row.date,
+            normalized_label: row.normalized_label,
+            payee_name: row.payee_name,
+            expense_cents: rates.to_reference(row.expense_cents, &row.currency, row.date),
+            category_id: row.category_id,
+        })
+        .collect();
+    expenses.sort_by_key(|e| (std::cmp::Reverse(e.expense_cents), e.date, e.operation_id));
+    expenses.truncate(limit as usize);
     Ok(expenses)
 }
 
@@ -164,6 +190,7 @@ mod tests {
                 NewAccount {
                     name: "Courant".to_owned(),
                     account_type: AccountType::Checking,
+                    currency: "EUR".to_owned(),
                     institution: None,
                     opening_balance_cents: 0,
                     opening_date: date("2026-01-01"),

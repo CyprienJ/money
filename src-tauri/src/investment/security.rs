@@ -3,6 +3,7 @@ use specta::Type;
 use sqlx::SqlitePool;
 
 use super::InvestmentError;
+use crate::currency::{self, CurrencyError};
 use crate::error::{AppError, AppResult};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Type)]
@@ -13,8 +14,11 @@ pub struct Security {
     pub isin: Option<String>,
     /// Yahoo Finance symbol of the listing whose prices are fetched, e.g. `CW8.PA`.
     pub symbol: Option<String>,
+    /// Currency of the prices; fixed once the security has prices.
+    pub currency: String,
     /// Transactions of the security, in every account.
     pub transaction_count: i64,
+    pub has_prices: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, Type)]
@@ -23,15 +27,18 @@ pub struct SecurityInput {
     pub name: String,
     pub isin: Option<String>,
     pub symbol: Option<String>,
+    pub currency: String,
 }
 
 /// Every security, by name.
 pub async fn list(pool: &SqlitePool) -> AppResult<Vec<Security>> {
     let securities = sqlx::query_as!(
         Security,
-        r#"SELECT s.id AS "id!", s.name, s.isin, s.symbol,
+        r#"SELECT s.id AS "id!", s.name, s.isin, s.symbol, s.currency,
                   (SELECT COUNT(*) FROM investment_transaction t WHERE t.security_id = s.id)
-                      AS "transaction_count!: i64"
+                      AS "transaction_count!: i64",
+                  EXISTS (SELECT 1 FROM security_price p WHERE p.security_id = s.id)
+                      AS "has_prices!: bool"
            FROM security s
            ORDER BY s.name COLLATE NOCASE"#
     )
@@ -50,11 +57,13 @@ async fn get(pool: &SqlitePool, id: i64) -> AppResult<Security> {
 
 pub async fn create(pool: &SqlitePool, input: SecurityInput) -> AppResult<Security> {
     let (name, isin, symbol) = clean(&input)?;
+    let currency = currency::check_supported(&input.currency)?;
     let id = sqlx::query!(
-        "INSERT INTO security (name, isin, symbol) VALUES (?1, ?2, ?3)",
+        "INSERT INTO security (name, isin, symbol, currency) VALUES (?1, ?2, ?3, ?4)",
         name,
         isin,
-        symbol
+        symbol,
+        currency
     )
     .execute(pool)
     .await
@@ -65,20 +74,22 @@ pub async fn create(pool: &SqlitePool, input: SecurityInput) -> AppResult<Securi
 
 pub async fn update(pool: &SqlitePool, id: i64, input: SecurityInput) -> AppResult<Security> {
     let (name, isin, symbol) = clean(&input)?;
-    let updated = sqlx::query!(
-        "UPDATE security SET name = ?2, isin = ?3, symbol = ?4 WHERE id = ?1",
+    let currency = currency::check_supported(&input.currency)?;
+    let current = get(pool, id).await?;
+    if current.has_prices && currency != current.currency {
+        return Err(CurrencyError::SecurityCurrencyLocked.into());
+    }
+    sqlx::query!(
+        "UPDATE security SET name = ?2, isin = ?3, symbol = ?4, currency = ?5 WHERE id = ?1",
         id,
         name,
         isin,
-        symbol
+        symbol,
+        currency
     )
     .execute(pool)
     .await
-    .map_err(|error| isin_taken(error, isin.as_deref()))?
-    .rows_affected();
-    if updated == 0 {
-        return Err(InvestmentError::SecurityNotFound(id).into());
-    }
+    .map_err(|error| isin_taken(error, isin.as_deref()))?;
     get(pool, id).await
 }
 

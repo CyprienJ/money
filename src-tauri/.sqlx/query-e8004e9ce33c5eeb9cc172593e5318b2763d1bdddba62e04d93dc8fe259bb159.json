@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE security SET name = ?2, isin = ?3, symbol = ?4, currency = ?5 WHERE id = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "e8004e9ce33c5eeb9cc172593e5318b2763d1bdddba62e04d93dc8fe259bb159"
+}

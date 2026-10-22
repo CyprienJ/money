@@ -6,6 +6,7 @@ use specta::Type;
 use sqlx::SqlitePool;
 
 use super::{Account, AccountError, AccountType};
+use crate::currency::Rates;
 use crate::error::AppResult;
 use crate::investment::Portfolios;
 
@@ -17,8 +18,10 @@ pub struct AccountSummary {
     /// Balance from the operations; for an investment account, the market value of its
     /// portfolio from its first transaction on, else its last valuation on or before the date
     /// (as for assets); for liabilities, minus the last outstanding capital. `None` for a
-    /// valued account without valuation yet.
+    /// valued account without valuation yet. In the currency of the account.
     pub balance_cents: Option<i64>,
+    /// The balance in euros at the rate of the date; 0 without a rate.
+    pub reference_balance_cents: Option<i64>,
     /// Date of the valuation behind the balance of a valued account, or of the most recent
     /// price of its portfolio.
     pub valued_on: Option<NaiveDate>,
@@ -78,6 +81,7 @@ pub async fn list_summaries(
     .collect();
 
     let portfolios = Portfolios::load(pool, date).await?;
+    let rates = Rates::load(pool).await?;
     Ok(accounts
         .into_iter()
         .map(|account| {
@@ -101,6 +105,8 @@ pub async fn list_summaries(
                 }
             };
             AccountSummary {
+                reference_balance_cents: balance_cents
+                    .map(|balance| rates.to_reference(balance, &account.currency, date)),
                 account,
                 balance_cents,
                 valued_on,
@@ -128,6 +134,7 @@ mod tests {
             NewAccount {
                 name: "Compte courant".to_owned(),
                 account_type: AccountType::Checking,
+                currency: "EUR".to_owned(),
                 institution: None,
                 opening_balance_cents,
                 opening_date: date("2026-10-01"),
@@ -217,6 +224,7 @@ mod tests {
                 NewAccount {
                     name: "PEA".to_owned(),
                     account_type: AccountType::Investment,
+                    currency: "EUR".to_owned(),
                     institution: None,
                     opening_balance_cents: 0,
                     opening_date: date("2026-01-01"),

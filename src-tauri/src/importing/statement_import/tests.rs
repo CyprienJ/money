@@ -51,6 +51,7 @@ fn run<F: Future<Output = ()>>(test: impl FnOnce(Setup) -> F) {
             NewAccount {
                 name: "Courant".to_owned(),
                 account_type: AccountType::Checking,
+                currency: "EUR".to_owned(),
                 institution: None,
                 opening_balance_cents: 0,
                 opening_date: date("2026-09-01"),

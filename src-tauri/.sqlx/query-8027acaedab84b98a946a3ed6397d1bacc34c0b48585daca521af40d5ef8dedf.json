@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id, account_id, amount_cents, transfer_pair_id FROM operation WHERE id = ?1",
+  "query": "SELECT id, account_id, amount_cents, currency, transfer_pair_id FROM operation\n         WHERE id = ?1",
   "describe": {
     "columns": [
       {
@@ -37,8 +37,19 @@
         }
       },
       {
-        "name": "transfer_pair_id",
+        "name": "currency",
         "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "currency"
+          }
+        }
+      },
+      {
+        "name": "transfer_pair_id",
+        "ordinal": 4,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -55,8 +66,9 @@
       false,
       false,
       false,
+      false,
       true
     ]
   },
-  "hash": "0916f0a7aab2ce70e64cc0c770c5c56e7eac63809ae50cc90e4beed93dd3c896"
+  "hash": "8027acaedab84b98a946a3ed6397d1bacc34c0b48585daca521af40d5ef8dedf"
 }

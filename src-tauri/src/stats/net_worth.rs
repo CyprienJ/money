@@ -8,7 +8,8 @@
 //! - minus the last outstanding capital on or before D of each liability.
 //!
 //! Archived accounts are left out, as in the other statistics. An account counts from its
-//! opening date; a valued account counts 0 until its first valuation.
+//! opening date; a valued account counts 0 until its first valuation. Every amount is converted
+//! to euros at the rate of D.
 
 use std::collections::BTreeMap;
 
@@ -19,6 +20,7 @@ use sqlx::SqlitePool;
 
 use super::{BalanceStep, check_period, step_ends};
 use crate::account::AccountType;
+use crate::currency::{Amounts, Rates};
 use crate::error::AppResult;
 use crate::investment::Portfolios;
 
@@ -42,43 +44,51 @@ type Valuations = Vec<(NaiveDate, i64)>;
 /// Account data the computation needs, loaded once.
 struct Data {
     /// Changes of the cash balance by date: account openings and operations.
-    cash_changes: BTreeMap<NaiveDate, i64>,
-    /// Valuations by account: id, type and (date, value) sorted by date.
-    valuations: Vec<(i64, AccountType, Valuations)>,
+    cash_changes: BTreeMap<NaiveDate, Amounts>,
+    /// Valuations by account: id, type, currency and (date, value) sorted by date.
+    valuations: Vec<(i64, AccountType, String, Valuations)>,
     /// Non-archived investment accounts.
     investment_accounts: Vec<i64>,
     portfolios: Portfolios,
+    rates: Rates,
 }
 
 async fn load(pool: &SqlitePool, to: NaiveDate) -> AppResult<Data> {
-    let mut cash_changes: BTreeMap<NaiveDate, i64> = BTreeMap::new();
+    let mut cash_changes: BTreeMap<NaiveDate, Amounts> = BTreeMap::new();
     let openings = sqlx::query!(
-        r#"SELECT opening_date AS "date!: NaiveDate", opening_balance_cents AS "amount!: i64"
+        r#"SELECT opening_date AS "date!: NaiveDate", currency,
+                  opening_balance_cents AS "amount!: i64"
            FROM account
            WHERE archived = 0 AND type IN ('CHECKING', 'SAVINGS', 'CREDIT_CARD')"#
     )
     .fetch_all(pool)
     .await?;
     for opening in openings {
-        *cash_changes.entry(opening.date).or_default() += opening.amount;
+        cash_changes
+            .entry(opening.date)
+            .or_default()
+            .add(&opening.currency, opening.amount);
     }
     let movements = sqlx::query!(
-        r#"SELECT o.date AS "date!: NaiveDate", SUM(o.amount_cents) AS "amount!: i64"
+        r#"SELECT o.date AS "date!: NaiveDate", a.currency, SUM(o.amount_cents) AS "amount!: i64"
            FROM operation o
            JOIN account a ON a.id = o.account_id
            WHERE a.archived = 0 AND a.type IN ('CHECKING', 'SAVINGS', 'CREDIT_CARD')
              AND o.date <= ?1
-           GROUP BY o.date"#,
+           GROUP BY o.date, a.currency"#,
         to
     )
     .fetch_all(pool)
     .await?;
     for movement in movements {
-        *cash_changes.entry(movement.date).or_default() += movement.amount;
+        cash_changes
+            .entry(movement.date)
+            .or_default()
+            .add(&movement.currency, movement.amount);
     }
 
     let rows = sqlx::query!(
-        r#"SELECT v.account_id, a.type AS "account_type: AccountType",
+        r#"SELECT v.account_id, a.type AS "account_type: AccountType", a.currency,
                   v.date AS "date!: NaiveDate", v.value_cents
            FROM valuation v
            JOIN account a ON a.id = v.account_id
@@ -88,12 +98,12 @@ async fn load(pool: &SqlitePool, to: NaiveDate) -> AppResult<Data> {
     )
     .fetch_all(pool)
     .await?;
-    let mut by_account: BTreeMap<i64, (AccountType, Vec<(NaiveDate, i64)>)> = BTreeMap::new();
+    let mut by_account: BTreeMap<i64, (AccountType, String, Valuations)> = BTreeMap::new();
     for row in rows {
         by_account
             .entry(row.account_id)
-            .or_insert_with(|| (row.account_type, Vec::new()))
-            .1
+            .or_insert_with(|| (row.account_type, row.currency, Vec::new()))
+            .2
             .push((row.date, row.value_cents));
     }
     let investment_accounts = sqlx::query_scalar!(
@@ -105,22 +115,23 @@ async fn load(pool: &SqlitePool, to: NaiveDate) -> AppResult<Data> {
         cash_changes,
         valuations: by_account
             .into_iter()
-            .map(|(id, (account_type, values))| (id, account_type, values))
+            .map(|(id, (account_type, currency, values))| (id, account_type, currency, values))
             .collect(),
         investment_accounts,
         portfolios: Portfolios::load(pool, to).await?,
+        rates: Rates::load(pool).await?,
     })
 }
 
 impl Data {
     fn at(&self, date: NaiveDate) -> NetWorth {
-        let cash_cents: i64 = self
-            .cash_changes
-            .range(..=date)
-            .map(|(_, amount)| amount)
-            .sum();
+        let mut cash = Amounts::default();
+        for (_, amounts) in self.cash_changes.range(..=date) {
+            cash.add_all(amounts);
+        }
+        let cash_cents = cash.to_reference(&self.rates, date);
         let (mut investments_cents, mut assets_cents, mut liabilities_cents) = (0, 0, 0);
-        for (account_id, account_type, valuations) in &self.valuations {
+        for (account_id, account_type, currency, valuations) in &self.valuations {
             if self.portfolios.values(*account_id, date) {
                 continue;
             }
@@ -130,6 +141,7 @@ impl Data {
                 .take_while(|(day, _)| *day <= date)
                 .last()
                 .map_or(0, |&(_, value)| value);
+            let last = self.rates.to_reference(last, currency, date);
             match account_type {
                 AccountType::Investment => investments_cents += last,
                 AccountType::Asset => assets_cents += last,
@@ -139,7 +151,12 @@ impl Data {
         }
         for &account_id in &self.investment_accounts {
             if self.portfolios.values(account_id, date) {
-                investments_cents += self.portfolios.value(account_id, date).0;
+                let value = self.portfolios.value(account_id, date).0;
+                investments_cents += self.rates.to_reference(
+                    value,
+                    self.portfolios.account_currency(account_id),
+                    date,
+                );
             }
         }
         NetWorth {
@@ -192,6 +209,7 @@ mod tests {
             NewAccount {
                 name: format!("{account_type:?}"),
                 account_type,
+                currency: "EUR".to_owned(),
                 institution: None,
                 opening_balance_cents: opening,
                 opening_date: date("2026-01-01"),

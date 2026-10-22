@@ -1,8 +1,10 @@
 mod account;
 mod alert;
+mod amount;
 mod attachment;
 mod backup;
 mod commands;
+mod currency;
 mod db;
 mod error;
 mod importing;

@@ -33,6 +33,7 @@ async fn new_account(pool: &SqlitePool, name: &str, opening_cents: i64) -> i64 {
         NewAccount {
             name: name.to_owned(),
             account_type: AccountType::Checking,
+            currency: "EUR".to_owned(),
             institution: None,
             opening_balance_cents: opening_cents,
             opening_date: date("2026-01-01"),
