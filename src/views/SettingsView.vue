@@ -235,8 +235,8 @@ onMounted(load);
         Sauvegarde complète chaque jour, au démarrage
       </label>
       <p class="muted">
-        Une sauvegarde complète copie le fichier de données, les pièces jointes et les relevés importés ; les 10 plus récentes sont
-        gardées. Une copie du fichier de données est aussi faite avant chaque import (les 20 dernières).
+        Une sauvegarde complète copie le fichier de données, les pièces jointes et les relevés importés ; les 10
+        plus récentes sont gardées. Une copie du fichier de données est aussi faite avant chaque import (les 20 dernières).
         {{ backupSettings.lastFullOn ? `Dernière sauvegarde complète le ${formatDate(backupSettings.lastFullOn)}.` : "" }}
       </p>
       <div class="path-block">
