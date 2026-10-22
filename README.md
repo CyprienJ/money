@@ -94,7 +94,7 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 - **Performance et plus-values**, latentes et réalisées.
 
 #### Interface
-- **Mode clair et mode sombre** : choix entre « clair », « sombre » et « système » (suit le réglage du système d'exploitation, par défaut), mémorisé dans les préférences. Le thème sombre redéfinit les variables CSS de `src/styles/tokens.css`, y compris les couleurs des catégories (pastilles et graphiques ECharts), pour garder un contraste lisible.
+- **Mode clair et mode sombre** : choix entre « clair », « sombre » et « système » (suit le réglage du système d'exploitation, par défaut), mémorisé dans les préférences. Le thème sombre redéfinit les variables CSS de `src/styles/tokens.css`, y compris les couleurs des catégories (pastilles et graphiques ECharts), pour garder un contraste lisible *(décisions du 22/10/2026)* : palette « violet nuit » (fond `#15111D`, cartes `#1F1A2B`, bouton principal violet clair `#8F7BD6`). Le choix est mémorisé dans le stockage local du webview, lu avant le premier affichage ; il ne fait pas partie du fichier de données.
 
 #### Technique
 - **Multi-devises** avec conversion vers la devise de référence.

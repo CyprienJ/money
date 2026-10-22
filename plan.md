@@ -393,8 +393,9 @@ Décisions du 22/10/2026 : solde négatif par compte courant ou d'épargne à 30
 ### Interface
 
 #### V2-17 · Mode clair et mode sombre — M
-- [ ] Choix « clair », « sombre » ou « système » (par défaut), mémorisé dans les préférences.
-- [ ] Thème sombre : variables de `src/styles/tokens.css` redéfinies, couleurs des catégories comprises (pastilles et graphiques ECharts).
+Décisions du 22/10/2026 : choix mémorisé dans le stockage local du webview (lu avant le premier affichage, hors du fichier de données) ; palette sombre « violet nuit ».
+- [x] Choix « clair », « sombre » ou « système » (par défaut) dans une carte « Apparence » des paramètres ; « système » suit le réglage du système d'exploitation en direct.
+- [x] Thème sombre : variables de `src/styles/tokens.css` redéfinies sous `:root[data-theme="dark"]`, couleurs des catégories comprises ; un thème ECharts par mode, options des graphiques recalculées au changement.
 
 ### Technique
 
