@@ -313,12 +313,13 @@ Depuis la release 1.0.0, chaque évolution du schéma est une nouvelle migration
 
 #### V2-01 · Suggestion de catégorie par classifieur local — M
 Les règles de catégorisation prévues initialement ici ont été avancées en V1 (V1-03.8, décision du 21/10/2026). Ticket remplacé le 21/10/2026 par le classifieur local, avancé depuis « Plus tard ».
-- [ ] Dépendances `linfa-preprocessing` et `linfa-logistic` (validées le 21/10/2026).
-- [ ] Module `labeling/classifier` : TF-IDF sur le libellé normalisé (mots et n-grammes de caractères) plus le sens du montant, régression logistique multiclasse ; entraînement en mémoire sur les opérations catégorisées, au démarrage et après un import ou une catégorisation en masse.
-- [ ] Seuils : pas de suggestion sous un minimum d'opérations catégorisées, ni sous un indice de confiance minimal.
-- [ ] Aperçu d'import : suggestion pour les lignes sans règle ni mémoire, avec indice « Suggestion (xx %) » ; jamais appliquée sans validation.
-- [ ] Écran Opérations : suggestion proposée pour les opérations à catégoriser.
-- [ ] Tests : apprentissage sur un jeu anonymisé, libellé inconnu proche d'un connu, seuils.
+Décisions du 22/10/2026 : dépendances `linfa`, `linfa-logistic` et `ndarray`, sans `linfa-preprocessing` (son TF-IDF calcule l'IDF sur les documents transformés, pas sur l'apprentissage) ; 30 libellés distincts catégorisés et 2 catégories au moins, confiance de 50 % au moins ; aperçu d'import avec ✓ par ligne et « Accepter les N suggestions » ; écran Opérations avec suggestion sous la catégorie et pré-sélection dans la fiche.
+- [x] Dépendances `linfa`, `linfa-logistic` et `ndarray`.
+- [x] Module `labeling/classifier` : TF-IDF sur le libellé normalisé (mots et trigrammes de caractères, IDF appris) plus le sens du montant, régression logistique multiclasse ; un exemple par libellé distinct et sens, avec sa catégorie la plus fréquente. Modèle en mémoire, entraîné au démarrage puis en tâche de fond quand les opérations catégorisées changent ; les suggestions n'attendent jamais l'entraînement.
+- [x] Seuils : 30 libellés distincts et 2 catégories pour entraîner, 50 % de confiance pour suggérer.
+- [x] Aperçu d'import : « Suggestion : Courses (72 %) » pour les lignes sans règle ni mémoire, ✓ par ligne et « Accepter les N suggestions » ; une suggestion acceptée est un choix, retenu pour le libellé.
+- [x] Écran Opérations : suggestion sous la catégorie des opérations à catégoriser (✓ pour accepter), pré-sélectionnée dans la fiche.
+- [x] Tests : apprentissage sur un jeu anonymisé, libellés inconnus proches de libellés connus, seuils, exemples tirés de la base.
 
 #### V2-02 · Gestion des tiers — L
 Décisions du 21/10/2026 : chaque libellé normalisé reçoit automatiquement un tiers, nommé par défaut avec sa forme lisible (« Carrefour Mkt ») ; les tiers se gèrent dans un nouvel écran « Tiers » ; les écrans affichent le nom du tiers à la place du libellé normalisé.
