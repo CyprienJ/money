@@ -1,4 +1,5 @@
-import type { TransactionKind } from "../bindings";
+import type { PriceUpdate, TransactionKind } from "../bindings";
+import { priceMessage } from "./errorMessages";
 import { groupThousands } from "./format";
 
 /** Millionths of a unit in a unit, as on the backend. */
@@ -43,4 +44,14 @@ export function formatQuantityInput(micro: number): string {
 export function unitPriceCents(amountCents: number, quantityMicro: number): number {
   const [amount, quantity] = [BigInt(amountCents), BigInt(quantityMicro)];
   return Number((amount * BigInt(QUANTITY_SCALE) * 2n + quantity) / (2n * quantity));
+}
+
+/** Summary of a price update, then one line per security that failed. */
+export function priceUpdateLines(update: PriceUpdate): string[] {
+  const { updated, failures } = update;
+  const summary =
+    updated === 0
+      ? "Aucun cours mis à jour."
+      : `Cours mis à jour pour ${updated} titre${updated > 1 ? "s" : ""}.`;
+  return [summary, ...failures.map((f) => `${f.securityName} : ${priceMessage(f.error)}`)];
 }

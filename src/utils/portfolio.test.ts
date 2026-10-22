@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatQuantity, formatQuantityInput, parseQuantity, unitPriceCents } from "./portfolio";
+import { formatQuantity, formatQuantityInput, parseQuantity, priceUpdateLines, unitPriceCents } from "./portfolio";
 
 describe("parseQuantity", () => {
   it("reads up to 6 decimals into millionths", () => {
@@ -31,5 +31,16 @@ describe("unitPriceCents", () => {
     expect(unitPriceCents(30_000, 2_500_000)).toBe(12_000);
     expect(unitPriceCents(100, 3_000_000)).toBe(33);
     expect(unitPriceCents(5, 2_000_000)).toBe(3);
+  });
+});
+
+describe("priceUpdateLines", () => {
+  it("sums up the update and explains each failure", () => {
+    expect(priceUpdateLines({ updated: 1, failures: [] })).toEqual(["Cours mis à jour pour 1 titre."]);
+    const lines = priceUpdateLines({
+      updated: 0,
+      failures: [{ securityName: "Vieux titre", error: { code: "unknownSymbol", params: "OLD.PA" } }],
+    });
+    expect(lines).toEqual(["Aucun cours mis à jour.", "Vieux titre : Le symbole OLD.PA est inconnu de Yahoo Finance."]);
   });
 });

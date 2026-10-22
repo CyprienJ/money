@@ -1,13 +1,20 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useRoute } from "vue-router";
-import { commands, type Account, type InvestmentTransaction, type Position, type Security } from "../bindings";
+import {
+  commands,
+  type Account,
+  type InvestmentTransaction,
+  type Position,
+  type PriceSettings,
+  type Security,
+} from "../bindings";
 import InvestmentTransactionFormModal from "../components/InvestmentTransactionFormModal.vue";
 import PageHeader from "../components/PageHeader.vue";
 import SecurityFormModal from "../components/SecurityFormModal.vue";
 import { errorMessage, unwrap } from "../utils/commands";
 import { formatAmount, formatDate, todayIso } from "../utils/format";
-import { formatQuantity, kindLabel } from "../utils/portfolio";
+import { formatQuantity, kindLabel, priceUpdateLines } from "../utils/portfolio";
 
 const route = useRoute();
 const accountId = computed(() => Number(route.params.id));
@@ -16,6 +23,9 @@ const account = ref<Account | null>(null);
 const positions = ref<Position[]>([]);
 const transactions = ref<InvestmentTransaction[]>([]);
 const securities = ref<Security[]>([]);
+const priceSettings = ref<PriceSettings | null>(null);
+const updatingPrices = ref(false);
+const priceLines = ref<string[]>([]);
 const loaded = ref(false);
 const error = ref("");
 
@@ -31,15 +41,29 @@ async function load() {
   error.value = "";
   try {
     account.value = await unwrap(commands.getAccount(accountId.value));
-    [positions.value, transactions.value, securities.value] = await Promise.all([
+    [positions.value, transactions.value, securities.value, priceSettings.value] = await Promise.all([
       unwrap(commands.portfolioPositions(accountId.value, todayIso())),
       unwrap(commands.listInvestmentTransactions(accountId.value)),
       unwrap(commands.listSecurities()),
+      unwrap(commands.priceSettings()),
     ]);
   } catch (e) {
     error.value = errorMessage(e);
   } finally {
     loaded.value = true;
+  }
+}
+
+async function updatePrices() {
+  error.value = "";
+  updatingPrices.value = true;
+  try {
+    priceLines.value = priceUpdateLines(await unwrap(commands.updateSecurityPrices()));
+    await load();
+  } catch (e) {
+    error.value = errorMessage(e);
+  } finally {
+    updatingPrices.value = false;
   }
 }
 
@@ -92,6 +116,15 @@ watch(accountId, load, { immediate: true });
     <template #actions>
       <RouterLink to="/accounts" class="btn btn-secondary">Comptes</RouterLink>
       <button
+        v-if="priceSettings?.updatesEnabled"
+        type="button"
+        class="btn btn-secondary"
+        :disabled="updatingPrices"
+        @click="updatePrices"
+      >
+        {{ updatingPrices ? "Mise à jour…" : "Mettre à jour les cours" }}
+      </button>
+      <button
         type="button"
         class="btn btn-primary"
         :disabled="account?.type !== 'INVESTMENT'"
@@ -103,6 +136,9 @@ watch(accountId, load, { immediate: true });
   </PageHeader>
 
   <p v-if="error" class="error-banner">{{ error }}</p>
+  <ul v-if="priceLines.length > 0" class="notice">
+    <li v-for="line in priceLines" :key="line">{{ line }}</li>
+  </ul>
 
   <template v-if="loaded && account">
     <p class="muted intro">
@@ -121,6 +157,7 @@ watch(accountId, load, { immediate: true });
             <th scope="col" class="number">Quantité</th>
             <th scope="col" class="number">PRU</th>
             <th scope="col" class="number">Prix de revient</th>
+            <th scope="col" class="number">Dernier cours</th>
             <th scope="col" class="number">Dividendes</th>
           </tr>
         </thead>
@@ -133,6 +170,13 @@ watch(accountId, load, { immediate: true });
             <td class="number">{{ formatQuantity(position.quantityMicro) }}</td>
             <td class="number">{{ formatAmount(position.unitCostCents) }}</td>
             <td class="number">{{ formatAmount(position.costCents) }}</td>
+            <td class="number">
+              <template v-if="position.lastPrice">
+                {{ formatAmount(position.lastPrice.priceCents) }}
+                <span class="sub">{{ formatDate(position.lastPrice.date) }}</span>
+              </template>
+              <template v-else>—</template>
+            </td>
             <td class="number">{{ position.dividendsCents > 0 ? formatAmount(position.dividendsCents) : "—" }}</td>
           </tr>
         </tbody>
@@ -140,6 +184,7 @@ watch(accountId, load, { immediate: true });
           <tr>
             <th scope="row" colspan="3">Total</th>
             <td class="number"><strong>{{ formatAmount(totalCost) }}</strong></td>
+            <td />
             <td class="number">{{ totalDividends > 0 ? formatAmount(totalDividends) : "—" }}</td>
           </tr>
         </tfoot>
@@ -188,7 +233,8 @@ watch(accountId, load, { immediate: true });
               <span class="details">
                 <span class="name">{{ security.name }}</span>
                 <span class="sub">
-                  {{ security.isin ?? "Sans ISIN" }} · {{ security.transactionCount }} mouvement{{
+                  {{ security.isin ?? "Sans ISIN" }}<template v-if="security.symbol"> · {{ security.symbol }}</template>
+                  · {{ security.transactionCount }} mouvement{{
                     security.transactionCount > 1 ? "s" : ""
                   }}
                 </span>
@@ -212,6 +258,7 @@ watch(accountId, load, { immediate: true });
     <SecurityFormModal
       :open="securityModalOpen"
       :security="editedSecurity"
+      :price-updates-enabled="priceSettings?.updatesEnabled ?? false"
       @close="securityModalOpen = false"
       @changed="onSecurityChanged"
     />
@@ -219,6 +266,16 @@ watch(accountId, load, { immediate: true });
 </template>
 
 <style scoped>
+.notice {
+  margin: 0;
+  padding: 10px 14px 10px 30px;
+  border-radius: var(--radius-nav);
+  background: var(--cat-transport-bg);
+  color: var(--cat-transport-fg);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .intro {
   margin-top: -8px;
 }

@@ -1,10 +1,18 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import { commands, type DataLocation, type SavedCsvMapping, type SupportedBank } from "../bindings";
+import {
+  commands,
+  type DataLocation,
+  type PriceSettings,
+  type SavedCsvMapping,
+  type SupportedBank,
+} from "../bindings";
 import CsvMappingModal from "../components/CsvMappingModal.vue";
 import PageHeader from "../components/PageHeader.vue";
 import { errorMessage, unwrap } from "../utils/commands";
 import { DATE_FORMATS, DELIMITERS, ENCODINGS } from "../utils/csvMapping";
+import { formatDate } from "../utils/format";
+import { priceUpdateLines } from "../utils/portfolio";
 import { THEME_PREFERENCES, setThemePreference, themePreference } from "../utils/theme";
 
 const version = ref("");
@@ -13,6 +21,9 @@ const mappings = ref<SavedCsvMapping[]>([]);
 const banks = ref<SupportedBank[]>([]);
 const error = ref("");
 const copied = ref("");
+const priceSettings = ref<PriceSettings | null>(null);
+const updatingPrices = ref(false);
+const priceLines = ref<string[]>([]);
 
 const mappingModalOpen = ref(false);
 const editedMapping = ref<SavedCsvMapping | null>(null);
@@ -24,8 +35,32 @@ async function load() {
     banks.value = await commands.supportedBanks();
     location.value = await unwrap(commands.dataLocation());
     mappings.value = await unwrap(commands.listCsvMappings());
+    priceSettings.value = await unwrap(commands.priceSettings());
   } catch (e) {
     error.value = errorMessage(e);
+  }
+}
+
+async function togglePriceUpdates(enabled: boolean) {
+  error.value = "";
+  priceLines.value = [];
+  try {
+    priceSettings.value = await unwrap(commands.setPriceUpdatesEnabled(enabled));
+  } catch (e) {
+    error.value = errorMessage(e);
+  }
+}
+
+async function updatePrices() {
+  error.value = "";
+  updatingPrices.value = true;
+  try {
+    priceLines.value = priceUpdateLines(await unwrap(commands.updateSecurityPrices()));
+    priceSettings.value = await unwrap(commands.priceSettings());
+  } catch (e) {
+    error.value = errorMessage(e);
+  } finally {
+    updatingPrices.value = false;
   }
 }
 
@@ -135,6 +170,37 @@ onMounted(load);
       </p>
     </section>
 
+    <section v-if="priceSettings" class="card">
+      <h2 class="card-title">Cours de bourse</h2>
+      <label class="check">
+        <input
+          type="checkbox"
+          :checked="priceSettings.updatesEnabled"
+          @change="togglePriceUpdates(($event.target as HTMLInputElement).checked)"
+        />
+        Récupérer les cours sur Yahoo Finance
+      </label>
+      <p class="muted">
+        C'est le seul accès à Internet de l'application. Elle envoie à query1.finance.yahoo.com uniquement les
+        symboles de tes titres (par exemple CW8.PA), et leur code ISIN quand tu cherches un symbole : aucun
+        montant, aucune quantité. Les cours sont mis à jour au démarrage, une fois par jour, et à la demande
+        depuis le portefeuille. Un cours saisi à la main n'est jamais remplacé.
+      </p>
+      <template v-if="priceSettings.updatesEnabled">
+        <p class="muted">
+          {{ priceSettings.updatedOn ? `Dernière mise à jour le ${formatDate(priceSettings.updatedOn)}.` : "Pas encore de mise à jour." }}
+        </p>
+        <div>
+          <button type="button" class="btn btn-secondary" :disabled="updatingPrices" @click="updatePrices">
+            {{ updatingPrices ? "Mise à jour…" : "Mettre à jour maintenant" }}
+          </button>
+        </div>
+        <ul v-if="priceLines.length > 0" class="price-lines">
+          <li v-for="line in priceLines" :key="line">{{ line }}</li>
+        </ul>
+      </template>
+    </section>
+
     <section class="card">
       <h2 class="card-title">Relevés PDF pris en charge</h2>
       <ul class="banks">
@@ -196,6 +262,27 @@ onMounted(load);
 
 .segmented button:hover:not([aria-checked="true"]) {
   background: var(--color-page);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-primary);
+}
+
+.price-lines {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
 }
 
 .card-header {
