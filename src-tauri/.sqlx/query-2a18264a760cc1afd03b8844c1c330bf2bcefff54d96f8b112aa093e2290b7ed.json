@@ -1,0 +1,86 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT t.date AS \"date: NaiveDate\", t.kind AS \"kind: TransactionKind\",\n                  t.quantity_micro, t.amount_cents, t.fees_cents, s.name\n           FROM investment_transaction t\n           JOIN security s ON s.id = t.security_id\n           WHERE t.account_id = ?1 AND t.security_id = ?2\n           ORDER BY t.date, t.id",
+  "describe": {
+    "columns": [
+      {
+        "name": "date: NaiveDate",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "name": "kind: TransactionKind",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "name": "quantity_micro",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "quantity_micro"
+          }
+        }
+      },
+      {
+        "name": "amount_cents",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "amount_cents"
+          }
+        }
+      },
+      {
+        "name": "fees_cents",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "fees_cents"
+          }
+        }
+      },
+      {
+        "name": "name",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "security",
+            "name": "name"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "2a18264a760cc1afd03b8844c1c330bf2bcefff54d96f8b112aa093e2290b7ed"
+}

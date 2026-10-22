@@ -22,6 +22,20 @@ export const commands = {
 	createValuation: (accountId: number, valuation: ValuationInput) => typedError<Valuation, AppError>(__TAURI_INVOKE("create_valuation", { accountId, valuation })),
 	updateValuation: (id: number, valuation: ValuationInput) => typedError<Valuation, AppError>(__TAURI_INVOKE("update_valuation", { id, valuation })),
 	deleteValuation: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_valuation", { id })),
+	/**  Every security, by name, with its count of transactions. */
+	listSecurities: () => typedError<Security[], AppError>(__TAURI_INVOKE("list_securities")),
+	createSecurity: (input: SecurityInput) => typedError<Security, AppError>(__TAURI_INVOKE("create_security", { input })),
+	updateSecurity: (id: number, input: SecurityInput) => typedError<Security, AppError>(__TAURI_INVOKE("update_security", { id, input })),
+	/**  Deletes a security without transactions. */
+	deleteSecurity: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_security", { id })),
+	/**  Transactions of an investment account, the most recent first. */
+	listInvestmentTransactions: (accountId: number) => typedError<InvestmentTransaction[], AppError>(__TAURI_INVOKE("list_investment_transactions", { accountId })),
+	/**  Records a buy, a sell or a dividend; refused when a sell would exceed the units held. */
+	createInvestmentTransaction: (accountId: number, input: TransactionInput) => typedError<InvestmentTransaction, AppError>(__TAURI_INVOKE("create_investment_transaction", { accountId, input })),
+	updateInvestmentTransaction: (id: number, input: TransactionInput) => typedError<InvestmentTransaction, AppError>(__TAURI_INVOKE("update_investment_transaction", { id, input })),
+	deleteInvestmentTransaction: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_investment_transaction", { id })),
+	/**  Securities held in an investment account at the end of `date`, with their cost. */
+	portfolioPositions: (accountId: number, date: string) => typedError<Position[], AppError>(__TAURI_INVOKE("portfolio_positions", { accountId, date })),
 	/**  Alerts of today: negative forecasts, missing occurrences, unusual expenses. */
 	listAlerts: () => typedError<Alert[], AppError>(__TAURI_INVOKE("list_alerts")),
 	/**  Stops showing the unusual expense alert of a top-level category for the month of `month`. */
@@ -504,7 +518,7 @@ export type DuplicateStatus = { status: "new" } | { status: "duplicate"; operati
 candidateIds: number[] };
 
 /**  Business error with its code and parameters, for a message in French on the frontend. */
-export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "rule"; error: RuleError } | { domain: "payee"; error: PayeeError } | { domain: "tag"; error: TagError } | { domain: "attachment"; error: AttachmentError } | { domain: "transfer"; error: TransferError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError };
+export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "rule"; error: RuleError } | { domain: "payee"; error: PayeeError } | { domain: "tag"; error: TagError } | { domain: "attachment"; error: AttachmentError } | { domain: "transfer"; error: TransferError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError } | { domain: "investment"; error: InvestmentError };
 
 /**  Stable identifier the frontend can match on. */
 export type ErrorKind = "database" | "migration" | "io" | 
@@ -601,6 +615,27 @@ export type ImportSelection = {
 	index: number,
 	/**  `None`: to categorize. */
 	categoryId: number | null,
+};
+
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type InvestmentError = { code: "securityNotFound"; params: number } | { code: "transactionNotFound"; params: number } | { code: "emptySecurityName" } | { code: "invalidIsin"; params: string } | { code: "isinTaken"; params: string } | { code: "securityInUse" } | { code: "notAnInvestmentAccount" } | { code: "dateBeforeOpening"; params: string } | { code: "missingQuantity" } | { code: "quantityOnDividend" } | { code: "zeroAmount" } | { code: "oversold"; params: {
+	date: string,
+	security: string,
+} };
+
+export type InvestmentTransaction = {
+	id: number,
+	accountId: number,
+	securityId: number,
+	securityName: string,
+	date: string,
+	kind: TransactionKind,
+	/**  Millionths of a unit; 0 for a dividend. */
+	quantityMicro: number,
+	/**  Quantity × unit price for a buy or a sell, amount received for a dividend. */
+	amountCents: number,
+	feesCents: number,
+	note: string | null,
 };
 
 export type LargestExpense = {
@@ -790,6 +825,21 @@ export type PeriodIncomeExpenses = {
 	expenseCents: number,
 };
 
+/**  A security held in an account at a date. */
+export type Position = {
+	securityId: number,
+	securityName: string,
+	isin: string | null,
+	/**  Millionths of a unit. */
+	quantityMicro: number,
+	/**  Weighted average cost of the units held, buying fees included. */
+	costCents: number,
+	/**  Cost of one unit, rounded to the cent. */
+	unitCostCents: number,
+	/**  Dividends received since the first buy. */
+	dividendsCents: number,
+};
+
 /**  A statement line in the import preview. */
 export type PreviewLine = {
 	line: RawLine,
@@ -918,6 +968,19 @@ export type ScheduledOperationInput = {
 	endDate: string | null,
 };
 
+export type Security = {
+	id: number,
+	name: string,
+	isin: string | null,
+	/**  Transactions of the security, in every account. */
+	transactionCount: number,
+};
+
+export type SecurityInput = {
+	name: string,
+	isin: string | null,
+};
+
 export type SourceType = "CSV" | "PDF";
 
 /**  Lines kept according to a state column, e.g. only `COMPLETED` operations. */
@@ -955,6 +1018,18 @@ export type Tag = {
 
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
 export type TagError = { code: "notFound"; params: number } | { code: "emptyName" } | { code: "nameTaken"; params: string };
+
+export type TransactionInput = {
+	securityId: number,
+	date: string,
+	kind: TransactionKind,
+	quantityMicro: number,
+	amountCents: number,
+	feesCents: number,
+	note: string | null,
+};
+
+export type TransactionKind = "BUY" | "SELL" | "DIVIDEND";
 
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
 export type TransferError = { code: "sameAccount" } | { code: "amountsNotOpposite" } | { code: "alreadyLinked"; params: number };

@@ -1,0 +1,98 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT t.security_id, s.name, s.isin, t.kind AS \"kind: TransactionKind\",\n                  t.quantity_micro, t.amount_cents, t.fees_cents\n           FROM investment_transaction t\n           JOIN security s ON s.id = t.security_id\n           WHERE t.account_id = ?1 AND t.date <= ?2\n           ORDER BY t.date, t.id",
+  "describe": {
+    "columns": [
+      {
+        "name": "security_id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "security_id"
+          }
+        }
+      },
+      {
+        "name": "name",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "security",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "isin",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "security",
+            "name": "isin"
+          }
+        }
+      },
+      {
+        "name": "kind: TransactionKind",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "name": "quantity_micro",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "quantity_micro"
+          }
+        }
+      },
+      {
+        "name": "amount_cents",
+        "ordinal": 5,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "amount_cents"
+          }
+        }
+      },
+      {
+        "name": "fees_cents",
+        "ordinal": 6,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "fees_cents"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "598150cfc07a120b011969f228ae28c87576e1f39508430361c7d0cd8084927f"
+}

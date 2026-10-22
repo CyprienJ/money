@@ -1,0 +1,134 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT t.id AS \"id!\", t.account_id, t.security_id, s.name AS security_name,\n                  t.date AS \"date: NaiveDate\", t.kind AS \"kind: TransactionKind\",\n                  t.quantity_micro, t.amount_cents, t.fees_cents, t.note\n           FROM investment_transaction t\n           JOIN security s ON s.id = t.security_id\n           WHERE t.id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "account_id",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "account_id"
+          }
+        }
+      },
+      {
+        "name": "security_id",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "security_id"
+          }
+        }
+      },
+      {
+        "name": "security_name",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "security",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "date: NaiveDate",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "name": "kind: TransactionKind",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "name": "quantity_micro",
+        "ordinal": 6,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "quantity_micro"
+          }
+        }
+      },
+      {
+        "name": "amount_cents",
+        "ordinal": 7,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "amount_cents"
+          }
+        }
+      },
+      {
+        "name": "fees_cents",
+        "ordinal": 8,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "fees_cents"
+          }
+        }
+      },
+      {
+        "name": "note",
+        "ordinal": 9,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "note"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "f334adc2552cf74e72d0cdf87f99e21a2439147e90f484a1daa1d4030f7b9ccb"
+}

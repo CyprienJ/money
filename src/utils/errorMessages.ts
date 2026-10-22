@@ -6,6 +6,7 @@ import type {
   CsvMappingError,
   ErrorDetail,
   ImportError,
+  InvestmentError,
   OperationError,
   PayeeError,
   PdfError,
@@ -272,6 +273,36 @@ function pdf(error: PdfError): string {
   return unreachable(error);
 }
 
+function investment(error: InvestmentError): string {
+  switch (error.code) {
+    case "securityNotFound":
+      return "Ce titre n'existe plus.";
+    case "transactionNotFound":
+      return "Ce mouvement n'existe plus.";
+    case "emptySecurityName":
+      return "Le nom du titre est obligatoire.";
+    case "invalidIsin":
+      return `« ${error.params} » n'est pas un code ISIN valide (2 lettres, 9 caractères et un chiffre de contrôle).`;
+    case "isinTaken":
+      return `Un titre a déjà le code ISIN ${error.params}.`;
+    case "securityInUse":
+      return "Ce titre a des mouvements : supprime-les d'abord.";
+    case "notAnInvestmentAccount":
+      return "Seuls les comptes de placement ont un portefeuille.";
+    case "dateBeforeOpening":
+      return `La date précède l'ouverture du compte (${formatDate(error.params)}).`;
+    case "missingQuantity":
+      return "Un achat ou une vente demande une quantité.";
+    case "quantityOnDividend":
+      return "Un dividende n'a pas de quantité.";
+    case "zeroAmount":
+      return "Le montant doit être positif.";
+    case "oversold":
+      return `Le ${formatDate(error.params.date)}, la vente dépasserait la quantité détenue de ${error.params.security}.`;
+  }
+  return unreachable(error);
+}
+
 /** French message of a business error. */
 export function businessMessage(detail: ErrorDetail): string {
   switch (detail.domain) {
@@ -303,6 +334,8 @@ export function businessMessage(detail: ErrorDetail): string {
       return importing(detail.error);
     case "pdf":
       return pdf(detail.error);
+    case "investment":
+      return investment(detail.error);
   }
   return unreachable(detail);
 }

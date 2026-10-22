@@ -5,6 +5,7 @@ mod commands;
 mod db;
 mod error;
 mod importing;
+mod investment;
 mod labeling;
 mod operation;
 mod payee;

@@ -11,6 +11,7 @@ mod app;
 mod attachment;
 mod csv_mapping;
 mod import;
+mod investment;
 mod operation;
 mod payee;
 mod stats;
@@ -36,6 +37,15 @@ pub fn builder() -> Builder<tauri::Wry> {
             account::create_valuation,
             account::update_valuation,
             account::delete_valuation,
+            investment::list_securities,
+            investment::create_security,
+            investment::update_security,
+            investment::delete_security,
+            investment::list_investment_transactions,
+            investment::create_investment_transaction,
+            investment::update_investment_transaction,
+            investment::delete_investment_transaction,
+            investment::portfolio_positions,
             alert::list_alerts,
             alert::dismiss_unusual_expense,
             alert::dismiss_missing_occurrence,

@@ -7,6 +7,7 @@ use crate::attachment::AttachmentError;
 use crate::importing::batch::ImportError;
 use crate::importing::csv::{CsvError, CsvMappingError};
 use crate::importing::pdf::PdfError;
+use crate::investment::InvestmentError;
 use crate::labeling::rules::RuleError;
 use crate::operation::OperationError;
 use crate::operation::category::CategoryError;
@@ -69,6 +70,9 @@ pub enum AppError {
 
     #[error(transparent)]
     Pdf(#[from] PdfError),
+
+    #[error(transparent)]
+    Investment(#[from] InvestmentError),
 }
 
 /// Stable identifier the frontend can match on.
@@ -102,6 +106,7 @@ enum ErrorDetail {
     CsvMapping(CsvMappingError),
     Import(ImportError),
     Pdf(PdfError),
+    Investment(InvestmentError),
 }
 
 /// Error returned by commands to the frontend: `{ kind, message, detail }`. `message` is the
@@ -134,6 +139,7 @@ impl AppError {
             AppError::CsvMapping(error) => error.kind(),
             AppError::Import(error) => error.kind(),
             AppError::Pdf(error) => error.kind(),
+            AppError::Investment(error) => error.kind(),
         }
     }
 }
@@ -156,6 +162,7 @@ impl AppError {
             AppError::CsvMapping(error) => ErrorDetail::CsvMapping(error.clone()),
             AppError::Import(error) => ErrorDetail::Import(error.clone()),
             AppError::Pdf(error) => ErrorDetail::Pdf(error.clone()),
+            AppError::Investment(error) => ErrorDetail::Investment(error.clone()),
         })
     }
 }
