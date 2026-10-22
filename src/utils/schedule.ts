@@ -64,3 +64,6 @@ export function addDays(isoDate: string, days: number): string {
 export function recentRange(today: string): { from: string; to: string } {
   return { from: addDays(today, -RECENT_DAYS), to: addDays(today, -1) };
 }
+
+/** Horizons of the cash forecast, in days; the first is the default. */
+export const FORECAST_DAYS = [30, 60, 90] as const;

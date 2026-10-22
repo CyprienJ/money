@@ -5,6 +5,7 @@ import {
   categoryBarsOption,
   categoryDonutOption,
   compactEuros,
+  forecastOption,
   incomeExpensesOption,
   netWorthOption,
   periodLabel,
@@ -180,5 +181,44 @@ describe("availableHistoryOption", () => {
     expect(option.series[0].data.map((d) => d.symbol)).toEqual(["none", "circle"]);
     expect(option.series[0].endLabel.formatter({ value: 2_341_000 } as never)).toBe("23\u00a0410\u00a0€");
     expect(compactEuros(2_400_000)).toBe("24 k");
+  });
+});
+
+describe("forecastOption", () => {
+  const forecast = {
+    currentBalanceCents: 30_000,
+    points: [
+      { date: "2026-10-20", balanceCents: 30_000 },
+      { date: "2026-10-21", balanceCents: -20_000 },
+      { date: "2026-10-22", balanceCents: 180_000 },
+    ],
+    lowest: { date: "2026-10-21", balanceCents: -20_000 },
+    occurrences: [
+      {
+        scheduledOperationId: 1,
+        occurrenceDate: "2026-10-21",
+        date: "2026-10-21",
+        accountId: 1,
+        label: "Loyer",
+        amountCents: -50_000,
+        categoryId: null,
+      },
+    ],
+  };
+
+  it("marks the lowest point and the zero line of a negative forecast", () => {
+    const option = forecastOption(forecast, tokens);
+    const series = option.series[0];
+    expect(series.step).toBe("end");
+    expect(series.markPoint.data).toEqual([{ coord: [1, -20_000] }]);
+    expect(series.markLine?.data).toEqual([{ yAxis: 0 }]);
+    const tooltip = option.tooltip.formatter([{ dataIndex: 1 } as never]);
+    expect(tooltip).toContain("Loyer");
+  });
+
+  it("draws no zero line while the balance stays positive", () => {
+    const option = forecastOption({ ...forecast, lowest: { date: "2026-10-20", balanceCents: 30_000 } }, tokens);
+    expect(option.series[0].markLine).toBeUndefined();
+    expect(option.tooltip.formatter([{ dataIndex: 0 } as never])).not.toContain("Loyer");
   });
 });

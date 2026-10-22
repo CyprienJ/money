@@ -4,6 +4,7 @@ import {
   commands,
   type Account,
   type AccountSummary,
+  type BalanceForecast,
   type BalancePoint,
   type Category,
   type CategoryExpense,
@@ -27,6 +28,7 @@ import { categorySlices, legendSlices, variationPercent } from "../utils/analyse
 import { errorMessage, unwrap } from "../utils/commands";
 import { formatAmount, formatDate, localDateOf, todayIso } from "../utils/format";
 import { analysisPeriod } from "../utils/periods";
+import { FORECAST_DAYS } from "../utils/schedule";
 
 /** Days of upcoming scheduled operations shown. */
 const UPCOMING_DAYS = 15;
@@ -46,6 +48,7 @@ const months = ref<PeriodIncomeExpenses[]>([]);
 const expenses = ref<CategoryExpense[]>([]);
 const available = ref<BalancePoint[]>([]);
 const upcoming = ref<UpcomingOperation[]>([]);
+const forecast = ref<BalanceForecast | null>(null);
 const payees = ref<PayeeExpense[]>([]);
 const loaded = ref(false);
 const error = ref("");
@@ -64,6 +67,7 @@ const netWorthChange = computed(() => {
   const sign = tenths > 0 ? "+" : tenths < 0 ? "−" : "";
   return `${sign}${(Math.abs(tenths) / 10).toFixed(1).replace(".", ",")} %`;
 });
+const projected = computed(() => forecast.value?.points[forecast.value.points.length - 1] ?? null);
 const thisMonth = computed(() => months.value[months.value.length - 1] ?? null);
 const lastMonth = computed(() => (months.value.length > 1 ? months.value[0] : null));
 const expenseChange = computed(() =>
@@ -121,8 +125,16 @@ async function load() {
   const { from, to, trendFrom } = month.value;
   const previous = previousMonth.value;
   try {
-    [categories.value, netWorth.value, months.value, expenses.value, available.value, upcoming.value, payees.value] =
-      await Promise.all([
+    [
+      categories.value,
+      netWorth.value,
+      months.value,
+      expenses.value,
+      available.value,
+      upcoming.value,
+      payees.value,
+      forecast.value,
+    ] = await Promise.all([
         unwrap(commands.listCategories()),
         unwrap(commands.netWorthHistory(previous.to, to, "month")),
         unwrap(commands.incomeVsExpenses(previous.from, to, null, "month")),
@@ -130,6 +142,7 @@ async function load() {
         unwrap(commands.balanceHistory(trendFrom, to, null, "month")),
         unwrap(commands.upcomingOperations(UPCOMING_DAYS)),
         unwrap(commands.topPayees(from, to, null, 5)),
+        unwrap(commands.balanceForecast(FORECAST_DAYS[0], null)),
       ]);
     await loadAccounts();
   } catch (e) {
@@ -213,6 +226,19 @@ watch(offset, load);
           ce mois-ci
         </div>
       </div>
+      <RouterLink v-if="forecast && projected" to="/schedule" class="kpi kpi-link">
+        <div class="kpi-head"><span>Solde projeté à {{ FORECAST_DAYS[0] }} j</span><span class="kpi-icon subscriptions" /></div>
+        <div class="kpi-value" :class="{ negative: projected.balanceCents < 0 }">
+          {{ formatAmount(projected.balanceCents, { cents: false }) }}
+        </div>
+        <div class="kpi-note">
+          Point bas
+          <strong :class="{ negative: forecast.lowest.balanceCents < 0 }">
+            {{ formatAmount(forecast.lowest.balanceCents, { cents: false }) }}
+          </strong>
+          le {{ formatDate(forecast.lowest.date, "day-month") }}
+        </div>
+      </RouterLink>
     </section>
 
     <section class="row two">
@@ -458,6 +484,19 @@ h1 {
 
 .kpi-icon.housing {
   background: var(--cat-housing-bg);
+}
+
+.kpi-icon.subscriptions {
+  background: var(--cat-subscriptions-bg);
+}
+
+.kpi-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.kpi-link:hover {
+  border-color: var(--cat-housing);
 }
 
 .kpi-value {

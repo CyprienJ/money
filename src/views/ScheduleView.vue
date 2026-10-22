@@ -9,6 +9,7 @@ import {
   type ScheduledOperationInput,
   type UpcomingOperation,
 } from "../bindings";
+import CashForecast from "../components/CashForecast.vue";
 import OccurrenceList from "../components/OccurrenceList.vue";
 import PageHeader from "../components/PageHeader.vue";
 import ScheduleFormModal from "../components/ScheduleFormModal.vue";
@@ -171,6 +172,8 @@ onMounted(load);
   </div>
 
   <div v-if="loaded && accounts.length > 0" class="grid">
+    <CashForecast class="wide" :accounts="accounts" />
+
     <section class="card">
       <div class="card-header">
         <h2 class="card-title">Prochaines échéances</h2>
@@ -330,6 +333,10 @@ onMounted(load);
   font-weight: 700;
   text-decoration: underline;
   cursor: pointer;
+}
+
+.wide {
+  grid-column: 1 / -1;
 }
 
 .grid {
