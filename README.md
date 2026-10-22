@@ -99,7 +99,7 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 #### Technique
 - **Multi-devises** avec conversion vers la devise de référence.
 - **Chiffrement** du fichier de données, protégé par mot de passe.
-- **Sauvegarde complète** : sauvegardes planifiées, rotation, restauration depuis l'interface.
+- **Sauvegarde complète** : sauvegardes planifiées, rotation, restauration depuis l'interface *(décisions du 22/10/2026)*. Une sauvegarde complète est un dossier `complete-AAAAMMJJ-HHMMSS/` contenant une copie cohérente du fichier de données (`VACUUM INTO`) et les pièces jointes. Elle est faite au démarrage une fois par jour (désactivable) et à la demande ; les 10 plus récentes sont gardées, ainsi que les 20 dernières sauvegardes faites avant un import. Le dossier des sauvegardes complètes est `backups/` par défaut, ou un dossier choisi (disque externe, dossier synchronisé). Restaurer (une sauvegarde complète, ou les données seules d'une sauvegarde avant import) sauvegarde d'abord l'état actuel, puis redémarre l'application : les fichiers sont remplacés avant l'ouverture du fichier de données.
 
 ### Plus tard
 

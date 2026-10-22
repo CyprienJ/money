@@ -411,7 +411,8 @@ Décisions du 22/10/2026 : choix mémorisé dans le stockage local du webview (l
 - [ ] Passage à SQLCipher, mot de passe à l'ouverture, migration d'un fichier existant.
 
 #### V2-16 · Sauvegarde complète — M
-- [ ] Sauvegardes planifiées, rotation, restauration depuis l'interface.
+Décisions du 22/10/2026 : un dossier par sauvegarde (données et pièces jointes) ; au démarrage une fois par jour (désactivable) et à la demande ; 10 complètes et 20 avant import gardées ; dossier au choix, `backups/` par défaut.
+- [x] Sauvegardes planifiées, rotation, restauration depuis l'interface (module `backup`, carte « Sauvegardes » des Paramètres) ; restauration appliquée au redémarrage, après une sauvegarde de l'état actuel.
 
 ---
 
