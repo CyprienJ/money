@@ -69,7 +69,7 @@ async function submit() {
         Le fichier de données est en clair. Le chiffrer protège tes données si l'ordinateur ou une sauvegarde est
         perdu ou volé : un mot de passe sera demandé à chaque ouverture.
       </template>
-      Les pièces jointes restent des fichiers en clair.
+      Les pièces jointes et les relevés importés restent des fichiers en clair.
     </p>
 
     <div v-if="action === null" class="buttons">

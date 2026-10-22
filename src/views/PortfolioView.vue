@@ -325,6 +325,9 @@ watch(accountId, load, { immediate: true });
                     · plus-value {{ formatAmount(transaction.realizedCents, { signed: true, currency }) }}
                   </template>
                   <template v-if="transaction.note"> · {{ transaction.note }}</template>
+                  <template v-if="transaction.hasSourceDocument">
+                    · relevé{{ transaction.sourcePage !== null ? ` p. ${transaction.sourcePage}` : "" }}
+                  </template>
                 </span>
               </span>
               <strong class="amount" :class="{ positive: cashMoved(transaction) > 0 }">

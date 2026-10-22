@@ -1,4 +1,5 @@
 import type {
+  SourceDocumentError,
   InterchangeError,
   CurrencyError,
   AccountError,
@@ -290,6 +291,18 @@ function interchange(error: InterchangeError): string {
   return unreachable(error);
 }
 
+function sourceDocument(error: SourceDocumentError): string {
+  switch (error.code) {
+    case "notKept":
+      return "Le fichier de cet import n'a pas été conservé : il date d'avant la conservation des relevés.";
+    case "fileMissing":
+      return "Le fichier de cet import est introuvable dans le dossier des relevés.";
+    case "notText":
+      return "Ce relevé est un PDF : ouvre-le avec ton lecteur PDF.";
+  }
+  return unreachable(error);
+}
+
 function pdf(error: PdfError): string {
   switch (error.code) {
     case "libraryUnavailable":
@@ -431,6 +444,8 @@ export function businessMessage(detail: ErrorDetail): string {
       return pdf(detail.error);
     case "interchange":
       return interchange(detail.error);
+    case "sourceDocument":
+      return sourceDocument(detail.error);
     case "investment":
       return investment(detail.error);
     case "price":

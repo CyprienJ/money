@@ -18,6 +18,7 @@ import {
 } from "../utils/format";
 import { TRANSACTION_KINDS, formatQuantityInput, parseQuantity, unitPriceCents } from "../utils/portfolio";
 import BaseModal from "./BaseModal.vue";
+import SourceDocumentLink from "./SourceDocumentLink.vue";
 
 const props = defineProps<{
   open: boolean;
@@ -207,6 +208,13 @@ async function remove() {
         Note (facultative)
         <input v-model="form.note" type="text" autocomplete="off" />
       </label>
+
+      <SourceDocumentLink
+        v-if="transaction?.hasSourceDocument && transaction.importBatchId !== null"
+        :import-batch-id="transaction.importBatchId"
+        :page="transaction.sourcePage"
+        :line="null"
+      />
 
       <p v-if="error" class="error-banner">{{ error }}</p>
 

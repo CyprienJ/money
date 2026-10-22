@@ -24,6 +24,8 @@ function line(overrides: Partial<PreviewLine> = {}): PreviewLine {
       amountCents: -420,
       note: null,
       sourceCategory: null,
+      sourcePage: null,
+      sourceLine: null,
     },
     normalizedLabel: "CB X",
     payeeName: "Cb X",
@@ -211,7 +213,16 @@ describe("categories of a QIF file", () => {
   const fromFile = (categoryId: number | null, sourceCategory: string) =>
     line({
       categoryId,
-      line: { date: "2026-09-02", valueDate: null, label: "CB X", amountCents: -420, note: null, sourceCategory },
+      line: {
+        date: "2026-09-02",
+        valueDate: null,
+        label: "CB X",
+        amountCents: -420,
+        note: null,
+        sourceCategory,
+        sourcePage: null,
+        sourceLine: null,
+      },
     });
 
   it("follow the category chosen for their category of the file, unless chosen by hand", () => {

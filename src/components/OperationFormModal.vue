@@ -5,6 +5,7 @@ import { errorMessage, unwrap } from "../utils/commands";
 import { currencySymbol, formatAmountInput, formatDate, parseAmount, todayIso } from "../utils/format";
 import AttachmentList from "./AttachmentList.vue";
 import BaseModal from "./BaseModal.vue";
+import SourceDocumentLink from "./SourceDocumentLink.vue";
 import TransferLink from "./TransferLink.vue";
 import CategorySelect from "./CategorySelect.vue";
 import TagInput from "./TagInput.vue";
@@ -270,6 +271,13 @@ async function remove() {
         Note
         <textarea v-model="form.note" rows="2" placeholder="Facultative"></textarea>
       </label>
+
+      <SourceDocumentLink
+        v-if="operation?.hasSourceDocument && operation.importBatchId !== null"
+        :import-batch-id="operation.importBatchId"
+        :page="operation.sourcePage"
+        :line="operation.sourceLine"
+      />
 
       <TransferLink v-if="operation" :operation-id="operation.id" @changed="onTransferChanged" />
 
