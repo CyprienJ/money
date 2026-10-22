@@ -90,7 +90,7 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 
 #### Placements
 - **Portefeuille détaillé** : titres, quantités, prix de revient, mouvements (achat, vente, dividende) *(décisions du 22/10/2026)*. Saisie à la main dans un écran Portefeuille par compte de placement (ouvert depuis l'écran Comptes) : positions (quantité, PRU, prix de revient, dividendes), mouvements et titres. Les titres (nom, ISIN facultatif vérifié par sa clé) sont communs à tous les comptes. Quantités à 6 décimales (fractions d'actions), stockées en millionièmes d'unité. Prix de revient au coût moyen pondéré, frais d'achat inclus ; une vente retire la part du prix de revient des parts vendues sans changer le PRU, et ne peut pas dépasser la quantité détenue à sa date (vérifié à chaque saisie, modification ou suppression). La valeur du compte et le patrimoine net restent ceux des valorisations jusqu'à V2-13.
-- **Cours de bourse récupérés automatiquement**.
+- **Cours de bourse récupérés automatiquement** *(décisions du 22/10/2026)* : seule exception au « tout local », désactivée par défaut et activée dans les Paramètres. Source : Yahoo Finance (point d'accès `chart`, non officiel et sans clé ; saisie manuelle toujours possible). Seuls les symboles des titres (et l'ISIN lors d'une recherche de symbole) sont envoyés à query1.finance.yahoo.com. Une fois activée, mise à jour au démarrage au plus une fois par jour et à la demande (Paramètres, Portefeuille) : un an de cours de clôture pour un titre sans cours, un mois ensuite. Un cours saisi à la main n'est jamais remplacé ; seuls les cours en euros sont gardés. Le symbole se saisit dans la fiche du titre, ou se trouve à partir de l'ISIN. Le portefeuille affiche le dernier cours de chaque position.
 - **Performance et plus-values**, latentes et réalisées.
 
 #### Interface
@@ -217,13 +217,17 @@ attachment               -- V2 files copied into attachments/, deleted with thei
   id, operation_id, file_name (original), stored_name, size_bytes, added_at
 
 security                 -- V2 securities, shared by the investment accounts
-  id, name, isin (unique, nullable), currency
+  id, name, isin (unique, nullable), symbol (Yahoo Finance, nullable), currency
 
 investment_transaction   -- V2 buys, sells and dividends of an investment account
   id, account_id, security_id, date, kind (BUY | SELL | DIVIDEND),
   quantity_micro (millionths of a unit, 0 for a dividend), amount_cents (> 0), fees_cents, note
 
--- Prévus (V2+) : security_price
+security_price           -- V2 daily price of a security; MANUAL prices are never overwritten
+  security_id, date, price_cents, source (MANUAL | YAHOO)
+
+app_setting              -- V2 settings kept with the data (price_updates_enabled, prices_updated_on)
+  key, value
 ```
 
 Note : la catégorie est portée par `operation_split` dès la V1. Ainsi, l'arrivée de la ventilation ne change aucune requête de statistique.
@@ -299,6 +303,7 @@ L'application est une **application de bureau Tauri**. L'interface est écrite e
 | Empreinte des fichiers importés | crate **sha2** | SHA-256 du fichier source (`source_file_hash`), pour signaler un fichier déjà importé |
 | Import PDF | **pdfium-render** | Texte avec positions via PDFium ; bibliothèque PDFium embarquée dans le bundle. Version épinglée (binaires `bblanchon/pdfium-binaries`, `chromium/7881`, vérifiés par SHA-256), téléchargée dans `src-tauri/pdfium/` par `tools/fetch_pdfium.sh`, à lancer une fois avant de compiler |
 | Normalisation des libellés | crate **regex** | |
+| Cours de bourse (V2) | **reqwest** (rustls, json, query) | Appels HTTP côté Rust vers Yahoo Finance, TLS en pur Rust |
 | Suggestion de catégorie (V2) | **linfa** (`linfa`, `linfa-logistic`, `ndarray`) | TF-IDF (calculé dans le module) + régression logistique multiclasse, entraînée en local sur les opérations catégorisées |
 | Frontend | **Vue 3 + TypeScript + Vite** | |
 | Navigation | **Vue Router** | Un écran par entrée de la barre latérale |

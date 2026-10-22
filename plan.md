@@ -386,8 +386,9 @@ Décisions du 22/10/2026 : quantités à 6 décimales ; prix de revient au coût
 - [x] Écran Portefeuille (`/accounts/:id/portfolio`) : positions, mouvements, titres ; lien depuis l'écran Comptes.
 
 #### V2-12 · Cours de bourse automatiques — M
-- [ ] Table `security_price` ; récupération des cours.
-- 🟡 Seule exception au « tout local » : source des cours et consentement à valider.
+Décisions du 22/10/2026 : Yahoo Finance (sans clé, non officiel) et saisie manuelle ; consentement explicite dans les Paramètres, désactivé par défaut ; mise à jour quotidienne au démarrage et à la demande ; dépendance `reqwest` (rustls) ; symbole cherché par ISIN ou saisi.
+- [x] Table `security_price`, colonne `security.symbol`, table `app_setting` ; récupération des cours (module `investment/prices`, source `investment/yahoo`), cours saisis à la main prioritaires.
+- [x] Seule exception au « tout local » : option « Récupérer les cours sur Yahoo Finance » dans les Paramètres, avec ce qui est envoyé et à qui.
 
 #### V2-13 · Performance et plus-values — M
 - [ ] Plus-values latentes et réalisées, performance ; patrimoine net basé sur la valorisation du portefeuille.
@@ -417,4 +418,3 @@ Décisions du 22/10/2026 : choix mémorisé dans le stockage local du webview (l
 | Ticket | Question |
 |---|---|
 | V1-02.7 | Lignes d'exemple d'un export Revolut (frais, état) |
-| V2-12 | Source des cours de bourse (accès réseau) |
