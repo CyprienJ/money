@@ -9,6 +9,7 @@ import {
   lineCategory,
   defaultSelection,
   groupPreview,
+  pendingSuggestions,
   periodText,
 } from "./importPreview";
 
@@ -22,6 +23,7 @@ function line(overrides: Partial<PreviewLine> = {}): PreviewLine {
     includedByDefault: true,
     categoryId: null,
     rulePattern: null,
+    suggestion: null,
     ...overrides,
   };
 }
@@ -165,5 +167,21 @@ describe("lineCategory with a category spread to the label", () => {
       automatic: 0,
       toCategorize: 1,
     });
+  });
+});
+
+describe("pendingSuggestions", () => {
+  it("lists the checked lines still to categorize that have a suggestion", () => {
+    const suggestion = { categoryId: 7, confidencePercent: 72 };
+    const lines = [
+      line({ suggestion }),
+      line({ suggestion, normalizedLabel: "CB Y" }),
+      line({ suggestion, normalizedLabel: "CB Z" }),
+      line(),
+      line({ categoryId: 3 }),
+    ];
+    // Line 1 is unchecked, line 2 already chosen.
+    const chosen = new Map<number, number | null>([[2, 5]]);
+    expect(pendingSuggestions(preview(lines), new Set([0, 2, 3, 4]), chosen)).toEqual([0]);
   });
 });

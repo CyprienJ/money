@@ -25,6 +25,7 @@ import {
   groupPreview,
   lineAmount,
   lineCategory,
+  pendingSuggestions,
   periodText,
 } from "../utils/importPreview";
 
@@ -217,12 +218,25 @@ function categoryHint(index: number): string {
   const category = categoryOf(index);
   if (category === null) return line.categoryId === null ? "Libellé inconnu" : "";
   if (category !== line.categoryId) {
+    if (category === line.suggestion?.categoryId) return "Suggestion acceptée, retenue pour ce libellé";
     return chosen.value.has(index)
       ? "Choisie à la main, retenue pour ce libellé"
       : "Choisie sur une autre ligne de ce libellé";
   }
   if (line.rulePattern !== null) return `Règle « ${line.rulePattern} »`;
   return `Reprise de « ${displayLabel(line.normalizedLabel)} »`;
+}
+
+/** Lines whose suggestion can still be accepted. */
+const suggested = computed(() =>
+  preview.value ? pendingSuggestions(preview.value, selected.value, chosen.value, spread.value) : [],
+);
+
+function acceptSuggestions() {
+  for (const index of suggested.value) {
+    const suggestion = preview.value?.lines[index].suggestion;
+    if (suggestion && categoryOf(index) === null) choose(index, suggestion.categoryId);
+  }
 }
 
 function isInternalTransfer(index: number): boolean {
@@ -449,6 +463,9 @@ onMounted(load);
       <div class="table-title">
         <h2>Nouvelles opérations</h2>
         <span class="muted">Décoche une ligne pour l'exclure</span>
+        <button v-if="suggested.length > 0" type="button" class="btn btn-secondary accept-all" @click="acceptSuggestions">
+          Accepter {{ suggested.length > 1 ? `les ${suggested.length} suggestions` : "la suggestion" }}
+        </button>
       </div>
       <table>
         <thead>
@@ -492,6 +509,17 @@ onMounted(load);
                 :label="`Catégorie de ${line.payeeName}`"
                 @update:model-value="choose(index, $event)"
               />
+              <button
+                v-if="categoryOf(index) === null && line.suggestion"
+                type="button"
+                class="suggestion"
+                :title="'Accepter la catégorie suggérée'"
+                @click="choose(index, line.suggestion.categoryId)"
+              >
+                <span aria-hidden="true">✓</span>
+                Suggestion : {{ categoriesById.get(line.suggestion.categoryId)?.name ?? "?" }}
+                ({{ line.suggestion.confidencePercent }} %)
+              </button>
               <span v-if="isInternalTransfer(index)" class="category-hint">Exclu des statistiques</span>
               <span v-else-if="categoryHint(index)" class="category-hint">{{ categoryHint(index) }}</span>
             </td>
@@ -851,6 +879,30 @@ h1 {
   border-color: transparent;
   background: var(--cat-transport-bg);
   color: var(--cat-transport-fg);
+}
+
+.suggestion {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border: 1px dashed var(--color-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cat-housing-fg);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.suggestion:hover {
+  border-style: solid;
+  background: var(--cat-housing-bg);
+}
+
+.accept-all {
+  margin-left: auto;
 }
 
 .category-hint {

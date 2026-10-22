@@ -91,6 +91,20 @@ export function lineCategory(
   return line.categoryId;
 }
 
+/** Checked lines still to categorize that have a suggested category, in file order. */
+export function pendingSuggestions(
+  preview: ImportPreview,
+  selected: Set<number>,
+  chosen: Map<number, number | null> = new Map(),
+  spread: Map<string, number | null> = new Map(),
+): number[] {
+  return preview.lines.flatMap((line, index) =>
+    selected.has(index) && line.suggestion !== null && lineCategory(line, index, chosen, spread) === null
+      ? [index]
+      : [],
+  );
+}
+
 /**
  * Checked lines categorized automatically (remembered category kept), and those left to
  * categorize.
