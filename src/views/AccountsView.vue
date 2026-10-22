@@ -112,6 +112,13 @@ watch(showArchived, load);
             </strong>
             <span v-else class="amount pending" title="Ajoute une valorisation depuis la fiche du compte">—</span>
           </button>
+          <RouterLink
+            v-if="summary.account.type === 'INVESTMENT'"
+            :to="{ name: 'portfolio', params: { id: summary.account.id } }"
+            class="portfolio-link"
+          >
+            Portefeuille
+          </RouterLink>
         </li>
       </ul>
     </section>
@@ -165,6 +172,25 @@ watch(showArchived, load);
   padding: 0;
   list-style: none;
   font-size: 14px;
+}
+
+.accounts > li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.accounts > li > .account {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+}
+
+.portfolio-link {
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
 }
 
 .account {

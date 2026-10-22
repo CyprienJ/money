@@ -1,0 +1,346 @@
+<script setup lang="ts">
+import { computed, ref, watch } from "vue";
+import { useRoute } from "vue-router";
+import { commands, type Account, type InvestmentTransaction, type Position, type Security } from "../bindings";
+import InvestmentTransactionFormModal from "../components/InvestmentTransactionFormModal.vue";
+import PageHeader from "../components/PageHeader.vue";
+import SecurityFormModal from "../components/SecurityFormModal.vue";
+import { errorMessage, unwrap } from "../utils/commands";
+import { formatAmount, formatDate, todayIso } from "../utils/format";
+import { formatQuantity, kindLabel } from "../utils/portfolio";
+
+const route = useRoute();
+const accountId = computed(() => Number(route.params.id));
+
+const account = ref<Account | null>(null);
+const positions = ref<Position[]>([]);
+const transactions = ref<InvestmentTransaction[]>([]);
+const securities = ref<Security[]>([]);
+const loaded = ref(false);
+const error = ref("");
+
+const transactionModalOpen = ref(false);
+const editedTransaction = ref<InvestmentTransaction | null>(null);
+const securityModalOpen = ref(false);
+const editedSecurity = ref<Security | null>(null);
+
+const totalCost = computed(() => positions.value.reduce((sum, p) => sum + p.costCents, 0));
+const totalDividends = computed(() => positions.value.reduce((sum, p) => sum + p.dividendsCents, 0));
+
+async function load() {
+  error.value = "";
+  try {
+    account.value = await unwrap(commands.getAccount(accountId.value));
+    [positions.value, transactions.value, securities.value] = await Promise.all([
+      unwrap(commands.portfolioPositions(accountId.value, todayIso())),
+      unwrap(commands.listInvestmentTransactions(accountId.value)),
+      unwrap(commands.listSecurities()),
+    ]);
+  } catch (e) {
+    error.value = errorMessage(e);
+  } finally {
+    loaded.value = true;
+  }
+}
+
+function openTransaction(transaction: InvestmentTransaction | null) {
+  editedTransaction.value = transaction;
+  transactionModalOpen.value = true;
+}
+
+function openSecurity(security: Security | null) {
+  editedSecurity.value = security;
+  securityModalOpen.value = true;
+}
+
+async function onTransactionsChanged() {
+  transactionModalOpen.value = false;
+  await load();
+}
+
+async function onSecurityChanged() {
+  securityModalOpen.value = false;
+  securities.value = await unwrap(commands.listSecurities());
+  await load();
+}
+
+/** "+ 12,5 parts", "− 3 parts" or the amount received for a dividend. */
+function movement(transaction: InvestmentTransaction): string {
+  if (transaction.kind === "DIVIDEND") return formatAmount(transaction.amountCents, { signed: true });
+  const sign = transaction.kind === "BUY" ? "+" : "−";
+  const quantity = formatQuantity(transaction.quantityMicro);
+  return `${sign} ${quantity} part${transaction.quantityMicro > 1_000_000 ? "s" : ""}`;
+}
+
+/** Cash moved: paid for a buy (fees included), received for a sell (fees deducted). */
+function cashMoved(transaction: InvestmentTransaction): number {
+  switch (transaction.kind) {
+    case "BUY":
+      return -(transaction.amountCents + transaction.feesCents);
+    case "SELL":
+      return transaction.amountCents - transaction.feesCents;
+    case "DIVIDEND":
+      return transaction.amountCents - transaction.feesCents;
+  }
+}
+
+watch(accountId, load, { immediate: true });
+</script>
+
+<template>
+  <PageHeader :title="account ? `Portefeuille · ${account.name}` : 'Portefeuille'" subtitle="Patrimoine">
+    <template #actions>
+      <RouterLink to="/accounts" class="btn btn-secondary">Comptes</RouterLink>
+      <button
+        type="button"
+        class="btn btn-primary"
+        :disabled="account?.type !== 'INVESTMENT'"
+        @click="openTransaction(null)"
+      >
+        + Mouvement
+      </button>
+    </template>
+  </PageHeader>
+
+  <p v-if="error" class="error-banner">{{ error }}</p>
+
+  <template v-if="loaded && account">
+    <p class="muted intro">
+      Le détail des titres ne change pas encore la valeur du compte : elle reste celle de ses valorisations.
+    </p>
+
+    <section class="card">
+      <div class="card-header">
+        <h2 class="card-title">Positions</h2>
+        <span class="muted">au {{ formatDate(todayIso()) }}</span>
+      </div>
+      <table v-if="positions.length > 0">
+        <thead>
+          <tr>
+            <th scope="col">Titre</th>
+            <th scope="col" class="number">Quantité</th>
+            <th scope="col" class="number">PRU</th>
+            <th scope="col" class="number">Prix de revient</th>
+            <th scope="col" class="number">Dividendes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="position in positions" :key="position.securityId">
+            <td>
+              <span class="name">{{ position.securityName }}</span>
+              <span v-if="position.isin" class="sub">{{ position.isin }}</span>
+            </td>
+            <td class="number">{{ formatQuantity(position.quantityMicro) }}</td>
+            <td class="number">{{ formatAmount(position.unitCostCents) }}</td>
+            <td class="number">{{ formatAmount(position.costCents) }}</td>
+            <td class="number">{{ position.dividendsCents > 0 ? formatAmount(position.dividendsCents) : "—" }}</td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr>
+            <th scope="row" colspan="3">Total</th>
+            <td class="number"><strong>{{ formatAmount(totalCost) }}</strong></td>
+            <td class="number">{{ totalDividends > 0 ? formatAmount(totalDividends) : "—" }}</td>
+          </tr>
+        </tfoot>
+      </table>
+      <p v-else class="muted">
+        Aucun titre détenu. Ajoute tes achats avec « + Mouvement » : le prix de revient se calcule au coût moyen
+        pondéré, frais d'achat inclus.
+      </p>
+    </section>
+
+    <div class="grid">
+      <section class="card">
+        <div class="card-header">
+          <h2 class="card-title">Mouvements</h2>
+          <span class="muted">{{ transactions.length }}</span>
+        </div>
+        <ul v-if="transactions.length > 0" class="list">
+          <li v-for="transaction in transactions" :key="transaction.id">
+            <button type="button" class="row-button" @click="openTransaction(transaction)">
+              <span class="date">{{ formatDate(transaction.date, "day-month") }}</span>
+              <span class="details">
+                <span class="name">{{ kindLabel(transaction.kind) }} · {{ transaction.securityName }}</span>
+                <span class="sub">
+                  {{ movement(transaction) }}
+                  <template v-if="transaction.feesCents > 0"> · frais {{ formatAmount(transaction.feesCents) }}</template>
+                  <template v-if="transaction.note"> · {{ transaction.note }}</template>
+                </span>
+              </span>
+              <strong class="amount" :class="{ positive: cashMoved(transaction) > 0 }">
+                {{ formatAmount(cashMoved(transaction), { signed: true }) }}
+              </strong>
+            </button>
+          </li>
+        </ul>
+        <p v-else class="muted">Aucun mouvement.</p>
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <h2 class="card-title">Titres</h2>
+          <button type="button" class="btn btn-link" @click="openSecurity(null)">+ Nouveau titre</button>
+        </div>
+        <ul v-if="securities.length > 0" class="list">
+          <li v-for="security in securities" :key="security.id">
+            <button type="button" class="row-button" @click="openSecurity(security)">
+              <span class="details">
+                <span class="name">{{ security.name }}</span>
+                <span class="sub">
+                  {{ security.isin ?? "Sans ISIN" }} · {{ security.transactionCount }} mouvement{{
+                    security.transactionCount > 1 ? "s" : ""
+                  }}
+                </span>
+              </span>
+            </button>
+          </li>
+        </ul>
+        <p v-else class="muted">Les titres sont communs à tous les comptes de placement.</p>
+      </section>
+    </div>
+
+    <InvestmentTransactionFormModal
+      :open="transactionModalOpen"
+      :account="account"
+      :securities="securities"
+      :transaction="editedTransaction"
+      @close="transactionModalOpen = false"
+      @changed="onTransactionsChanged"
+      @new-security="openSecurity(null)"
+    />
+    <SecurityFormModal
+      :open="securityModalOpen"
+      :security="editedSecurity"
+      @close="securityModalOpen = false"
+      @changed="onSecurityChanged"
+    />
+  </template>
+</template>
+
+<style scoped>
+.intro {
+  margin-top: -8px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  align-items: start;
+  gap: 16px;
+}
+
+.card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.muted {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+th {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-align: left;
+}
+
+td {
+  padding: 10px;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+tfoot th,
+tfoot td {
+  border-bottom: 0;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.number {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+
+.list > li {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.list > li:last-child {
+  border-bottom: 0;
+}
+
+.row-button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin: -6px -8px;
+  padding: 6px 8px;
+  box-sizing: content-box;
+  border: 0;
+  border-radius: var(--radius-nav);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.row-button:hover {
+  background: var(--color-page);
+}
+
+.date {
+  width: 44px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.details {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.name {
+  display: block;
+  font-weight: 700;
+}
+
+.sub {
+  display: block;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.amount {
+  white-space: nowrap;
+}
+
+.amount.positive {
+  color: var(--color-positive);
+}
+</style>

@@ -4,6 +4,7 @@ import CategoriesView from "./views/CategoriesView.vue";
 import ImportView from "./views/ImportView.vue";
 import OperationsView from "./views/OperationsView.vue";
 import PayeesView from "./views/PayeesView.vue";
+import PortfolioView from "./views/PortfolioView.vue";
 import ScheduleView from "./views/ScheduleView.vue";
 import SettingsView from "./views/SettingsView.vue";
 
@@ -17,6 +18,7 @@ export const router = createRouter({
     { path: "/import", name: "import", component: ImportView },
     { path: "/analyses", name: "analyses", component: () => import("./views/AnalysesView.vue") },
     { path: "/accounts", name: "accounts", component: AccountsView },
+    { path: "/accounts/:id/portfolio", name: "portfolio", component: PortfolioView },
     { path: "/schedule", name: "schedule", component: ScheduleView },
     { path: "/categories", name: "categories", component: CategoriesView },
     { path: "/payees", name: "payees", component: PayeesView },

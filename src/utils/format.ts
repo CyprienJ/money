@@ -9,7 +9,7 @@ const NBSP = " ";
 const THOUSANDS_SEPARATOR = "\u00a0";
 
 /** Groups digits by three. Done by hand: Intl locale data varies between web engines. */
-function groupThousands(value: number): string {
+export function groupThousands(value: number): string {
   return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, THOUSANDS_SEPARATOR);
 }
 
