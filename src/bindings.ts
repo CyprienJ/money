@@ -258,9 +258,10 @@ export const commands = {
 	/**
 	 *  Imports the selected lines of the statement file at `path`, with their categories, then
 	 *  links the certain internal transfers and schedule occurrences of the new operations.
-	 *  `file_hash` comes from the preview and guards against a file changed in between.
+	 *  `file_hash` comes from the preview and guards against a file changed in between;
+	 *  `source_categories` are the categories chosen for the categories of a QIF file.
 	 */
-	importStatement: (path: string, accountId: number, format: ImportFormat, fileHash: string, selections: ImportSelection[]) => typedError<ImportOutcome, AppError>(__TAURI_INVOKE("import_statement", { path, accountId, format, fileHash, selections })),
+	importStatement: (path: string, accountId: number, format: ImportFormat, fileHash: string, selections: ImportSelection[], sourceCategories: SourceCategoryChoice[]) => typedError<ImportOutcome, AppError>(__TAURI_INVOKE("import_statement", { path, accountId, format, fileHash, selections, sourceCategories })),
 	/**  Banks whose PDF statements can be imported. */
 	supportedBanks: () => __TAURI_INVOKE<SupportedBank[]>("supported_banks"),
 	/**  Bank of the PDF statement at `path`, `null` when no parser recognizes it. */
@@ -622,7 +623,7 @@ candidateIds: number[] };
 export type EncryptionError = { code: "wrongPassword" } | { code: "passwordTooShort"; params: number } | { code: "alreadyEncrypted" } | { code: "notEncrypted" };
 
 /**  Business error with its code and parameters, for a message in French on the frontend. */
-export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "rule"; error: RuleError } | { domain: "payee"; error: PayeeError } | { domain: "tag"; error: TagError } | { domain: "attachment"; error: AttachmentError } | { domain: "transfer"; error: TransferError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError } | { domain: "investment"; error: InvestmentError } | { domain: "price"; error: PriceError } | { domain: "currency"; error: CurrencyError } | { domain: "backup"; error: BackupError } | { domain: "encryption"; error: EncryptionError };
+export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "rule"; error: RuleError } | { domain: "payee"; error: PayeeError } | { domain: "tag"; error: TagError } | { domain: "attachment"; error: AttachmentError } | { domain: "transfer"; error: TransferError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError } | { domain: "interchange"; error: InterchangeError } | { domain: "investment"; error: InvestmentError } | { domain: "price"; error: PriceError } | { domain: "currency"; error: CurrencyError } | { domain: "backup"; error: BackupError } | { domain: "encryption"; error: EncryptionError };
 
 /**  Stable identifier the frontend can match on. */
 export type ErrorKind = "database" | "migration" | "io" | 
@@ -690,7 +691,11 @@ export type ImportFormat =
 /**  CSV export read with a saved mapping. */
 { kind: "csv"; mappingId: number } | 
 /**  PDF statement read by the parser of its bank, detected from its content. */
-{ kind: "pdf" };
+{ kind: "pdf" } | 
+/**  OFX file (Money, bank downloads): one bank or card statement. */
+{ kind: "ofx" } | 
+/**  QIF file (Money, Quicken): one bank or card account. */
+{ kind: "qif" };
 
 /**  Result of an import. */
 export type ImportOutcome = {
@@ -721,6 +726,8 @@ export type ImportPreview = {
 	endBalanceCents: number | null,
 	/**  `start balance + Σ lines = end balance`, over every line read. */
 	balanceCheck: BalanceCheck,
+	/**  Categories given by a QIF file (transfers excepted), by name. */
+	sourceCategories: SourceCategory[],
 };
 
 /**  A preview line to import, with the category the user kept or chose. */
@@ -730,6 +737,20 @@ export type ImportSelection = {
 	/**  `None`: to categorize. */
 	categoryId: number | null,
 };
+
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type InterchangeError = { code: "notOfx" } | { code: "notQif" } | { code: "noAccount" } | { code: "severalAccounts"; params: number } | { code: "investmentStatement" } | { code: "invalidDate"; params: {
+	line: number,
+	text: string,
+} } | { code: "invalidAmount"; params: {
+	line: number,
+	text: string,
+} } | { code: "incompleteTransaction"; params: {
+	line: number,
+} } | { code: "currencyMismatch"; params: {
+	file: string,
+	account: string,
+} };
 
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
 export type InvestmentError = { code: "securityNotFound"; params: number } | { code: "transactionNotFound"; params: number } | { code: "emptySecurityName" } | { code: "invalidIsin"; params: string } | { code: "invalidSymbol"; params: string } | { code: "isinTaken"; params: string } | { code: "securityInUse" } | { code: "notAnInvestmentAccount" } | { code: "dateBeforeOpening"; params: string } | { code: "missingQuantity" } | { code: "quantityOnDividend" } | { code: "zeroAmount" } | { code: "oversold"; params: {
@@ -1015,8 +1036,8 @@ export type PreviewLine = {
 	/**  Checked in the preview unless the user unchecks it: new lines only. */
 	includedByDefault: boolean,
 	/**
-	 *  Category given at import: by the first matching rule, or else remembered for this
-	 *  label; `None`: unknown label.
+	 *  Category given at import: by the category of the QIF file, or else by the first
+	 *  matching rule, or else remembered for this label; `None`: unknown label.
 	 */
 	categoryId: number | null,
 	/**  Text of the rule that gave the category; `None` when remembered or unknown. */
@@ -1076,6 +1097,10 @@ export type RawLine = {
 	label: string,
 	/**  Negative for a debit, positive for a credit. */
 	amountCents: number,
+	/**  Memo of an OFX or QIF line, kept as the note of the operation. */
+	note: string | null,
+	/**  Category given by a QIF file, e.g. "Alimentation:Courses"; `[Compte]` for a transfer. */
+	sourceCategory: string | null,
 };
 
 /**  A recurring series suggested as a scheduled operation. */
@@ -1193,7 +1218,27 @@ export type SecurityPrice = {
 	source: PriceSourceKind,
 };
 
-export type SourceType = "CSV" | "PDF";
+/**  A category of the file, in the import preview. */
+export type SourceCategory = {
+	name: string,
+	/**
+	 *  Category of the application its lines get; `None`: categorized by the rules and the
+	 *  memory, as a CSV line.
+	 */
+	categoryId: number | null,
+	/**  The category comes from an earlier choice, not from the name. */
+	remembered: boolean,
+	lineCount: number,
+};
+
+/**  Category chosen in the preview for a category of the file. */
+export type SourceCategoryChoice = {
+	name: string,
+	/**  `None` forgets the earlier choice. */
+	categoryId: number | null,
+};
+
+export type SourceType = "CSV" | "PDF" | "OFX" | "QIF";
 
 /**  Lines kept according to a state column, e.g. only `COMPLETED` operations. */
 export type StateFilter = {

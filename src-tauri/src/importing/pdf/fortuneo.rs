@@ -216,6 +216,8 @@ fn operation(
         value_date,
         label,
         amount_cents,
+        note: None,
+        source_category: None,
     };
     Ok(Some((operation, first.left)))
 }
@@ -324,6 +326,8 @@ mod tests {
                 value_date: Some(date("2025-04-30")),
                 label: "CARTE 28/04 SUSHI PARIS".to_owned(),
                 amount_cents: -1590,
+                note: None,
+                source_category: None,
             }]
         );
         assert_eq!(statement.start_balance_cents, Some(2000));

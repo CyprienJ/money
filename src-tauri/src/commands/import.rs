@@ -9,6 +9,7 @@ use crate::error::{AppError, AppResult};
 use crate::importing::batch::{self, ImportBatch};
 use crate::importing::csv::{self, CsvEncoding};
 use crate::importing::pdf::{self, SupportedBank};
+use crate::importing::source_category::SourceCategoryChoice;
 use crate::importing::statement_import::{
     self, ImportFormat, ImportPreview, ImportSelection, StatementFile,
 };
@@ -81,9 +82,11 @@ pub struct ImportOutcome {
 
 /// Imports the selected lines of the statement file at `path`, with their categories, then
 /// links the certain internal transfers and schedule occurrences of the new operations.
-/// `file_hash` comes from the preview and guards against a file changed in between.
+/// `file_hash` comes from the preview and guards against a file changed in between;
+/// `source_categories` are the categories chosen for the categories of a QIF file.
 #[tauri::command]
 #[specta::specta]
+#[allow(clippy::too_many_arguments, reason = "the arguments of a command")]
 pub async fn import_statement(
     app: AppHandle,
     pool: State<'_, SqlitePool>,
@@ -92,6 +95,7 @@ pub async fn import_statement(
     format: ImportFormat,
     file_hash: String,
     selections: Vec<ImportSelection>,
+    source_categories: Vec<SourceCategoryChoice>,
 ) -> AppResult<ImportOutcome> {
     let bytes = std::fs::read(&path)?;
     let pdfium_dir = pdfium_dir(&app)?;
@@ -102,6 +106,7 @@ pub async fn import_statement(
         file,
         &file_hash,
         &selections,
+        &source_categories,
     )
     .await?;
     let linked_transfers = transfer::link_certain(&pool, Some(batch.id)).await?;

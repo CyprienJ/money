@@ -277,7 +277,7 @@ fn clean_pattern(pattern: &str) -> Result<String, RuleError> {
 }
 
 /// Uppercase text without accents nor repeated spaces, to compare a pattern with a label.
-fn fold(text: &str) -> String {
+pub(crate) fn fold(text: &str) -> String {
     let mut folded = String::with_capacity(text.len());
     for c in text.to_uppercase().chars() {
         match c {

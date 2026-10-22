@@ -19,6 +19,8 @@ fn line(day: &str, label: &str, amount_cents: i64) -> RawLine {
         value_date: None,
         label: label.to_owned(),
         amount_cents,
+        note: None,
+        source_category: None,
     }
 }
 

@@ -21,6 +21,8 @@ fn line(day: &str, amount_cents: i64, label: &str) -> ImportLine {
             value_date: None,
             label: label.to_owned(),
             amount_cents,
+            note: None,
+            source_category: None,
         },
         category_id: None,
         chosen: false,

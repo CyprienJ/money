@@ -1,7 +1,10 @@
 use std::path::PathBuf;
 
+use chrono::NaiveDate;
+
 use super::text::{Segment, TextLine, group_lines};
 use super::*;
+use crate::importing::RawLine;
 
 /// PDFium downloaded by `tools/fetch_pdfium.sh`.
 fn library_dir() -> PathBuf {
@@ -127,6 +130,8 @@ fn raw(day: &str, value_date: Option<&str>, label: &str, amount_cents: i64) -> R
         value_date: value_date.map(date),
         label: label.to_owned(),
         amount_cents,
+        note: None,
+        source_category: None,
     }
 }
 

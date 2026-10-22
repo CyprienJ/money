@@ -193,6 +193,7 @@ fn imports_the_chosen_lines_once() {
             setup.file(),
             &hash,
             &selections,
+            &[],
         )
         .await
         .unwrap();
@@ -236,6 +237,7 @@ fn refuses_invalid_selections() {
                     setup.file(),
                     &hash,
                     &selections,
+                    &[],
                 )
                 .await
             }
@@ -300,6 +302,7 @@ fn proposes_and_applies_remembered_categories() {
             setup.file(),
             &hash,
             &selections,
+            &[],
         )
         .await
         .unwrap();
@@ -425,6 +428,7 @@ fn remembers_categories_chosen_in_the_preview() {
             setup.file(),
             &hash,
             &selections,
+            &[],
         )
         .await
         .unwrap();
@@ -484,6 +488,7 @@ fn previews_and_imports_a_pdf_statement() {
             file,
             &preview.file_hash,
             &selections,
+            &[],
         )
         .await
         .unwrap();
@@ -511,6 +516,154 @@ fn refuses_pdfs_of_unsupported_banks() {
         assert!(matches!(
             preview(&setup.pool, file).await,
             Err(AppError::Pdf(PdfError::UnknownFormat))
+        ));
+    });
+}
+
+const QIF: &str = "!Type:Bank
+D02/09/26
+T-64,28
+PCarrefour
+MCourses de la semaine
+LCourses:Alimentation
+^
+D03/09/26
+T-12,00
+PCinema
+LLoisirs
+^
+D04/09/26
+T-2,50
+PFrais tenue
+LBanque:Frais
+^
+D05/09/26
+T-300,00
+PVirement epargne
+L[Livret A]
+^
+";
+
+fn qif_file(setup: &Setup) -> StatementFile<'static> {
+    StatementFile {
+        file_name: "courant.qif",
+        bytes: QIF.as_bytes(),
+        format: ImportFormat::Qif,
+        ..setup.file()
+    }
+}
+
+#[test]
+fn imports_a_qif_file_with_its_categories() {
+    run(|setup| async move {
+        let categories = category::list(&setup.pool).await.unwrap();
+        let id_of = |name: &str, parent: Option<&str>| {
+            let parent_id = parent.map(|p| {
+                categories
+                    .iter()
+                    .find(|c| c.name == p && c.parent_id.is_none())
+                    .unwrap()
+                    .id
+            });
+            categories
+                .iter()
+                .find(|c| c.name == name && c.parent_id == parent_id)
+                .unwrap()
+                .id
+        };
+        let food = id_of("Alimentation", Some("Courses"));
+        let leisure = id_of("Loisirs", None);
+        let other = id_of("Autres", None);
+        let transfer = categories
+            .iter()
+            .find(|c| c.is_internal_transfer)
+            .unwrap()
+            .id;
+
+        let preview = preview(&setup.pool, qif_file(&setup)).await.unwrap();
+        let found: Vec<(&str, Option<i64>, u32)> = preview
+            .source_categories
+            .iter()
+            .map(|c| (c.name.as_str(), c.category_id, c.line_count))
+            .collect();
+        assert_eq!(
+            found,
+            [
+                ("Banque:Frais", None, 1),
+                ("Courses:Alimentation", Some(food), 1),
+                ("Loisirs", Some(leisure), 1),
+            ]
+        );
+        let proposed: Vec<Option<i64>> = preview.lines.iter().map(|l| l.category_id).collect();
+        assert_eq!(proposed, [Some(food), Some(leisure), None, Some(transfer)]);
+
+        let selections: Vec<ImportSelection> =
+            [Some(food), Some(leisure), Some(other), Some(transfer)]
+                .into_iter()
+                .enumerate()
+                .map(|(index, category_id)| ImportSelection {
+                    index: index as u32,
+                    category_id,
+                })
+                .collect();
+        let choices = [SourceCategoryChoice {
+            name: "Banque:Frais".to_owned(),
+            category_id: Some(other),
+        }];
+        let batch = import(
+            &setup.pool,
+            &setup.backups,
+            qif_file(&setup),
+            &preview.file_hash,
+            &selections,
+            &choices,
+        )
+        .await
+        .unwrap();
+        assert_eq!(batch.source_type, SourceType::Qif);
+        assert_eq!(batch.operation_count, 4);
+
+        let note: Option<String> =
+            sqlx::query_scalar("SELECT note FROM operation WHERE raw_label = 'Carrefour'")
+                .fetch_one(&setup.pool)
+                .await
+                .unwrap();
+        assert_eq!(note.as_deref(), Some("Courses de la semaine"));
+        let transfers: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM operation WHERE is_internal_transfer = 1")
+                .fetch_one(&setup.pool)
+                .await
+                .unwrap();
+        assert_eq!(transfers, 1);
+        // The category given by the file is remembered for the label.
+        let mut conn = setup.pool.acquire().await.unwrap();
+        let remembered = memory::recall(&mut conn, &["CARREFOUR"]).await.unwrap();
+        assert_eq!(remembered.get("CARREFOUR"), Some(&food));
+        drop(conn);
+
+        // The choice is remembered for the next files.
+        let again = super::preview(&setup.pool, qif_file(&setup)).await.unwrap();
+        let fees = &again.source_categories[0];
+        assert_eq!((fees.category_id, fees.remembered), (Some(other), true));
+    });
+}
+
+#[test]
+fn refuses_an_ofx_file_in_another_currency() {
+    run(|setup| async move {
+        let ofx = "<OFX><STMTRS><CURDEF>USD<BANKTRANLIST>\
+                   <STMTTRN><DTPOSTED>20260902<TRNAMT>-1.00<NAME>X</STMTTRN>\
+                   </BANKTRANLIST></STMTRS></OFX>";
+        let file = StatementFile {
+            file_name: "releve.ofx",
+            bytes: ofx.as_bytes(),
+            format: ImportFormat::Ofx,
+            ..setup.file()
+        };
+        assert!(matches!(
+            preview(&setup.pool, file).await,
+            Err(AppError::Interchange(InterchangeError::CurrencyMismatch { file, account }))
+                if file == "USD" && account == "EUR"
         ));
     });
 }

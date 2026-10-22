@@ -160,5 +160,7 @@ fn read_line(
         value_date: None,
         label: label.to_owned(),
         amount_cents,
+        note: None,
+        source_category: None,
     }))
 }

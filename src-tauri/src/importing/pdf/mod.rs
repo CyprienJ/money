@@ -13,24 +13,11 @@ mod trade_republic;
 
 pub use text::{DocumentText, extract};
 
-use chrono::NaiveDate;
 use serde::Serialize;
 use specta::Type;
 
-use super::RawLine;
+pub use super::Statement;
 use crate::error::ErrorKind;
-
-/// What a parser reads from a statement.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Statement {
-    pub lines: Vec<RawLine>,
-    /// Balance before the first line, when the statement gives it.
-    pub start_balance_cents: Option<i64>,
-    /// Balance after the last line, when the statement gives it.
-    pub end_balance_cents: Option<i64>,
-    /// First and last days covered by the statement, when it gives them.
-    pub period: Option<(NaiveDate, NaiveDate)>,
-}
 
 /// A parser for the PDF statements of one bank.
 pub trait StatementParser: Send + Sync {

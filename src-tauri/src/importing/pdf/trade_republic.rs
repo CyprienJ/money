@@ -254,6 +254,8 @@ fn transaction(row: &[&Placed], columns: &Columns) -> Result<(RawLine, i64), Pdf
         value_date: None,
         label,
         amount_cents,
+        note: None,
+        source_category: None,
     };
     Ok((line, balance))
 }

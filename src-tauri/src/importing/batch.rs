@@ -22,6 +22,8 @@ use crate::payee;
 pub enum SourceType {
     Csv,
     Pdf,
+    Ofx,
+    Qif,
 }
 
 /// Result of `start balance + Σ operations = end balance` on the statement.
@@ -219,8 +221,8 @@ pub async fn import(
         let operation_id = sqlx::query!(
             "INSERT INTO operation
              (account_id, date, value_date, amount_cents, raw_label, normalized_label, payee_id,
-              import_batch_id, is_internal_transfer, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)",
+              import_batch_id, is_internal_transfer, note, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?11)",
             batch.account_id,
             line.date,
             line.value_date,
@@ -230,6 +232,7 @@ pub async fn import(
             payee_id,
             batch_id,
             is_internal_transfer,
+            line.note,
             now
         )
         .execute(&mut *tx)

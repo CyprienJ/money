@@ -1,7 +1,7 @@
-//! Statement import workflow, for CSV and PDF files: preview of a file, then import of the
-//! lines the user kept.
+//! Statement import workflow, for CSV, PDF, OFX and QIF files: preview of a file, then import
+//! of the lines the user kept.
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::path::Path;
 
 use chrono::NaiveDate;
@@ -14,12 +14,15 @@ use super::balance::{self, BalanceCheck};
 use super::batch::{self, ImportBatch, ImportError, ImportLine, NewImportBatch, SourceType};
 use super::csv;
 use super::duplicates::{self, DuplicateStatus, ExistingOperation};
+use super::interchange::{InterchangeError, ofx, qif};
 use super::pdf::{self, PdfError};
+use super::source_category::{self, SourceCategory, SourceCategoryChoice};
 use crate::account;
 use crate::error::AppResult;
 use crate::labeling::classifier::{Classifier, Suggestion};
 use crate::labeling::rules::Rules;
 use crate::labeling::{memory, normalize_label};
+use crate::operation::category;
 use crate::payee;
 
 /// A statement line in the import preview.
@@ -36,8 +39,8 @@ pub struct PreviewLine {
     pub before_opening: bool,
     /// Checked in the preview unless the user unchecks it: new lines only.
     pub included_by_default: bool,
-    /// Category given at import: by the first matching rule, or else remembered for this
-    /// label; `None`: unknown label.
+    /// Category given at import: by the category of the QIF file, or else by the first
+    /// matching rule, or else remembered for this label; `None`: unknown label.
     pub category_id: Option<i64>,
     /// Text of the rule that gave the category; `None` when remembered or unknown.
     pub rule_pattern: Option<String>,
@@ -58,6 +61,10 @@ pub enum ImportFormat {
     Csv { mapping_id: i64 },
     /// PDF statement read by the parser of its bank, detected from its content.
     Pdf,
+    /// OFX file (Money, bank downloads): one bank or card statement.
+    Ofx,
+    /// QIF file (Money, Quicken): one bank or card account.
+    Qif,
 }
 
 /// A statement file to import into an account.
@@ -71,6 +78,16 @@ pub struct StatementFile<'a> {
     pub pdfium_dir: &'a Path,
 }
 
+fn from_statement(statement: super::Statement, bank: Option<String>) -> ReadStatement {
+    ReadStatement {
+        lines: statement.lines,
+        bank,
+        start_balance_cents: statement.start_balance_cents,
+        end_balance_cents: statement.end_balance_cents,
+        period: statement.period,
+    }
+}
+
 /// Lines and balances read from a statement file.
 struct ReadStatement {
     lines: Vec<RawLine>,
@@ -81,7 +98,12 @@ struct ReadStatement {
     period: Option<(NaiveDate, NaiveDate)>,
 }
 
-async fn read(pool: &SqlitePool, file: StatementFile<'_>) -> AppResult<ReadStatement> {
+/// Reads the file; an OFX file must be in the currency of the account.
+async fn read(
+    pool: &SqlitePool,
+    file: StatementFile<'_>,
+    currency: &str,
+) -> AppResult<ReadStatement> {
     match file.format {
         ImportFormat::Csv { mapping_id } => {
             let mapping = csv::get(pool, mapping_id).await?;
@@ -97,14 +119,22 @@ async fn read(pool: &SqlitePool, file: StatementFile<'_>) -> AppResult<ReadState
             let document = pdf::extract(file.pdfium_dir, file.bytes)?;
             let parser = pdf::detect(&document).ok_or(PdfError::UnknownFormat)?;
             let statement = parser.parse(&document)?;
-            Ok(ReadStatement {
-                lines: statement.lines,
-                bank: Some(parser.bank().to_owned()),
-                start_balance_cents: statement.start_balance_cents,
-                end_balance_cents: statement.end_balance_cents,
-                period: statement.period,
-            })
+            Ok(from_statement(statement, Some(parser.bank().to_owned())))
         }
+        ImportFormat::Ofx => {
+            let read = ofx::parse(file.bytes)?;
+            if let Some(file_currency) = read.currency
+                && file_currency != currency
+            {
+                return Err(InterchangeError::CurrencyMismatch {
+                    file: file_currency,
+                    account: currency.to_owned(),
+                }
+                .into());
+            }
+            Ok(from_statement(read.statement, None))
+        }
+        ImportFormat::Qif => Ok(from_statement(qif::parse(file.bytes)?, None)),
     }
 }
 
@@ -130,12 +160,14 @@ pub struct ImportPreview {
     pub end_balance_cents: Option<i64>,
     /// `start balance + Σ lines = end balance`, over every line read.
     pub balance_check: BalanceCheck,
+    /// Categories given by a QIF file (transfers excepted), by name.
+    pub source_categories: Vec<SourceCategory>,
 }
 
 /// Reads the statement file and compares its lines with the account.
 pub async fn preview(pool: &SqlitePool, file: StatementFile<'_>) -> AppResult<ImportPreview> {
     let account = account::get(pool, file.account_id).await?;
-    let statement = read(pool, file).await?;
+    let statement = read(pool, file, &account.currency).await?;
     let balance_check = balance::check(
         statement.start_balance_cents,
         &statement.lines,
@@ -160,14 +192,52 @@ pub async fn preview(pool: &SqlitePool, file: StatementFile<'_>) -> AppResult<Im
         .iter()
         .map(|l| normalize_label(&l.label))
         .collect();
-    let (rules, remembered, payee_names) = {
+    let (rules, remembered, payee_names, mappings) = {
         let labels: Vec<&str> = normalized.iter().map(String::as_str).collect();
         let mut conn = pool.acquire().await?;
         (
             Rules::load(&mut conn).await?,
             memory::recall(&mut conn, &labels).await?,
             payee::names_of(&mut conn, &labels).await?,
+            source_category::remembered(&mut conn).await?,
         )
+    };
+
+    // Categories of the file: a remembered choice, or else the category of the same name.
+    let categories = category::list(pool).await?;
+    let internal_transfer = categories
+        .iter()
+        .find(|c| c.is_internal_transfer)
+        .map(|c| c.id);
+    let mut source_categories: BTreeMap<String, SourceCategory> = BTreeMap::new();
+    for name in raw_lines
+        .iter()
+        .filter_map(|l| l.source_category.as_deref())
+    {
+        if source_category::is_transfer(name) {
+            continue;
+        }
+        source_categories
+            .entry(name.to_owned())
+            .or_insert_with(|| {
+                let remembered = mappings.get(name).copied();
+                SourceCategory {
+                    name: name.to_owned(),
+                    category_id: remembered
+                        .or_else(|| source_category::match_by_name(name, &categories)),
+                    remembered: remembered.is_some(),
+                    line_count: 0,
+                }
+            })
+            .line_count += 1;
+    }
+    let source_category_of = |line: &RawLine| -> Option<i64> {
+        let name = line.source_category.as_deref()?;
+        if source_category::is_transfer(name) {
+            internal_transfer
+        } else {
+            source_categories.get(name)?.category_id
+        }
     };
     let lines = raw_lines
         .into_iter()
@@ -175,10 +245,13 @@ pub async fn preview(pool: &SqlitePool, file: StatementFile<'_>) -> AppResult<Im
         .zip(normalized)
         .map(|((line, duplicate), normalized_label)| {
             let before_opening = line.date < account.opening_date;
-            let rule = rules.find(&normalized_label);
+            let from_file = source_category_of(&line);
+            let rule = rules
+                .find(&normalized_label)
+                .filter(|_| from_file.is_none());
             PreviewLine {
-                category_id: rule
-                    .map(|(category_id, _)| category_id)
+                category_id: from_file
+                    .or(rule.map(|(category_id, _)| category_id))
                     .or_else(|| remembered.get(&normalized_label).copied()),
                 rule_pattern: rule.map(|(_, pattern)| pattern.to_owned()),
                 suggestion: None,
@@ -211,6 +284,7 @@ pub async fn preview(pool: &SqlitePool, file: StatementFile<'_>) -> AppResult<Im
         start_balance_cents: statement.start_balance_cents,
         end_balance_cents: statement.end_balance_cents,
         balance_check,
+        source_categories: source_categories.into_values().collect(),
         lines,
         matched_operations: existing
             .into_iter()
@@ -243,13 +317,15 @@ pub struct ImportSelection {
 /// Imports the selected lines as a new batch, after a backup into `backup_dir`. The file is
 /// read again and must not have changed since the preview; exact duplicates and lines dated
 /// before the account opening are refused. A category that differs from the proposed one is
-/// a choice of the user, remembered for the label.
+/// a choice of the user, remembered for the label, as is a category given by a QIF file. The
+/// categories chosen for the categories of a QIF file are remembered for the next imports.
 pub async fn import(
     pool: &SqlitePool,
     backup_dir: &Path,
     file: StatementFile<'_>,
     expected_hash: &str,
     selections: &[ImportSelection],
+    source_choices: &[SourceCategoryChoice],
 ) -> AppResult<ImportBatch> {
     let file_hash = batch::file_hash(file.bytes);
     if file_hash != expected_hash {
@@ -270,14 +346,15 @@ pub async fn import(
         if matches!(line.duplicate, DuplicateStatus::Duplicate { .. }) {
             return Err(ImportError::DuplicateLine(index).into());
         }
+        let from_file = line.line.source_category.is_some();
         lines.push(ImportLine {
             line: line.line.clone(),
             category_id,
-            chosen: category_id.is_some() && category_id != line.category_id,
+            chosen: category_id.is_some() && (from_file || category_id != line.category_id),
         });
     }
 
-    batch::import(
+    let batch = batch::import(
         pool,
         backup_dir,
         NewImportBatch {
@@ -285,6 +362,8 @@ pub async fn import(
             source_type: match file.format {
                 ImportFormat::Csv { .. } => SourceType::Csv,
                 ImportFormat::Pdf => SourceType::Pdf,
+                ImportFormat::Ofx => SourceType::Ofx,
+                ImportFormat::Qif => SourceType::Qif,
             },
             source_file_name: file.file_name.to_owned(),
             source_file_hash: file_hash,
@@ -294,7 +373,9 @@ pub async fn import(
         },
         &lines,
     )
-    .await
+    .await?;
+    source_category::remember(&mut *pool.acquire().await?, source_choices).await?;
+    Ok(batch)
 }
 
 #[cfg(test)]

@@ -51,6 +51,8 @@ mod tests {
                 value_date: None,
                 label: "X".to_owned(),
                 amount_cents,
+                note: None,
+                source_category: None,
             })
             .collect()
     }
