@@ -10,6 +10,7 @@ import {
   type ImportPreview,
   type MappingSuggestion,
   type SavedCsvMapping,
+  type SourceCategory,
   type SupportedBank,
 } from "../bindings";
 import CategoryPicker from "../components/CategoryPicker.vue";
@@ -22,11 +23,13 @@ import {
   balanceGap,
   categoryCounts,
   defaultSelection,
+  fileKind,
   groupPreview,
   lineAmount,
   lineCategory,
   pendingSuggestions,
   periodText,
+  sourceCategoryChoices,
 } from "../utils/importPreview";
 
 type Step = "file" | "preview" | "importing";
@@ -52,6 +55,8 @@ const selected = ref(new Set<number>());
 const chosen = ref(new Map<number, number | null>());
 /** Last category chosen for each normalized label, applied to the other lines of the label. */
 const spread = ref(new Map<string, number | null>());
+/** Categories chosen for the categories of a QIF file, when changed in the preview. */
+const sources = ref(new Map<string, number | null>());
 const busy = ref(false);
 const error = ref("");
 
@@ -73,11 +78,18 @@ const mapping = computed(() => mappings.value.find((m) => m.id === mappingId.val
 const suggestedLines = computed(
   () => new Map(suggestions.value.map((s) => [s.mapping.id, s.lineCount])),
 );
-const isPdf = computed(() => /\.pdf$/i.test(path.value ?? ""));
+const kind = computed(() => fileKind(path.value ?? ""));
+const isPdf = computed(() => kind.value === "pdf");
+/** OFX or QIF: read without a saved format. */
+const isInterchange = computed(() => kind.value === "ofx" || kind.value === "qif");
+/** Short name of the kind of file, in its icon. */
+const kindLabel = computed(() => kind.value.toUpperCase());
 const banksText = computed(() => banks.value.map((b) => b.name).join(", "));
 /** How the chosen file is read: by the parser of its bank, or with a saved CSV format. */
 const format = computed<ImportFormat | null>(() => {
   if (isPdf.value) return detectedBank.value ? { kind: "pdf" } : null;
+  if (kind.value === "ofx") return { kind: "ofx" };
+  if (kind.value === "qif") return { kind: "qif" };
   return mappingId.value === null ? null : { kind: "csv", mappingId: mappingId.value };
 });
 const canPreview = computed(
@@ -91,7 +103,7 @@ const ambiguousCount = computed(
 const categoriesById = computed(() => new Map(categories.value.map((c) => [c.id, c])));
 const counts = computed(() =>
   preview.value
-    ? categoryCounts(preview.value, selected.value, chosen.value, spread.value)
+    ? categoryCounts(preview.value, selected.value, chosen.value, spread.value, sources.value)
     : { automatic: 0, toCategorize: 0 },
 );
 /** No balance mismatch: balances checked, or not available (CSV). */
@@ -120,13 +132,18 @@ async function chooseFile() {
   const chosen = await openDialog({
     multiple: false,
     directory: false,
-    filters: [{ name: "Relevé PDF ou CSV", extensions: ["pdf", "PDF", "csv", "CSV", "txt"] }],
+    filters: [
+      {
+        name: "Relevé PDF, CSV, OFX ou QIF",
+        extensions: ["pdf", "PDF", "csv", "CSV", "txt", "ofx", "OFX", "qfx", "QFX", "qif", "QIF"],
+      },
+    ],
   });
   if (typeof chosen !== "string") return;
   path.value = chosen;
   detectedBank.value = null;
   if (isPdf.value) await detectBank();
-  else await suggest();
+  else if (!isInterchange.value) await suggest();
 }
 
 /** Recognizes the bank of a PDF statement from its content. */
@@ -192,6 +209,7 @@ async function showPreview() {
     selected.value = defaultSelection(preview.value);
     chosen.value = new Map();
     spread.value = new Map();
+    sources.value = new Map();
     step.value = "preview";
   } catch (e) {
     error.value = errorMessage(e);
@@ -202,7 +220,20 @@ async function showPreview() {
 
 function categoryOf(index: number): number | null {
   const current = preview.value;
-  return current ? lineCategory(current.lines[index], index, chosen.value, spread.value) : null;
+  return current ? lineCategory(current.lines[index], index, chosen.value, spread.value, sources.value) : null;
+}
+
+/** Category chosen for a category of the QIF file. */
+function sourceValue(source: SourceCategory): number | null {
+  return sources.value.has(source.name) ? (sources.value.get(source.name) ?? null) : source.categoryId;
+}
+
+/** Chooses the category of a category of the file: its lines not chosen by hand follow. */
+function chooseSource(source: SourceCategory, categoryId: number | null) {
+  const next = new Map(sources.value);
+  if (categoryId === source.categoryId) next.delete(source.name);
+  else next.set(source.name, categoryId);
+  sources.value = next;
 }
 
 /** Chooses the category of a line, and of the other lines of its label not chosen by hand. */
@@ -225,13 +256,19 @@ function categoryHint(index: number): string {
       ? "Choisie à la main, retenue pour ce libellé"
       : "Choisie sur une autre ligne de ce libellé";
   }
+  const source = line.line.sourceCategory;
+  if (source !== null && !chosen.value.has(index) && !spread.value.has(line.normalizedLabel)) {
+    if (source.startsWith("[")) return `Virement avec « ${source.slice(1, -1)} » dans le fichier`;
+    const fileCategory = preview.value?.sourceCategories.find((c) => c.name === source);
+    if (fileCategory && category === sourceValue(fileCategory)) return `Catégorie « ${source} » du fichier`;
+  }
   if (line.rulePattern !== null) return `Règle « ${line.rulePattern} »`;
   return `Reprise de « ${displayLabel(line.normalizedLabel)} »`;
 }
 
 /** Lines whose suggestion can still be accepted. */
 const suggested = computed(() =>
-  preview.value ? pendingSuggestions(preview.value, selected.value, chosen.value, spread.value) : [],
+  preview.value ? pendingSuggestions(preview.value, selected.value, chosen.value, spread.value, sources.value) : [],
 );
 
 function acceptSuggestions() {
@@ -271,8 +308,9 @@ async function runImport() {
         current.fileHash,
         [...selected.value].map((index) => ({
           index,
-          categoryId: lineCategory(current.lines[index], index, chosen.value, spread.value),
+          categoryId: lineCategory(current.lines[index], index, chosen.value, spread.value, sources.value),
         })),
+        sourceCategoryChoices(current, sources.value),
       ),
     );
     const query: Record<string, string> = { account: String(accountId.value) };
@@ -325,10 +363,12 @@ onMounted(load);
 
     <template v-else>
       <div class="file-row">
-        <span class="file-icon" :class="isPdf ? 'pdf' : 'csv'">{{ isPdf ? "PDF" : "CSV" }}</span>
+        <span class="file-icon" :class="isPdf ? 'pdf' : 'csv'">{{ path ? kindLabel : "CSV" }}</span>
         <div class="file-info">
           <span class="file-name">{{ fileName || "Aucun fichier choisi" }}</span>
-          <span class="muted">Relevé PDF ({{ banksText }}) ou export CSV de ta banque.</span>
+          <span class="muted">
+            Relevé PDF ({{ banksText }}), export CSV ou OFX de ta banque, ou export QIF de Microsoft Money.
+          </span>
         </div>
         <button type="button" class="btn btn-secondary" @click="chooseFile">
           {{ path ? "Changer de fichier" : "Choisir un fichier…" }}
@@ -349,6 +389,11 @@ onMounted(load);
           <span v-else class="field-error">
             Ce PDF n'est pas un relevé reconnu. Banques prises en charge : {{ banksText }}.
           </span>
+        </div>
+        <div v-else-if="isInterchange" class="field">
+          Format du fichier
+          <span class="recognized-bank">Format reconnu : {{ kindLabel }}</span>
+          <span class="field-hint">Un seul compte par fichier ; les relevés de placements ne sont pas pris en charge.</span>
         </div>
         <div v-else class="field">
           <label for="mapping">Format du fichier</label>
@@ -390,11 +435,18 @@ onMounted(load);
   <template v-else-if="preview && groups">
     <section class="cards">
       <div class="card file-card">
-        <span class="file-icon" :class="preview.bank ? 'pdf' : 'csv'">{{ preview.bank ? "PDF" : "CSV" }}</span>
+        <span class="file-icon" :class="preview.bank ? 'pdf' : 'csv'">{{ kindLabel }}</span>
         <div class="file-info">
           <span class="file-name">{{ preview.fileName }}</span>
           <span class="muted">
-            {{ preview.bank ? `Format reconnu : ${preview.bank}` : `Format : ${mapping?.name}` }} ·
+            {{
+              preview.bank
+                ? `Format reconnu : ${preview.bank}`
+                : isInterchange
+                  ? `Format : ${kindLabel}`
+                  : `Format : ${mapping?.name}`
+            }}
+            ·
             {{ periodText(preview) }}
           </span>
           <span class="muted">Compte de destination : <strong>{{ account?.name }}</strong></span>
@@ -439,8 +491,43 @@ onMounted(load);
           </svg>
           Soldes non vérifiés
         </div>
-        <span>Un export CSV n'indique pas les soldes du relevé : le contrôle des soldes se fait sur les relevés PDF.</span>
+        <span v-if="preview.endBalanceCents !== null">
+          Le fichier indique un solde final de {{ formatAmount(preview.endBalanceCents, { currency }) }}, mais pas le
+          solde initial : les soldes ne peuvent pas être comparés.
+        </span>
+        <span v-else-if="preview.startBalanceCents !== null">
+          Le fichier commence par un solde d'ouverture de {{ formatAmount(preview.startBalanceCents, { currency }) }},
+          non importé (le compte a son propre solde d'ouverture), mais n'indique pas de solde final.
+        </span>
+        <span v-else>
+          Le fichier n'indique pas les soldes du relevé : le contrôle des soldes se fait sur les relevés PDF.
+        </span>
       </div>
+    </section>
+
+    <section v-if="preview.sourceCategories.length > 0" class="card">
+      <h2 class="card-title">Catégories du fichier</h2>
+      <p class="muted">
+        Chaque catégorie du fichier est associée à une de tes catégories, par son nom ou par ton choix lors d'un
+        import précédent. Choisis pour les autres : tes choix sont retenus pour les prochains fichiers. Sans
+        catégorie, une ligne est catégorisée par tes règles et les libellés connus.
+      </p>
+      <ul class="source-categories">
+        <li v-for="source in preview.sourceCategories" :key="source.name">
+          <span class="source-name">
+            <strong>{{ source.name }}</strong>
+            <span class="muted">
+              {{ operationCount(source.lineCount) }}{{ source.remembered ? " · choix retenu" : "" }}
+            </span>
+          </span>
+          <CategoryPicker
+            :model-value="sourceValue(source)"
+            :categories="categories"
+            :label="`Catégorie pour ${source.name}`"
+            @update:model-value="chooseSource(source, $event)"
+          />
+        </li>
+      </ul>
     </section>
 
     <p v-for="batch in preview.previousImports" :key="batch.id" class="warning-banner">
@@ -813,6 +900,32 @@ h1 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 16px;
+}
+
+.source-categories {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 10px 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.source-categories li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.source-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.source-name .muted {
+  font-size: 12px;
 }
 
 .file-card {

@@ -6,7 +6,9 @@ import {
   ambiguityText,
   balanceGap,
   categoryCounts,
+  fileKind,
   lineCategory,
+  sourceCategoryChoices,
   defaultSelection,
   groupPreview,
   pendingSuggestions,
@@ -15,7 +17,14 @@ import {
 
 function line(overrides: Partial<PreviewLine> = {}): PreviewLine {
   return {
-    line: { date: "2026-09-02", valueDate: null, label: "CB X", amountCents: -420 },
+    line: {
+      date: "2026-09-02",
+      valueDate: null,
+      label: "CB X",
+      amountCents: -420,
+      note: null,
+      sourceCategory: null,
+    },
     normalizedLabel: "CB X",
     payeeName: "Cb X",
     duplicate: { status: "new" },
@@ -41,6 +50,7 @@ function preview(lines: PreviewLine[]): ImportPreview {
     startBalanceCents: null,
     endBalanceCents: null,
     balanceCheck: { status: "NOT_AVAILABLE", linesTotalCents: 0, computedEndCents: null },
+    sourceCategories: [],
   };
 }
 
@@ -183,5 +193,48 @@ describe("pendingSuggestions", () => {
     // Line 1 is unchecked, line 2 already chosen.
     const chosen = new Map<number, number | null>([[2, 5]]);
     expect(pendingSuggestions(preview(lines), new Set([0, 2, 3, 4]), chosen)).toEqual([0]);
+  });
+});
+
+describe("fileKind", () => {
+  it("reads the kind of a file from its extension", () => {
+    expect(fileKind("/home/moi/releve.PDF")).toBe("pdf");
+    expect(fileKind("C:\\export\\courant.qif")).toBe("qif");
+    expect(fileKind("banque.ofx")).toBe("ofx");
+    expect(fileKind("banque.qfx")).toBe("ofx");
+    expect(fileKind("export.csv")).toBe("csv");
+    expect(fileKind("export.txt")).toBe("csv");
+  });
+});
+
+describe("categories of a QIF file", () => {
+  const fromFile = (categoryId: number | null, sourceCategory: string) =>
+    line({
+      categoryId,
+      line: { date: "2026-09-02", valueDate: null, label: "CB X", amountCents: -420, note: null, sourceCategory },
+    });
+
+  it("follow the category chosen for their category of the file, unless chosen by hand", () => {
+    const lines = [fromFile(3, "Alimentation"), fromFile(null, "Banque:Frais")];
+    const sources = new Map([["Banque:Frais", 9]]);
+    expect(lineCategory(lines[0], 0, new Map(), new Map(), sources)).toBe(3);
+    expect(lineCategory(lines[1], 1, new Map(), new Map(), sources)).toBe(9);
+    expect(lineCategory(lines[1], 1, new Map([[1, 4]]), new Map(), sources)).toBe(4);
+
+    const current = {
+      ...preview(lines),
+      sourceCategories: [
+        { name: "Alimentation", categoryId: 3, remembered: false, lineCount: 1 },
+        { name: "Banque:Frais", categoryId: null, remembered: false, lineCount: 1 },
+      ],
+    };
+    expect(sourceCategoryChoices(current, sources)).toEqual([
+      { name: "Alimentation", categoryId: 3 },
+      { name: "Banque:Frais", categoryId: 9 },
+    ]);
+    expect(categoryCounts(current, new Set([0, 1]), new Map(), new Map(), sources)).toEqual({
+      automatic: 2,
+      toCategorize: 0,
+    });
   });
 });

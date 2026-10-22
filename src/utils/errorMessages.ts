@@ -1,4 +1,5 @@
 import type {
+  InterchangeError,
   CurrencyError,
   AccountError,
   AttachmentError,
@@ -265,6 +266,30 @@ function importing(error: ImportError): string {
   return unreachable(error);
 }
 
+function interchange(error: InterchangeError): string {
+  switch (error.code) {
+    case "notOfx":
+      return "Ce fichier n'est pas un fichier OFX.";
+    case "notQif":
+      return "Ce fichier n'est pas un fichier QIF.";
+    case "noAccount":
+      return "Ce fichier ne contient aucun compte bancaire ni carte.";
+    case "severalAccounts":
+      return `Ce fichier contient ${error.params} comptes : exporte un seul compte par fichier.`;
+    case "investmentStatement":
+      return "Les relevés de placements ne peuvent pas être importés : saisis tes mouvements dans le portefeuille.";
+    case "invalidDate":
+      return `Ligne ${error.params.line} : date illisible « ${error.params.text} ».`;
+    case "invalidAmount":
+      return `Ligne ${error.params.line} : montant illisible « ${error.params.text} ».`;
+    case "incompleteTransaction":
+      return `Ligne ${error.params.line} : une opération sans date ou sans montant.`;
+    case "currencyMismatch":
+      return `Le fichier est en ${error.params.file}, mais le compte en ${error.params.account} : choisis un compte de la même devise.`;
+  }
+  return unreachable(error);
+}
+
 function pdf(error: PdfError): string {
   switch (error.code) {
     case "libraryUnavailable":
@@ -402,6 +427,8 @@ export function businessMessage(detail: ErrorDetail): string {
       return importing(detail.error);
     case "pdf":
       return pdf(detail.error);
+    case "interchange":
+      return interchange(detail.error);
     case "investment":
       return investment(detail.error);
     case "price":

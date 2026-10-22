@@ -1,4 +1,4 @@
-import type { ExistingOperation, ImportPreview, PreviewLine } from "../bindings";
+import type { ExistingOperation, ImportPreview, PreviewLine, SourceCategoryChoice } from "../bindings";
 import { formatAmount, formatDate } from "./format";
 
 /** A preview line with its index in the file, the reference used by the import. */
@@ -76,19 +76,45 @@ export function lineAmount(line: PreviewLine, currency?: string): string {
   return formatAmount(line.line.amountCents, { signed: true, currency });
 }
 
+/** How a statement file is read, from its extension. */
+export type FileKind = "pdf" | "ofx" | "qif" | "csv";
+
+export function fileKind(path: string): FileKind {
+  const extension = path.split(".").pop()?.toLowerCase();
+  if (extension === "pdf") return "pdf";
+  if (extension === "ofx" || extension === "qfx") return "ofx";
+  if (extension === "qif") return "qif";
+  return "csv";
+}
+
 /**
  * Category of a line: the one chosen by the user on this line, or else the last one chosen on
- * another line of the same normalized label (`spread`), or else the remembered one.
+ * another line of the same normalized label (`spread`), or else the one chosen in the preview
+ * for its category of the QIF file (`sources`), or else the proposed one.
  */
 export function lineCategory(
   line: PreviewLine,
   index: number,
   chosen: Map<number, number | null>,
   spread: Map<string, number | null> = new Map(),
+  sources: Map<string, number | null> = new Map(),
 ): number | null {
   if (chosen.has(index)) return chosen.get(index) ?? null;
   if (spread.has(line.normalizedLabel)) return spread.get(line.normalizedLabel) ?? null;
+  const source = line.line.sourceCategory;
+  if (source !== null && sources.has(source)) return sources.get(source) ?? null;
   return line.categoryId;
+}
+
+/** Categories to remember for the categories of a QIF file: the ones of the preview, as changed. */
+export function sourceCategoryChoices(
+  preview: ImportPreview,
+  sources: Map<string, number | null>,
+): SourceCategoryChoice[] {
+  return preview.sourceCategories.map(({ name, categoryId }) => ({
+    name,
+    categoryId: sources.has(name) ? (sources.get(name) ?? null) : categoryId,
+  }));
 }
 
 /** Checked lines still to categorize that have a suggested category, in file order. */
@@ -97,9 +123,10 @@ export function pendingSuggestions(
   selected: Set<number>,
   chosen: Map<number, number | null> = new Map(),
   spread: Map<string, number | null> = new Map(),
+  sources: Map<string, number | null> = new Map(),
 ): number[] {
   return preview.lines.flatMap((line, index) =>
-    selected.has(index) && line.suggestion !== null && lineCategory(line, index, chosen, spread) === null
+    selected.has(index) && line.suggestion !== null && lineCategory(line, index, chosen, spread, sources) === null
       ? [index]
       : [],
   );
@@ -114,13 +141,15 @@ export function categoryCounts(
   selected: Set<number>,
   chosen: Map<number, number | null> = new Map(),
   spread: Map<string, number | null> = new Map(),
+  sources: Map<string, number | null> = new Map(),
 ): { automatic: number; toCategorize: number } {
   const counts = { automatic: 0, toCategorize: 0 };
   preview.lines.forEach((line, index) => {
     if (!selected.has(index)) return;
-    const category = lineCategory(line, index, chosen, spread);
+    const category = lineCategory(line, index, chosen, spread, sources);
+    const fromFile = line.line.sourceCategory !== null && !chosen.has(index) && !spread.has(line.normalizedLabel);
     if (category === null) counts.toCategorize++;
-    else if (category === line.categoryId) counts.automatic++;
+    else if (category === line.categoryId || fromFile) counts.automatic++;
   });
   return counts;
 }
