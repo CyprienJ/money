@@ -343,7 +343,7 @@ L'application est une **application de bureau Tauri**. L'interface est écrite e
 - **Moteur web différent selon l'OS** : WebView2 (Chromium) sous Windows, **WebKitGTK** sous Linux. Il faut tester le rendu et les performances d'ECharts sur les deux plateformes dès le début.
 - **Dépendances Linux** : WebKitGTK est déclaré en dépendance du `.deb` / `.rpm` et embarqué dans l'AppImage.
 - **Permissions Tauri 2** : chaque commande et chaque accès fichier doit être autorisé explicitement dans `src-tauri/capabilities/`.
-- **Emplacement des données** : `app_data_dir()` de Tauri, c'est-à-dire `%APPDATA%\<app>` sous Windows et `~/.local/share/<app>` sous Linux. Les sauvegardes automatiques sont rangées dans un sous-dossier `backups/`, les pièces jointes dans `attachments/`.
+- **Emplacement des données** : `app_data_dir()` de Tauri, c'est-à-dire `%APPDATA%\<app>` sous Windows et `~/.local/share/<app>` sous Linux. Les sauvegardes automatiques sont rangées dans un sous-dossier `backups/`, les pièces jointes dans `attachments/`. En build debug (`tauri dev`), les données sont dans le dossier voisin `fr.cyprien.money-dev`, pour ne jamais toucher aux données de l'application installée sur la machine de développement *(décision du 26/10/2026)*.
 - **Fichier de données** : `money.sqlite` (identifiant d'application `fr.cyprien.money`). SQLite reste dans son mode de journal par défaut, pas en WAL : le fichier est ainsi autonome et une simple copie suffit pour la sauvegarde avant import.
 - **Chiffrement (V2)** : passer à SQLCipher (sqlx / libsqlite3-sys avec la fonctionnalité correspondante) sans impact sur le reste du code.
 
