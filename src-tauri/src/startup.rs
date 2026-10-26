@@ -2,6 +2,8 @@
 //! encrypted one. Until then, the pool is not managed and the frontend shows the unlock
 //! screen.
 
+use std::path::PathBuf;
+
 use sqlx::SqlitePool;
 use tauri::{AppHandle, Manager};
 
@@ -10,12 +12,24 @@ use crate::importing::source_document::STATEMENTS_DIR;
 use crate::labeling::classifier::ClassifierCache;
 use crate::{attachment, backup, importing, investment, labeling, payee};
 
-/// Prepares the open data file, hands the pool to Tauri and starts the background tasks.
-pub async fn start(app: &AppHandle, pool: SqlitePool) -> AppResult<()> {
-    let data_dir = app
+/// Application data directory: `app_data_dir()` of Tauri, or its `-dev` sibling in debug
+/// builds so that development never touches the data of the installed application.
+pub fn data_dir(app: &AppHandle) -> AppResult<PathBuf> {
+    let dir = app
         .path()
         .app_data_dir()
         .map_err(|error| AppError::Io(std::io::Error::other(error)))?;
+    if cfg!(debug_assertions) {
+        let mut name = dir.file_name().unwrap_or_default().to_os_string();
+        name.push("-dev");
+        return Ok(dir.with_file_name(name));
+    }
+    Ok(dir)
+}
+
+/// Prepares the open data file, hands the pool to Tauri and starts the background tasks.
+pub async fn start(app: &AppHandle, pool: SqlitePool) -> AppResult<()> {
+    let data_dir = data_dir(app)?;
     // Applies label normalization changes to existing operations.
     labeling::renormalize_all(&pool).await?;
     // Gives a payee to operations recorded before payees existed.

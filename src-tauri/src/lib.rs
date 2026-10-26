@@ -31,7 +31,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(builder.invoke_handler())
         .setup(|app| {
-            let data_dir = app.path().app_data_dir()?;
+            let data_dir = startup::data_dir(app.handle())?;
             std::fs::create_dir_all(&data_dir)?;
             // A restore chosen in the settings replaces the files before they are opened.
             if let Err(error) = backup::apply_pending_restore(&data_dir) {

@@ -2,10 +2,10 @@ use std::path::PathBuf;
 
 use serde::Serialize;
 use specta::Type;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 use crate::db::DATA_FILE_NAME;
-use crate::error::{AppError, AppResult};
+use crate::error::AppResult;
 use crate::importing::batch;
 
 /// Version of the application, as declared in `tauri.conf.json`.
@@ -37,11 +37,9 @@ pub fn data_location(app: AppHandle) -> AppResult<DataLocation> {
     })
 }
 
-/// `app_data_dir()` of Tauri (README, data location).
+/// Application data directory (README, data location).
 pub(super) fn data_dir(app: &AppHandle) -> AppResult<PathBuf> {
-    app.path()
-        .app_data_dir()
-        .map_err(|error| AppError::Io(std::io::Error::other(error)))
+    crate::startup::data_dir(app)
 }
 
 /// `backups/` in the application data directory.
