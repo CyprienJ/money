@@ -21,6 +21,10 @@ import {
   gainBasisPoints,
   kindLabel,
   priceUpdateLines,
+  sortPositions,
+  toggledPositionSort,
+  type PositionSort,
+  type PositionSortKey,
 } from "../utils/portfolio";
 
 const route = useRoute();
@@ -43,6 +47,24 @@ const transactionModalOpen = ref(false);
 const editedTransaction = ref<InvestmentTransaction | null>(null);
 const securityModalOpen = ref(false);
 const editedSecurity = ref<Security | null>(null);
+
+const positionSort = ref<PositionSort>({ key: "name", descending: false });
+const sortedPositions = computed(() => sortPositions(positions.value, positionSort.value));
+const POSITION_COLUMNS: { key: PositionSortKey; label: string }[] = [
+  { key: "name", label: "Titre" },
+  { key: "quantity", label: "Quantité" },
+  { key: "unitCost", label: "PRU" },
+  { key: "cost", label: "Prix de revient" },
+  { key: "lastPrice", label: "Dernier cours" },
+  { key: "marketValue", label: "Valeur" },
+  { key: "unrealized", label: "Plus-value latente" },
+  { key: "dividends", label: "Dividendes" },
+];
+
+function ariaSort(key: PositionSortKey): "ascending" | "descending" | "none" {
+  if (positionSort.value.key !== key) return "none";
+  return positionSort.value.descending ? "descending" : "ascending";
+}
 
 const totalCost = computed(() => positions.value.reduce((sum, p) => sum + p.costCents, 0));
 const totalValue = computed(() => positions.value.reduce((sum, p) => sum + p.marketValueCents, 0));
@@ -245,18 +267,27 @@ watch(accountId, load, { immediate: true });
       <table>
         <thead>
           <tr>
-            <th scope="col">Titre</th>
-            <th scope="col" class="number">Quantité</th>
-            <th scope="col" class="number">PRU</th>
-            <th scope="col" class="number">Prix de revient</th>
-            <th scope="col" class="number">Dernier cours</th>
-            <th scope="col" class="number">Valeur</th>
-            <th scope="col" class="number">Plus-value latente</th>
-            <th scope="col" class="number">Dividendes</th>
+            <th
+              v-for="column in POSITION_COLUMNS"
+              :key="column.key"
+              scope="col"
+              :class="{ number: column.key !== 'name' }"
+              :aria-sort="ariaSort(column.key)"
+            >
+              <button
+                type="button"
+                class="sort-button"
+                :class="{ active: positionSort.key === column.key }"
+                @click="positionSort = toggledPositionSort(positionSort, column.key)"
+              >
+                {{ column.label }}
+                <span class="sort-arrow" aria-hidden="true">{{ ariaSort(column.key) === "ascending" ? "▲" : "▼" }}</span>
+              </button>
+            </th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="position in positions" :key="position.securityId">
+          <tr v-for="position in sortedPositions" :key="position.securityId">
             <td>
               <span class="name">{{ position.securityName }}</span>
               <span v-if="position.isin" class="sub">{{ position.isin }}</span>
@@ -482,6 +513,33 @@ tfoot td {
 .number {
   text-align: right;
   white-space: nowrap;
+}
+
+.sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sort-button:hover,
+.sort-button.active {
+  color: var(--color-text);
+}
+
+.sort-arrow {
+  font-size: 9px;
+  visibility: hidden;
+}
+
+.sort-button.active .sort-arrow {
+  visibility: visible;
 }
 
 .list {

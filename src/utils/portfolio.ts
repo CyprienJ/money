@@ -1,4 +1,4 @@
-import type { PriceUpdate, TransactionKind } from "../bindings";
+import type { Position, PriceUpdate, TransactionKind } from "../bindings";
 import { priceMessage } from "./errorMessages";
 import { groupThousands } from "./format";
 
@@ -70,4 +70,59 @@ export function gainBasisPoints(gainCents: number, costCents: number): number | 
   const doubled = gain * 20_000n;
   const rounded = doubled >= 0n ? (doubled + cost) / (2n * cost) : (doubled - cost) / (2n * cost);
   return Number(rounded);
+}
+
+/** Column the positions table can be sorted on. */
+export type PositionSortKey =
+  | "name"
+  | "quantity"
+  | "unitCost"
+  | "cost"
+  | "lastPrice"
+  | "marketValue"
+  | "unrealized"
+  | "dividends";
+
+export interface PositionSort {
+  key: PositionSortKey;
+  descending: boolean;
+}
+
+/** Value compared for a column; `null` for a position without a price, kept last. */
+function positionSortValue(position: Position, key: PositionSortKey): number | string | null {
+  switch (key) {
+    case "name":
+      return position.securityName;
+    case "quantity":
+      return position.quantityMicro;
+    case "unitCost":
+      return position.unitCostCents;
+    case "cost":
+      return position.costCents;
+    case "lastPrice":
+      return position.lastPrice?.priceCents ?? null;
+    case "marketValue":
+      return position.marketValueCents;
+    case "unrealized":
+      return position.lastPrice ? position.unrealizedCents : null;
+    case "dividends":
+      return position.dividendsCents;
+  }
+}
+
+/** Positions sorted on a column, names in French order; ties keep the order by name. */
+export function sortPositions(positions: Position[], sort: PositionSort): Position[] {
+  const byName = (a: Position, b: Position) => a.securityName.localeCompare(b.securityName, "fr");
+  return [...positions].sort((a, b) => {
+    const [x, y] = [positionSortValue(a, sort.key), positionSortValue(b, sort.key)];
+    if (x === null || y === null) return x === y ? byName(a, b) : x === null ? 1 : -1;
+    const order = typeof x === "string" ? byName(a, b) : (x as number) - (y as number);
+    return (sort.descending ? -order : order) || byName(a, b);
+  });
+}
+
+/** Sort after a click on a column: the other direction on the same column, else its natural one. */
+export function toggledPositionSort(current: PositionSort, key: PositionSortKey): PositionSort {
+  if (current.key === key) return { key, descending: !current.descending };
+  return { key, descending: key !== "name" };
 }

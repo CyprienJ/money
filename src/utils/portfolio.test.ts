@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { Position } from "../bindings";
 import {
   formatBasisPoints,
   formatQuantity,
@@ -6,6 +7,8 @@ import {
   gainBasisPoints,
   parseQuantity,
   priceUpdateLines,
+  sortPositions,
+  toggledPositionSort,
   unitPriceCents,
 } from "./portfolio";
 
@@ -66,5 +69,70 @@ describe("gainBasisPoints", () => {
     expect(gainBasisPoints(20_000, 100_000)).toBe(2_000);
     expect(gainBasisPoints(-1, 3_000)).toBe(-3);
     expect(gainBasisPoints(100, 0)).toBeNull();
+  });
+});
+
+function position(name: string, unrealizedCents: number, priced = true): Position {
+  return {
+    securityId: name.length,
+    securityName: name,
+    isin: null,
+    quantityMicro: 1_000_000,
+    costCents: 10_000,
+    unitCostCents: 10_000,
+    dividendsCents: 0,
+    lastPrice: priced ? { date: "2026-10-26", priceCents: 10_000 + unrealizedCents } : null,
+    currency: "EUR",
+    marketValueCents: 10_000 + unrealizedCents,
+    unrealizedCents: priced ? unrealizedCents : 0,
+  };
+}
+
+describe("sortPositions", () => {
+  const positions = [position("Thales", 500), position("Accor", -200), position("Engie", 0, false), position("Écureuil", 900)];
+  const names = (sorted: Position[]) => sorted.map((p) => p.securityName);
+
+  it("sorts names in French order", () => {
+    expect(names(sortPositions(positions, { key: "name", descending: false }))).toEqual([
+      "Accor",
+      "Écureuil",
+      "Engie",
+      "Thales",
+    ]);
+  });
+
+  it("sorts amounts both ways, positions without a price last", () => {
+    expect(names(sortPositions(positions, { key: "unrealized", descending: true }))).toEqual([
+      "Écureuil",
+      "Thales",
+      "Accor",
+      "Engie",
+    ]);
+    expect(names(sortPositions(positions, { key: "unrealized", descending: false }))).toEqual([
+      "Accor",
+      "Thales",
+      "Écureuil",
+      "Engie",
+    ]);
+  });
+
+  it("breaks ties by name", () => {
+    expect(names(sortPositions(positions, { key: "quantity", descending: true }))).toEqual([
+      "Accor",
+      "Écureuil",
+      "Engie",
+      "Thales",
+    ]);
+  });
+});
+
+describe("toggledPositionSort", () => {
+  it("reverses the same column, starts amounts from the largest", () => {
+    expect(toggledPositionSort({ key: "cost", descending: true }, "cost")).toEqual({ key: "cost", descending: false });
+    expect(toggledPositionSort({ key: "cost", descending: true }, "name")).toEqual({ key: "name", descending: false });
+    expect(toggledPositionSort({ key: "name", descending: false }, "dividends")).toEqual({
+      key: "dividends",
+      descending: true,
+    });
   });
 });
