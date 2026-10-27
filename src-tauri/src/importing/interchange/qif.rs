@@ -192,7 +192,9 @@ pub fn parse(bytes: &[u8]) -> Result<Statement, InterchangeError> {
             (None, Some(memo)) => (memo, None),
             // Money exports transfers without payee: their category ("[Livret A]") names them.
             (None, None) => (
-                source_category.clone().unwrap_or_else(|| "Sans libellé".to_owned()),
+                source_category
+                    .clone()
+                    .unwrap_or_else(|| "Sans libellé".to_owned()),
                 None,
             ),
         };
