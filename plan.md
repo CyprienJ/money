@@ -449,11 +449,11 @@ Décisions du 22/10/2026 : un dossier par sauvegarde (données et pièces jointe
 
 #### V2-21 · Corrections de l'audit du 27/10/2026 — M
 - [x] Import QIF : une ligne sans tiers ni mémo (virement Money `L[Livret A]`) prend sa catégorie comme libellé, sinon « Sans libellé », au lieu de faire échouer tout l'import.
-- [ ] Modifier la note, les tags ou la date de valeur d'une opération ne réécrit plus la mémoire des libellés : `write_category` seulement si la catégorie change.
-- [ ] Import des mouvements titres : un import refusé supprime aussi les titres qu'il a créés.
-- [ ] Compteur des sauvegardes avant import : réutiliser `backup::backups_in` au lieu de `batch::backup_count`.
-- [ ] Une seule requête `ImportBatch` pour `get`, `list` et `find_by_hash`.
-- [ ] Recalcul des libellés normalisés au démarrage seulement quand la normalisation change (version dans `app_setting`).
+- [x] Modifier la note, les tags ou la date de valeur d'une opération ne réécrit plus la mémoire des libellés : `write_category` seulement si la catégorie change.
+- [x] Import des mouvements titres : un import refusé supprime aussi les titres qu'il a créés.
+- [x] Compteur des sauvegardes avant import : réutiliser `backup::backups_in` au lieu de `batch::backup_count`.
+- [x] Une seule requête `ImportBatch` pour `get`, `list` et `find_by_hash`.
+- [x] Recalcul des libellés normalisés au démarrage une fois par version de l'application (toujours en debug).
 
 ---
 
