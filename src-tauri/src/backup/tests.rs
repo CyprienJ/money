@@ -159,7 +159,8 @@ fn restores_a_full_backup_at_the_next_start() {
         temp.write("money.sqlite", "current data");
         temp.write("money.sqlite-journal", "journal");
         temp.write("attachments/2-new.pdf", "new");
-        let source = temp.0.join("backups/complete-20261001-090000");
+        // Joined part by part: the path must be written as `list` writes it, on Windows too.
+        let source = temp.0.join("backups").join("complete-20261001-090000");
 
         assert!(matches!(
             schedule_restore(&pool, &dirs, "/etc/passwd").await,
