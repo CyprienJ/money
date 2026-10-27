@@ -238,10 +238,13 @@ pub async fn import(
     .await?
     .last_insert_rowid();
     if let Err(error) = transactions::create_many(pool, file.account_id, batch_id, &inputs).await {
-        // Nothing was recorded: the batch goes, and its file with it.
+        // Nothing was recorded: the batch and the securities it created go, and its file too.
         sqlx::query!("DELETE FROM import_batch WHERE id = ?1", batch_id)
             .execute(pool)
             .await?;
+        for &security_id in created.values() {
+            securities::delete(pool, security_id).await?;
+        }
         source_document::sweep(pool, statements_dir).await?;
         return Err(error);
     }

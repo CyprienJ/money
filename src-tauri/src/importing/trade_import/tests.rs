@@ -192,3 +192,39 @@ fn imports_trades_into_investment_accounts_only() {
         ));
     });
 }
+
+#[test]
+fn a_refused_import_removes_the_securities_it_created() {
+    tauri::async_runtime::block_on(async {
+        let pool = memory_pool().await;
+        let pea = new_account(&pool, AccountType::Investment).await;
+        let bytes = statement();
+        let pdfium = library_dir();
+        let file = TradeFile {
+            account_id: pea,
+            file_name: "releve.pdf",
+            bytes: &bytes,
+            pdfium_dir: &pdfium,
+        };
+        let preview = preview(&pool, file).await.unwrap();
+        // Opened after every trade: recording them fails once the securities are created.
+        sqlx::query("UPDATE account SET opening_date = '2026-12-31' WHERE id = ?1")
+            .bind(pea)
+            .execute(&pool)
+            .await
+            .unwrap();
+        let statements = std::env::temp_dir().join(format!(
+            "money-trade-refused-test-statements-{}",
+            std::process::id()
+        ));
+        let all: Vec<u32> = (0..preview.lines.len() as u32).collect();
+        let backups = std::env::temp_dir().join("money-trade-import-test-backups");
+        assert!(
+            import(&pool, &backups, &statements, file, &preview.file_hash, &all)
+                .await
+                .is_err()
+        );
+        assert!(securities::list(&pool).await.unwrap().is_empty());
+        let _ = std::fs::remove_dir_all(&statements);
+    });
+}
