@@ -473,7 +473,7 @@ fn editing_the_note_keeps_the_remembered_category() {
         let operation = set_category(&pool, id, Some(old_category)).await.unwrap();
         let new_category = internal_transfer_category(&pool).await;
         crate::labeling::memory::remember(
-            &mut *pool.acquire().await.unwrap(),
+            &mut pool.acquire().await.unwrap(),
             "CARREFOUR MKT",
             Some(new_category),
             "2026-10-20T00:00:00Z",
