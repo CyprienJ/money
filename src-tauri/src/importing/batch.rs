@@ -259,47 +259,27 @@ pub async fn cancel(pool: &SqlitePool, statements_dir: &Path, id: i64) -> AppRes
 }
 
 pub async fn get(pool: &SqlitePool, id: i64) -> AppResult<ImportBatch> {
-    let batch = sqlx::query_as!(
-        ImportBatch,
-        r#"SELECT b.id AS "id!", b.account_id, b.source_type AS "source_type: SourceType",
-                  b.source_file_name, b.source_file_hash,
-                  b.imported_at AS "imported_at: DateTime<Utc>",
-                  b.statement_start_balance_cents, b.statement_end_balance_cents,
-                  b.balance_check_status AS "balance_check_status: BalanceCheckStatus",
-                  (SELECT COUNT(*) FROM operation o WHERE o.import_batch_id = b.id)
-                      AS "operation_count!: i64"
-           FROM import_batch b
-           WHERE b.id = ?1"#,
-        id
-    )
-    .fetch_optional(pool)
-    .await?;
+    let batch = select(pool, Some(id), None, None).await?.pop();
     Ok(batch.ok_or(ImportError::NotFound(id))?)
 }
 
 /// Imports of an account, most recent first.
 pub async fn list(pool: &SqlitePool, account_id: i64) -> AppResult<Vec<ImportBatch>> {
-    let batches = sqlx::query_as!(
-        ImportBatch,
-        r#"SELECT b.id AS "id!", b.account_id, b.source_type AS "source_type: SourceType",
-                  b.source_file_name, b.source_file_hash,
-                  b.imported_at AS "imported_at: DateTime<Utc>",
-                  b.statement_start_balance_cents, b.statement_end_balance_cents,
-                  b.balance_check_status AS "balance_check_status: BalanceCheckStatus",
-                  (SELECT COUNT(*) FROM operation o WHERE o.import_batch_id = b.id)
-                      AS "operation_count!: i64"
-           FROM import_batch b
-           WHERE b.account_id = ?1
-           ORDER BY b.imported_at DESC, b.id DESC"#,
-        account_id
-    )
-    .fetch_all(pool)
-    .await?;
-    Ok(batches)
+    select(pool, None, Some(account_id), None).await
 }
 
 /// Imports of the same file, in any account, most recent first.
 pub async fn find_by_hash(pool: &SqlitePool, hash: &str) -> AppResult<Vec<ImportBatch>> {
+    select(pool, None, None, Some(hash)).await
+}
+
+/// Imports matching every filter given, most recent first.
+async fn select(
+    pool: &SqlitePool,
+    id: Option<i64>,
+    account_id: Option<i64>,
+    hash: Option<&str>,
+) -> AppResult<Vec<ImportBatch>> {
     let batches = sqlx::query_as!(
         ImportBatch,
         r#"SELECT b.id AS "id!", b.account_id, b.source_type AS "source_type: SourceType",
@@ -310,8 +290,12 @@ pub async fn find_by_hash(pool: &SqlitePool, hash: &str) -> AppResult<Vec<Import
                   (SELECT COUNT(*) FROM operation o WHERE o.import_batch_id = b.id)
                       AS "operation_count!: i64"
            FROM import_batch b
-           WHERE b.source_file_hash = ?1
+           WHERE (?1 IS NULL OR b.id = ?1)
+             AND (?2 IS NULL OR b.account_id = ?2)
+             AND (?3 IS NULL OR b.source_file_hash = ?3)
            ORDER BY b.imported_at DESC, b.id DESC"#,
+        id,
+        account_id,
         hash
     )
     .fetch_all(pool)

@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT b.id AS \"id!\", b.account_id, b.source_type AS \"source_type: SourceType\",\n                  b.source_file_name, b.source_file_hash,\n                  b.imported_at AS \"imported_at: DateTime<Utc>\",\n                  b.statement_start_balance_cents, b.statement_end_balance_cents,\n                  b.balance_check_status AS \"balance_check_status: BalanceCheckStatus\",\n                  (SELECT COUNT(*) FROM operation o WHERE o.import_batch_id = b.id)\n                      AS \"operation_count!: i64\"\n           FROM import_batch b\n           WHERE b.account_id = ?1\n           ORDER BY b.imported_at DESC, b.id DESC",
+  "query": "SELECT b.id AS \"id!\", b.account_id, b.source_type AS \"source_type: SourceType\",\n                  b.source_file_name, b.source_file_hash,\n                  b.imported_at AS \"imported_at: DateTime<Utc>\",\n                  b.statement_start_balance_cents, b.statement_end_balance_cents,\n                  b.balance_check_status AS \"balance_check_status: BalanceCheckStatus\",\n                  (SELECT COUNT(*) FROM operation o WHERE o.import_batch_id = b.id)\n                      AS \"operation_count!: i64\"\n           FROM import_batch b\n           WHERE (?1 IS NULL OR b.id = ?1)\n             AND (?2 IS NULL OR b.account_id = ?2)\n             AND (?3 IS NULL OR b.source_file_hash = ?3)\n           ORDER BY b.imported_at DESC, b.id DESC",
   "describe": {
     "columns": [
       {
@@ -110,7 +110,7 @@
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 3
     },
     "nullable": [
       false,
@@ -125,5 +125,5 @@
       false
     ]
   },
-  "hash": "c957d3947b034d262c7c3dbc9eed2ac76d6b6e7c2f0509a77c5f7bc22f819bc7"
+  "hash": "900fb0b6992e2f26488ffda8adccdb61f017c8fb29cfd31359d16fd916933895"
 }
