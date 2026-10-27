@@ -118,7 +118,10 @@ pub async fn update(pool: &SqlitePool, id: i64, changes: OperationUpdate) -> App
         .await?;
     }
 
-    write_category(&mut tx, id, changes.category_id, &now).await?;
+    // Only a new category is a categorization by the user, remembered for the label.
+    if changes.category_id != current.category_id {
+        write_category(&mut tx, id, changes.category_id, &now).await?;
+    }
     tag::set_for_operation(&mut tx, id, &changes.tags).await?;
     let operation = fetch(&mut tx, id).await?;
     tx.commit().await?;
