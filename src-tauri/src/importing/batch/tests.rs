@@ -21,6 +21,10 @@ fn line(day: &str, amount_cents: i64, label: &str) -> ImportLine {
             value_date: None,
             label: label.to_owned(),
             amount_cents,
+            note: None,
+            source_category: None,
+            source_page: None,
+            source_line: None,
         },
         category_id: None,
         chosen: false,
@@ -81,6 +85,7 @@ async fn new_account(pool: &SqlitePool, account_type: AccountType) -> i64 {
         NewAccount {
             name: format!("{account_type:?}"),
             account_type,
+            currency: "EUR".to_owned(),
             institution: None,
             opening_balance_cents: 0,
             opening_date: date("2026-09-01"),
@@ -100,6 +105,7 @@ fn csv_batch(account_id: i64, hash: &str) -> NewImportBatch {
         statement_start_balance_cents: None,
         statement_end_balance_cents: None,
         balance_check_status: BalanceCheckStatus::NotAvailable,
+        stored_file: None,
     }
 }
 
@@ -193,13 +199,13 @@ fn backs_up_the_data_before_inserting() {
 fn backup_names_do_not_collide() {
     run_on_file(|pool, dir| async move {
         let backups = TempDir(dir.0.join("backups"));
-        assert_eq!(backup_count(&backups.0).unwrap(), 0);
+        assert_eq!(crate::backup::import_count(&backups.0), 0);
         let first = backup(&pool, &backups.0).await.unwrap();
         let second = backup(&pool, &backups.0).await.unwrap();
         assert_ne!(first, second);
         assert_eq!(backups.files().len(), 2);
         std::fs::write(backups.0.join("notes.txt"), "not a backup").unwrap();
-        assert_eq!(backup_count(&backups.0).unwrap(), 2);
+        assert_eq!(crate::backup::import_count(&backups.0), 2);
     });
 }
 
@@ -263,6 +269,8 @@ fn cancelling_removes_the_whole_batch_only() {
                 amount_cents: -1000,
                 label: "Manuel".to_owned(),
                 category_id: None,
+                note: None,
+                tags: Vec::new(),
             },
         )
         .await
@@ -284,7 +292,9 @@ fn cancelling_removes_the_whole_batch_only() {
         .await
         .unwrap();
 
-        cancel(&pool, cancelled.id).await.unwrap();
+        cancel(&pool, Path::new("/nonexistent/statements"), cancelled.id)
+            .await
+            .unwrap();
 
         let ids: Vec<i64> = operation::list(&pool, account_id, None, None)
             .await
@@ -298,7 +308,7 @@ fn cancelling_removes_the_whole_batch_only() {
         assert_eq!(list(&pool, account_id).await.unwrap(), vec![kept]);
 
         assert!(matches!(
-            cancel(&pool, cancelled.id).await,
+            cancel(&pool, Path::new("/nonexistent/statements"), cancelled.id).await,
             Err(AppError::Import(ImportError::NotFound(_)))
         ));
     });

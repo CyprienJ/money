@@ -6,11 +6,20 @@ use tauri_specta::{Builder, collect_commands};
 use crate::error::AppError;
 
 mod account;
+mod alert;
 mod app;
+mod attachment;
+mod backup;
 mod csv_mapping;
+mod currency;
+mod encryption;
 mod import;
+mod investment;
 mod operation;
+mod payee;
+mod source_document;
 mod stats;
+mod tag;
 
 /// Path of the generated TypeScript bindings (`src/bindings.ts`).
 const BINDINGS_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../src/bindings.ts");
@@ -32,7 +41,50 @@ pub fn builder() -> Builder<tauri::Wry> {
             account::create_valuation,
             account::update_valuation,
             account::delete_valuation,
-            operation::list_operations,
+            investment::list_securities,
+            investment::create_security,
+            investment::update_security,
+            investment::delete_security,
+            investment::list_investment_transactions,
+            investment::create_investment_transaction,
+            investment::update_investment_transaction,
+            investment::delete_investment_transaction,
+            investment::portfolio_positions,
+            investment::portfolio_performance,
+            investment::price_settings,
+            investment::set_price_updates_enabled,
+            investment::update_security_prices,
+            investment::search_security_symbols,
+            investment::list_security_prices,
+            investment::set_security_price,
+            investment::delete_security_price,
+            currency::supported_currencies,
+            currency::currencies_in_use,
+            currency::list_exchange_rates,
+            currency::set_exchange_rate,
+            currency::delete_exchange_rate,
+            encryption::lock_status,
+            encryption::unlock,
+            encryption::encrypt_data,
+            encryption::change_data_password,
+            encryption::decrypt_data,
+            backup::backup_settings,
+            backup::set_daily_backups,
+            backup::set_backup_folder,
+            backup::list_backups,
+            backup::create_full_backup,
+            backup::restore_backup,
+            alert::list_alerts,
+            alert::dismiss_unusual_expense,
+            alert::dismiss_missing_occurrence,
+            operation::search_operations,
+            operation::list_transfer_proposals,
+            operation::detect_transfers,
+            operation::link_transfer,
+            operation::unlink_transfer,
+            operation::dismiss_transfer,
+            operation::transfer_partner,
+            operation::transfer_link_candidates,
             operation::get_operation,
             operation::create_operation,
             operation::update_operation,
@@ -56,6 +108,27 @@ pub fn builder() -> Builder<tauri::Wry> {
             operation::update_scheduled_operation,
             operation::delete_scheduled_operation,
             operation::upcoming_operations,
+            operation::schedule_occurrences,
+            operation::list_schedule_match_proposals,
+            operation::detect_schedule_matches,
+            operation::match_schedule_occurrence,
+            operation::unmatch_schedule_occurrence,
+            operation::dismiss_schedule_match,
+            operation::schedule_match_candidates,
+            operation::recurring_suggestions,
+            operation::suggest_categories,
+            operation::dismiss_recurring_suggestion,
+            payee::list_payees,
+            payee::rename_payee,
+            payee::merge_payees,
+            payee::detach_payee_label,
+            tag::list_tags,
+            tag::rename_tag,
+            tag::delete_tag,
+            attachment::list_attachments,
+            attachment::add_attachment,
+            attachment::delete_attachment,
+            attachment::open_attachment,
             csv_mapping::list_csv_mappings,
             csv_mapping::get_csv_mapping,
             csv_mapping::create_csv_mapping,
@@ -68,11 +141,17 @@ pub fn builder() -> Builder<tauri::Wry> {
             import::read_file_head,
             import::preview_import,
             import::import_statement,
+            import::preview_trades,
+            import::import_trades,
+            source_document::source_document,
+            source_document::source_document_text,
+            source_document::open_source_document,
             import::supported_banks,
             import::detect_pdf_statement,
             stats::expenses_by_category,
             stats::income_vs_expenses,
             stats::balance_history,
+            stats::balance_forecast,
             stats::net_worth_at,
             stats::net_worth_history,
             stats::compare_expenses_by_category,

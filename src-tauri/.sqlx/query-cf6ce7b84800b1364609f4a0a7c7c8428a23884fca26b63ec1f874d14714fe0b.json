@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO source_category_mapping (source_category, category_id)\n                     VALUES (?1, ?2)\n                     ON CONFLICT (source_category) DO UPDATE SET category_id = excluded.category_id",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "cf6ce7b84800b1364609f4a0a7c7c8428a23884fca26b63ec1f874d14714fe0b"
+}

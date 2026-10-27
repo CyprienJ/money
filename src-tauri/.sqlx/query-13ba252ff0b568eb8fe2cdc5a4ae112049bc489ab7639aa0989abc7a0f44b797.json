@@ -1,0 +1,93 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT o.account_id, o.payee_id AS \"payee_id!\", p.name AS payee_name,\n                  o.date AS \"date: NaiveDate\", o.amount_cents, s.category_id,\n                  EXISTS (SELECT 1 FROM schedule_match m WHERE m.operation_id = o.id)\n                      AS \"matched!: bool\"\n           FROM operation o\n           JOIN payee p ON p.id = o.payee_id\n           LEFT JOIN operation_split s ON s.operation_id = o.id\n           WHERE o.date <= ?1\n           ORDER BY o.date, o.id",
+  "describe": {
+    "columns": [
+      {
+        "name": "account_id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "account_id"
+          }
+        }
+      },
+      {
+        "name": "payee_id!",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "payee_id"
+          }
+        }
+      },
+      {
+        "name": "payee_name",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "payee",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "date: NaiveDate",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "name": "amount_cents",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "amount_cents"
+          }
+        }
+      },
+      {
+        "name": "category_id",
+        "ordinal": 5,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation_split",
+            "name": "category_id"
+          }
+        }
+      },
+      {
+        "name": "matched!: bool",
+        "ordinal": 6,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "13ba252ff0b568eb8fe2cdc5a4ae112049bc489ab7639aa0989abc7a0f44b797"
+}

@@ -23,6 +23,7 @@ async fn new_account(pool: &SqlitePool, account_type: AccountType, opening_cents
         NewAccount {
             name: format!("{account_type:?}"),
             account_type,
+            currency: "EUR".to_owned(),
             institution: None,
             opening_balance_cents: opening_cents,
             opening_date: date("2026-10-01"),
@@ -41,6 +42,8 @@ fn manual(account_id: i64, day: &str, amount_cents: i64, label: &str) -> NewOper
         amount_cents,
         label: label.to_owned(),
         category_id: None,
+        note: None,
+        tags: Vec::new(),
     }
 }
 
@@ -101,6 +104,8 @@ fn unchanged(operation: &Operation) -> OperationUpdate {
         amount_cents: operation.amount_cents,
         label: operation.raw_label.clone(),
         category_id: operation.category_id,
+        note: operation.note.clone(),
+        tags: operation.tags.clone(),
     }
 }
 
@@ -276,6 +281,8 @@ fn updates_every_field_of_a_manual_operation() {
                 amount_cents: -920,
                 label: "Boulangerie Martin".to_owned(),
                 category_id: Some(category_id),
+                note: None,
+                tags: Vec::new(),
             },
         )
         .await
@@ -387,5 +394,104 @@ fn reports_unknown_operations() {
             delete(&pool, 5).await,
             Err(AppError::Operation(OperationError::NotFound(5)))
         ));
+    });
+}
+
+#[test]
+fn records_the_note_and_tags_of_a_manual_operation() {
+    run(|pool| async move {
+        let account_id = new_account(&pool, AccountType::Checking, 0).await;
+        let operation = create(
+            &pool,
+            NewOperation {
+                note: Some("  Anniversaire de Léa  ".to_owned()),
+                tags: vec![
+                    "vacances".to_owned(),
+                    " Cadeaux ".to_owned(),
+                    "VACANCES".to_owned(),
+                    "  ".to_owned(),
+                ],
+                ..manual(account_id, "2026-10-08", -4500, "Fnac")
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(operation.note.as_deref(), Some("Anniversaire de Léa"));
+        // Trimmed, repeats ignoring case and empty names skipped, by name.
+        assert_eq!(operation.tags, ["Cadeaux", "vacances"]);
+
+        let updated = update(
+            &pool,
+            operation.id,
+            OperationUpdate {
+                note: Some(" ".to_owned()),
+                tags: vec!["Vacances".to_owned(), "Rembourser".to_owned()],
+                ..unchanged(&operation)
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(updated.note, None);
+        // An existing tag keeps its name.
+        assert_eq!(updated.tags, ["Rembourser", "vacances"]);
+        let rows = list(&pool, account_id, None, None).await.unwrap();
+        assert_eq!(rows[0].operation, updated);
+    });
+}
+
+#[test]
+fn annotates_an_imported_operation() {
+    run(|pool| async move {
+        let account_id = new_account(&pool, AccountType::Checking, 0).await;
+        let id = imported(&pool, account_id).await;
+        let operation = get(&pool, id).await.unwrap();
+        assert_eq!((operation.note.as_deref(), operation.tags.len()), (None, 0));
+
+        let updated = update(
+            &pool,
+            id,
+            OperationUpdate {
+                note: Some("Courses de la semaine".to_owned()),
+                tags: vec!["Maison".to_owned()],
+                ..unchanged(&operation)
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(updated.note.as_deref(), Some("Courses de la semaine"));
+        assert_eq!(updated.tags, ["Maison"]);
+        assert_eq!(updated.raw_label, operation.raw_label);
+    });
+}
+
+#[test]
+fn editing_the_note_keeps_the_remembered_category() {
+    run(|pool| async move {
+        let account_id = new_account(&pool, AccountType::Checking, 0).await;
+        let id = imported(&pool, account_id).await;
+        let old_category = regular_category(&pool).await;
+        let operation = set_category(&pool, id, Some(old_category)).await.unwrap();
+        let new_category = internal_transfer_category(&pool).await;
+        crate::labeling::memory::remember(
+            &mut pool.acquire().await.unwrap(),
+            "CARREFOUR MKT",
+            Some(new_category),
+            "2026-10-20T00:00:00Z",
+        )
+        .await
+        .unwrap();
+
+        let changes = OperationUpdate {
+            note: Some("Courses".to_owned()),
+            ..unchanged(&operation)
+        };
+        update(&pool, id, changes).await.unwrap();
+        let remembered: i64 = sqlx::query_scalar(
+            "SELECT category_id FROM label_category_memory WHERE normalized_label = 'CARREFOUR MKT'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(remembered, new_category);
     });
 }

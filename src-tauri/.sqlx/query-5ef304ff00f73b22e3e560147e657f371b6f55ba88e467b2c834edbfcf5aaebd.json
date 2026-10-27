@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT o.id AS \"id!\"\n           FROM operation o\n           WHERE o.account_id = ?1\n             AND (o.amount_cents > 0) = (?2 > 0)\n             AND ABS(julianday(o.date) - julianday(?3)) <= ?4\n             AND NOT EXISTS (SELECT 1 FROM schedule_match m WHERE m.operation_id = o.id)\n           ORDER BY ABS(julianday(o.date) - julianday(?3)), ABS(o.amount_cents - ?5), o.id",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "5ef304ff00f73b22e3e560147e657f371b6f55ba88e467b2c834edbfcf5aaebd"
+}

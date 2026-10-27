@@ -6,9 +6,10 @@ import {
   type Category,
   type Frequency,
   type ScheduledOperation,
+  type ScheduledOperationInput,
 } from "../bindings";
 import { errorMessage, unwrap } from "../utils/commands";
-import { formatAmountInput, parseAmount, todayIso } from "../utils/format";
+import { currencySymbol, formatAmountInput, parseAmount, todayIso } from "../utils/format";
 import { FREQUENCIES, WEEKDAYS } from "../utils/schedule";
 import BaseModal from "./BaseModal.vue";
 import CategorySelect from "./CategorySelect.vue";
@@ -22,6 +23,8 @@ const props = defineProps<{
   categories: Category[];
   /** Scheduled operation to edit; `null` to create one. */
   schedule: ScheduledOperation | null;
+  /** Values of a new scheduled operation, e.g. from a detected series. */
+  prefill?: ScheduledOperationInput | null;
 }>();
 
 const emit = defineEmits<{
@@ -58,7 +61,7 @@ watch(
   () => props.open,
   (open) => {
     if (!open) return;
-    const schedule = props.schedule;
+    const schedule = props.schedule ?? props.prefill ?? null;
     form.label = schedule?.label ?? "";
     form.accountId = schedule?.accountId ?? props.accounts[0]?.id ?? null;
     form.direction = schedule && schedule.amountCents > 0 ? "credit" : "debit";
@@ -159,7 +162,7 @@ async function remove() {
 
       <div class="row">
         <label class="field">
-          Montant (€)
+          Montant ({{ currencySymbol(accounts.find((a) => a.id === form.accountId)?.currency ?? "EUR") }})
           <input v-model="form.amount" type="text" inputmode="decimal" placeholder="1 120,00" />
           <span v-if="submitted && amountError" class="field-error">{{ amountError }}</span>
         </label>

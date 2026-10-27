@@ -1,6 +1,7 @@
 use sqlx::SqlitePool;
 
 use super::{Account, AccountError, AccountType, AccountUpdate, NewAccount};
+use crate::currency::{self, CurrencyError};
 use crate::error::AppResult;
 
 /// Lists accounts ordered by type then name. Archived accounts are included on demand.
@@ -40,11 +41,13 @@ pub async fn get(pool: &SqlitePool, id: i64) -> AppResult<Account> {
 pub async fn create(pool: &SqlitePool, new: NewAccount) -> AppResult<Account> {
     let name = clean_name(&new.name)?;
     let institution = clean_optional(new.institution);
+    let currency = currency::check_supported(&new.currency)?;
     let id = sqlx::query!(
-        "INSERT INTO account (name, type, institution, opening_balance_cents, opening_date)
-         VALUES (?1, ?2, ?3, ?4, ?5)",
+        "INSERT INTO account (name, type, currency, institution, opening_balance_cents, opening_date)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
         name,
         new.account_type,
+        currency,
         institution,
         new.opening_balance_cents,
         new.opening_date
@@ -58,23 +61,41 @@ pub async fn create(pool: &SqlitePool, new: NewAccount) -> AppResult<Account> {
 pub async fn update(pool: &SqlitePool, id: i64, changes: AccountUpdate) -> AppResult<Account> {
     let name = clean_name(&changes.name)?;
     let institution = clean_optional(changes.institution);
-    let updated = sqlx::query!(
+    let currency = currency::check_supported(&changes.currency)?;
+    if currency != get(pool, id).await?.currency && has_data(pool, id).await? {
+        return Err(CurrencyError::AccountCurrencyLocked.into());
+    }
+    sqlx::query!(
         "UPDATE account
-         SET name = ?2, institution = ?3, opening_balance_cents = ?4, opening_date = ?5
+         SET name = ?2, currency = ?3, institution = ?4, opening_balance_cents = ?5,
+             opening_date = ?6
          WHERE id = ?1",
         id,
         name,
+        currency,
         institution,
         changes.opening_balance_cents,
         changes.opening_date
     )
     .execute(pool)
-    .await?
-    .rows_affected();
-    if updated == 0 {
-        return Err(AccountError::NotFound(id).into());
-    }
+    .await?;
     get(pool, id).await
+}
+
+/// Whether the account has operations, valuations, portfolio transactions or schedules: its
+/// amounts are then in its currency.
+async fn has_data(pool: &SqlitePool, id: i64) -> AppResult<bool> {
+    let has_data = sqlx::query_scalar!(
+        r#"SELECT EXISTS (SELECT 1 FROM operation WHERE account_id = ?1)
+               OR EXISTS (SELECT 1 FROM valuation WHERE account_id = ?1)
+               OR EXISTS (SELECT 1 FROM investment_transaction WHERE account_id = ?1)
+               OR EXISTS (SELECT 1 FROM scheduled_operation WHERE account_id = ?1)
+               AS "has_data!: bool""#,
+        id
+    )
+    .fetch_one(pool)
+    .await?;
+    Ok(has_data)
 }
 
 pub async fn set_archived(pool: &SqlitePool, id: i64, archived: bool) -> AppResult<Account> {
@@ -120,6 +141,7 @@ mod tests {
         NewAccount {
             name: name.to_owned(),
             account_type,
+            currency: "EUR".to_owned(),
             institution: None,
             opening_balance_cents: 0,
             opening_date: date("2026-01-01"),
@@ -135,6 +157,7 @@ mod tests {
                 NewAccount {
                     name: "  Compte courant ".to_owned(),
                     account_type: AccountType::Checking,
+                    currency: "EUR".to_owned(),
                     institution: Some(" Ma banque ".to_owned()),
                     opening_balance_cents: 41323,
                     opening_date: date("2026-01-01"),
@@ -179,6 +202,7 @@ mod tests {
                 account.id,
                 AccountUpdate {
                     name: "Livret A".to_owned(),
+                    currency: "EUR".to_owned(),
                     institution: Some("   ".to_owned()),
                     opening_balance_cents: 1_500_000,
                     opening_date: date("2025-06-01"),

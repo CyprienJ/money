@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT account_id, payee_id, is_credit AS \"is_credit: bool\" FROM recurring_dismissal",
+  "describe": {
+    "columns": [
+      {
+        "name": "account_id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "recurring_dismissal",
+            "name": "account_id"
+          }
+        }
+      },
+      {
+        "name": "payee_id",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "recurring_dismissal",
+            "name": "payee_id"
+          }
+        }
+      },
+      {
+        "name": "is_credit: bool",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "recurring_dismissal",
+            "name": "is_credit"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "393c53d27b0c9e736b8ede9cf7cc8ad2f29f468480df26befaaa6a69e316794f"
+}

@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT DISTINCT normalized_label FROM operation WHERE payee_id IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "normalized_label",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "normalized_label"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "fca159c2b127878261c2022cfba9755bc2a475f60a59432a1726f79955dfbe35"
+}

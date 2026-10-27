@@ -7,10 +7,11 @@ import {
   TitleComponent,
   TooltipComponent,
 } from "echarts/components";
-import { type EChartsCoreOption, registerTheme, use } from "echarts/core";
+import { type EChartsCoreOption, use } from "echarts/core";
 import { SVGRenderer } from "echarts/renderers";
 import VChart from "vue-echarts";
-import { createTheme, readTokens } from "../charts/theme";
+import { computed } from "vue";
+import { chartThemeName } from "../charts/theme";
 
 defineProps<{
   /** Option built by one of the builders of `src/charts/options.ts`. */
@@ -18,6 +19,9 @@ defineProps<{
   /** Accessible description of the chart. */
   label: string;
 }>();
+
+/** Changing theme re-creates the chart with the colors of the new theme. */
+const theme = computed(chartThemeName);
 </script>
 
 <script lang="ts">
@@ -34,11 +38,10 @@ use([
   TitleComponent,
   DataZoomComponent,
 ]);
-registerTheme("money", createTheme(readTokens()));
 </script>
 
 <template>
-  <VChart class="chart" :option="option" theme="money" autoresize role="img" :aria-label="label" />
+  <VChart class="chart" :option="option" :theme="theme" autoresize role="img" :aria-label="label" />
 </template>
 
 <style scoped>

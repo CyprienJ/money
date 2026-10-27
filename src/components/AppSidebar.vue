@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { watch } from "vue";
+import { useRoute } from "vue-router";
+import { alertCount, refreshAlertCount } from "../utils/alerts";
+
 interface NavItem {
   to: string;
   label: string;
@@ -45,6 +49,11 @@ const wealthItems: NavItem[] = [
     label: "Catégories",
     icon: '<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9-9-9z" stroke-linejoin="round"/><circle cx="8" cy="8" r="1.5"/>',
   },
+  {
+    to: "/payees",
+    label: "Tiers",
+    icon: '<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M16 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3" stroke-linecap="round"/>',
+  },
 ];
 
 const settingsItem: NavItem = {
@@ -52,6 +61,11 @@ const settingsItem: NavItem = {
   label: "Paramètres",
   icon: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" stroke-linecap="round"/>',
 };
+
+// Imports, schedule and operation changes all happen on other screens: navigating refreshes
+// the alert badge.
+const route = useRoute();
+watch(() => route.path, refreshAlertCount, { immediate: true });
 </script>
 
 <template>
@@ -59,8 +73,8 @@ const settingsItem: NavItem = {
     <div class="brand">
       <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true">
         <circle cx="16" cy="16" r="15" fill="var(--color-accent)" />
-        <circle cx="16" cy="16" r="9" fill="none" stroke="var(--color-primary)" stroke-width="2.5" />
-        <path d="M16 11v10M13 14h6" stroke="var(--color-primary)" stroke-width="2.5" stroke-linecap="round" />
+        <circle cx="16" cy="16" r="9" fill="none" stroke="var(--sidebar-bg)" stroke-width="2.5" />
+        <path d="M16 11v10M13 14h6" stroke="var(--sidebar-bg)" stroke-width="2.5" stroke-linecap="round" />
       </svg>
       <span>Finances perso</span>
     </div>
@@ -68,6 +82,14 @@ const settingsItem: NavItem = {
     <RouterLink v-for="item in mainItems" :key="item.to" :to="item.to" class="link">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" v-html="item.icon" />
       {{ item.label }}
+      <span
+        v-if="item.to === '/' && alertCount > 0"
+        class="badge"
+        :title="`${alertCount} alerte${alertCount > 1 ? 's' : ''}`"
+        :aria-label="`${alertCount} alerte${alertCount > 1 ? 's' : ''}`"
+      >
+        {{ alertCount }}
+      </span>
       <span class="active-dot" aria-hidden="true" />
     </RouterLink>
 
@@ -98,7 +120,7 @@ const settingsItem: NavItem = {
   flex-direction: column;
   gap: 4px;
   padding: 24px 16px;
-  background: var(--color-primary);
+  background: var(--sidebar-bg);
   color: var(--sidebar-text);
 }
 
@@ -125,12 +147,12 @@ const settingsItem: NavItem = {
 }
 
 .link:hover {
-  color: var(--color-on-primary);
+  color: var(--sidebar-text);
 }
 
 .link.router-link-active {
   background: var(--sidebar-active-bg);
-  color: var(--color-on-primary);
+  color: var(--sidebar-text);
   font-weight: 600;
 }
 
@@ -141,6 +163,25 @@ const settingsItem: NavItem = {
   margin-left: auto;
   border-radius: 3px;
   background: var(--color-accent);
+}
+
+.badge {
+  min-width: 20px;
+  height: 20px;
+  margin-left: auto;
+  padding: 0 6px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  background: var(--color-accent);
+  color: var(--sidebar-text);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 20px;
+  text-align: center;
+}
+
+.badge + .active-dot {
+  margin-left: 0;
 }
 
 .router-link-active .active-dot {

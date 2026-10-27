@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
-import { commands, type Account, type Category, type Operation } from "../bindings";
+import { commands, type Account, type Category, type Operation, type Suggestion } from "../bindings";
 import { errorMessage, unwrap } from "../utils/commands";
-import { formatAmountInput, formatDate, parseAmount, todayIso } from "../utils/format";
+import { currencySymbol, formatAmountInput, formatDate, parseAmount, todayIso } from "../utils/format";
+import AttachmentList from "./AttachmentList.vue";
 import BaseModal from "./BaseModal.vue";
+import SourceDocumentLink from "./SourceDocumentLink.vue";
+import TransferLink from "./TransferLink.vue";
 import CategorySelect from "./CategorySelect.vue";
+import TagInput from "./TagInput.vue";
 
 const props = defineProps<{
   open: boolean;
@@ -12,12 +16,16 @@ const props = defineProps<{
   categories: Category[];
   /** Operation to edit; `null` for a new manual entry. */
   operation: Operation | null;
+  /** Category suggested for an operation to categorize, preselected until the form is saved. */
+  suggestion?: Suggestion | null;
 }>();
 
 const emit = defineEmits<{
   close: [];
   /** Emitted after a create, update or delete. */
   changed: [];
+  /** Emitted after a change made at once (attachment, transfer link), the form staying open. */
+  refresh: [];
   /** Asks for a rule from the label of the operation, with the category in the form. */
   createRule: [operation: Operation, categoryId: number | null];
 }>();
@@ -31,7 +39,11 @@ const form = reactive({
   valueDate: "",
   label: "",
   categoryId: null as number | null,
+  note: "",
+  tags: [] as string[],
 });
+/** Names of the existing tags, for the suggestions. */
+const tagNames = ref<string[]>([]);
 const submitted = ref(false);
 const saving = ref(false);
 const confirmingDelete = ref(false);
@@ -39,6 +51,8 @@ const error = ref("");
 
 const isEdit = computed(() => props.operation !== null);
 const isImported = computed(() => props.operation?.importBatchId != null);
+/** Attachments of the edited operation, kept up to date by the attachment list. */
+const attachmentCount = ref(0);
 
 /** Unsigned amount typed by the user, in cents. */
 const amountCents = computed(() => {
@@ -69,13 +83,39 @@ watch(
     form.date = operation?.date ?? todayIso();
     form.valueDate = operation?.valueDate ?? "";
     form.label = operation?.rawLabel ?? "";
-    form.categoryId = operation?.categoryId ?? null;
+    form.categoryId = operation?.categoryId ?? props.suggestion?.categoryId ?? null;
+    form.note = operation?.note ?? "";
+    form.tags = [...(operation?.tags ?? [])];
+    attachmentCount.value = operation?.attachmentCount ?? 0;
     submitted.value = false;
     confirmingDelete.value = false;
     error.value = "";
+    loadTagNames();
   },
   { immediate: true },
 );
+
+/** A linked operation is in the internal transfer category: the form follows. */
+function onTransferChanged(linked: boolean) {
+  if (linked) {
+    form.categoryId = props.categories.find((c) => c.isInternalTransfer)?.id ?? form.categoryId;
+  }
+  emit("refresh");
+}
+
+async function loadTagNames() {
+  try {
+    tagNames.value = (await unwrap(commands.listTags())).map((tag) => tag.name);
+  } catch {
+    // Suggestions only: tags can still be typed.
+    tagNames.value = [];
+  }
+}
+
+/** Note and tags, editable on every operation. */
+function annotations() {
+  return { note: form.note.trim() || null, tags: form.tags };
+}
 
 async function run(action: () => Promise<unknown>) {
   saving.value = true;
@@ -105,6 +145,7 @@ async function save() {
           label: operation.rawLabel,
           valueDate: form.valueDate || null,
           categoryId: form.categoryId,
+          ...annotations(),
         }),
       ),
     );
@@ -118,6 +159,7 @@ async function save() {
     amountCents: signed,
     label: form.label,
     categoryId: form.categoryId,
+    ...annotations(),
   };
   await run(() =>
     operation
@@ -165,7 +207,7 @@ async function remove() {
 
       <div class="row">
         <label class="field">
-          Montant (€)
+          Montant ({{ currencySymbol(account.currency) }})
           <input
             v-model="form.amount"
             type="text"
@@ -205,6 +247,12 @@ async function remove() {
         <label class="field">
           Catégorie
           <CategorySelect v-model="form.categoryId" :categories="categories" />
+          <span
+            v-if="suggestion && operation?.categoryId === null && form.categoryId === suggestion.categoryId"
+            class="field-hint"
+          >
+            Suggestion ({{ suggestion.confidencePercent }} %), enregistrée seulement si tu valides
+          </span>
         </label>
         <label class="field">
           Date de valeur
@@ -212,6 +260,33 @@ async function remove() {
           <span class="field-hint">Facultative</span>
         </label>
       </div>
+
+      <div class="field">
+        <span aria-hidden="true">Tags</span>
+        <TagInput v-model="form.tags" :suggestions="tagNames" label="Tags" />
+        <span class="field-hint">Entrée ou virgule pour ajouter un tag</span>
+      </div>
+
+      <label class="field">
+        Note
+        <textarea v-model="form.note" rows="2" placeholder="Facultative"></textarea>
+      </label>
+
+      <SourceDocumentLink
+        v-if="operation?.hasSourceDocument && operation.importBatchId !== null"
+        :import-batch-id="operation.importBatchId"
+        :page="operation.sourcePage"
+        :line="operation.sourceLine"
+      />
+
+      <TransferLink v-if="operation" :operation-id="operation.id" @changed="onTransferChanged" />
+
+      <AttachmentList
+        v-if="operation"
+        :operation-id="operation.id"
+        @changed="(count) => { attachmentCount = count; emit('refresh'); }"
+      />
+      <p v-else class="field-hint">Les pièces jointes s'ajoutent une fois l'opération enregistrée.</p>
 
       <p v-if="error" class="error-banner">{{ error }}</p>
 
@@ -232,7 +307,13 @@ async function remove() {
           :disabled="saving"
           @click="remove"
         >
-          {{ confirmingDelete ? "Confirmer la suppression" : "Supprimer" }}
+          {{
+            !confirmingDelete
+              ? "Supprimer"
+              : attachmentCount > 0
+                ? `Confirmer : supprimer avec ${attachmentCount} pièce${attachmentCount > 1 ? "s" : ""} jointe${attachmentCount > 1 ? "s" : ""}`
+                : "Confirmer la suppression"
+          }}
         </button>
         <button type="button" class="btn btn-secondary" @click="emit('close')">Annuler</button>
         <button type="submit" class="btn btn-primary" :disabled="saving">
@@ -295,6 +376,22 @@ async function remove() {
   position: absolute;
   opacity: 0;
   pointer-events: none;
+}
+
+textarea {
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-card);
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 500;
+  resize: vertical;
+}
+
+textarea:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -1px;
 }
 
 .row {

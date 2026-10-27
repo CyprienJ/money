@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT security_id, date AS \"date: NaiveDate\", price_cents\n               FROM security_price\n               WHERE date <= ?1\n               ORDER BY security_id, date",
+  "describe": {
+    "columns": [
+      {
+        "name": "security_id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "security_price",
+            "name": "security_id"
+          }
+        }
+      },
+      {
+        "name": "date: NaiveDate",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "security_price",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "name": "price_cents",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "security_price",
+            "name": "price_cents"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "00bc8b64bfc96001344c9336413523f1480088e198c46503f7e4536abe749385"
+}

@@ -1,0 +1,52 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT CASE WHEN ?4 THEN COALESCE(c.parent_id, c.id) ELSE c.id END AS \"category_id?: i64\",\n                  a.currency, o.date AS \"date!: NaiveDate\",\n                  -SUM(s.amount_cents) AS \"expense_cents!: i64\"\n           FROM operation_split s\n           JOIN operation o ON o.id = s.operation_id\n           JOIN account a ON a.id = o.account_id\n           LEFT JOIN category c ON c.id = s.category_id\n           WHERE o.date BETWEEN ?1 AND ?2\n             AND o.is_internal_transfer = 0\n             AND CASE WHEN ?3 IS NULL\n                      THEN a.archived = 0\n                      ELSE o.account_id IN (SELECT value FROM json_each(?3)) END\n             AND NOT COALESCE(c.is_income, s.amount_cents > 0)\n           GROUP BY 1, a.currency, o.date",
+  "describe": {
+    "columns": [
+      {
+        "name": "category_id?: i64",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": "Expression"
+      },
+      {
+        "name": "currency",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "currency"
+          }
+        }
+      },
+      {
+        "name": "date!: NaiveDate",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "name": "expense_cents!: i64",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "64ed04468cf7c8369a455645637aaf2ff745383f356208ea72fce4dc142b4a5e"
+}

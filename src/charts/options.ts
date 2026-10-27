@@ -1,4 +1,4 @@
-import type { BalancePoint, CategoryColor, NetWorth, PeriodIncomeExpenses } from "../bindings";
+import type { BalanceForecast, BalancePoint, CategoryColor, NetWorth, PeriodIncomeExpenses } from "../bindings";
 import { variationPercent } from "../utils/analyses";
 import { formatAmount, formatDate } from "../utils/format";
 import type { ChartTokens } from "./theme";
@@ -247,6 +247,63 @@ export function balanceHistoryOption(points: BalancePoint[], tokens: ChartTokens
         smooth: 0.2,
         lineStyle: { color: tokens.categories.housing, width: 2.5 },
         areaStyle: { color: tokens.categories.housing, opacity: 0.08 },
+      },
+    ],
+  };
+}
+
+/**
+ * Projected balance: steps on the dates of the occurrences, the lowest point marked, and a
+ * dashed zero line when the balance goes negative. The tooltip lists the occurrences of the day.
+ */
+export function forecastOption(forecast: BalanceForecast, tokens: ChartTokens) {
+  const { points, lowest, occurrences } = forecast;
+  const color = tokens.categories.housing;
+  const danger = tokens.increase.text;
+  const lowestIndex = points.findIndex((p) => p.date === lowest.date);
+  return {
+    grid: { left: 8, right: 16, top: 24, bottom: 8, containLabel: true },
+    tooltip: {
+      trigger: "axis",
+      formatter: (params: TooltipParam[]) => {
+        const point = points[(params[0] as unknown as { dataIndex: number }).dataIndex];
+        const lines = occurrences
+          .filter((o) => o.date === point.date)
+          .map((o) => `${o.label} ${formatAmount(o.amountCents, { signed: true, currency: o.currency })}`);
+        return [formatDate(point.date), `<b>${formatAmount(point.balanceCents)}</b>`, ...lines].join("<br>");
+      },
+    },
+    xAxis: {
+      type: "category",
+      boundaryGap: false,
+      data: points.map((p) => formatDate(p.date, "day-month")),
+    },
+    yAxis: { type: "value", scale: true, axisLabel: { formatter: euros } },
+    series: [
+      {
+        type: "line",
+        step: "end",
+        data: points.map((p) => p.balanceCents),
+        showSymbol: false,
+        lineStyle: { color, width: 2.5 },
+        areaStyle: { color, opacity: 0.08 },
+        markPoint: {
+          symbol: "circle",
+          symbolSize: 10,
+          itemStyle: { color: tokens.card, borderColor: lowest.balanceCents < 0 ? danger : color, borderWidth: 3 },
+          label: { show: false },
+          data: lowestIndex >= 0 ? [{ coord: [lowestIndex, lowest.balanceCents] }] : [],
+        },
+        markLine:
+          lowest.balanceCents < 0
+            ? {
+                silent: true,
+                symbol: "none",
+                label: { show: false },
+                lineStyle: { color: danger, type: "dashed", width: 1.5 },
+                data: [{ yAxis: 0 }],
+              }
+            : undefined,
       },
     ],
   };

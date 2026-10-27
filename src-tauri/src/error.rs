@@ -3,14 +3,25 @@ use specta::Type;
 use specta::datatype::DataType;
 
 use crate::account::AccountError;
+use crate::attachment::AttachmentError;
+use crate::backup::BackupError;
+use crate::currency::CurrencyError;
+use crate::db::encryption::EncryptionError;
 use crate::importing::batch::ImportError;
 use crate::importing::csv::{CsvError, CsvMappingError};
+use crate::importing::interchange::InterchangeError;
 use crate::importing::pdf::PdfError;
+use crate::importing::source_document::SourceDocumentError;
+use crate::investment::InvestmentError;
+use crate::investment::prices::PriceError;
 use crate::labeling::rules::RuleError;
 use crate::operation::OperationError;
 use crate::operation::category::CategoryError;
 use crate::operation::schedule::ScheduleError;
+use crate::operation::transfer::TransferError;
+use crate::payee::PayeeError;
 use crate::stats::StatsError;
+use crate::tag::TagError;
 
 /// Error type returned by the domain layer and propagated to the frontend.
 #[derive(Debug, thiserror::Error)]
@@ -40,6 +51,18 @@ pub enum AppError {
     Rule(#[from] RuleError),
 
     #[error(transparent)]
+    Payee(#[from] PayeeError),
+
+    #[error(transparent)]
+    Tag(#[from] TagError),
+
+    #[error(transparent)]
+    Attachment(#[from] AttachmentError),
+
+    #[error(transparent)]
+    Transfer(#[from] TransferError),
+
+    #[error(transparent)]
     Stats(#[from] StatsError),
 
     #[error(transparent)]
@@ -53,6 +76,27 @@ pub enum AppError {
 
     #[error(transparent)]
     Pdf(#[from] PdfError),
+
+    #[error(transparent)]
+    Interchange(#[from] InterchangeError),
+
+    #[error(transparent)]
+    SourceDocument(#[from] SourceDocumentError),
+
+    #[error(transparent)]
+    Investment(#[from] InvestmentError),
+
+    #[error(transparent)]
+    Price(#[from] PriceError),
+
+    #[error(transparent)]
+    Currency(#[from] CurrencyError),
+
+    #[error(transparent)]
+    Backup(#[from] BackupError),
+
+    #[error(transparent)]
+    Encryption(#[from] EncryptionError),
 }
 
 /// Stable identifier the frontend can match on.
@@ -77,11 +121,22 @@ enum ErrorDetail {
     Category(CategoryError),
     Schedule(ScheduleError),
     Rule(RuleError),
+    Payee(PayeeError),
+    Tag(TagError),
+    Attachment(AttachmentError),
+    Transfer(TransferError),
     Stats(StatsError),
     Csv(CsvError),
     CsvMapping(CsvMappingError),
     Import(ImportError),
     Pdf(PdfError),
+    Interchange(InterchangeError),
+    SourceDocument(SourceDocumentError),
+    Investment(InvestmentError),
+    Price(PriceError),
+    Currency(CurrencyError),
+    Backup(BackupError),
+    Encryption(EncryptionError),
 }
 
 /// Error returned by commands to the frontend: `{ kind, message, detail }`. `message` is the
@@ -105,11 +160,22 @@ impl AppError {
             AppError::Category(error) => error.kind(),
             AppError::Schedule(error) => error.kind(),
             AppError::Rule(error) => error.kind(),
+            AppError::Payee(error) => error.kind(),
+            AppError::Tag(error) => error.kind(),
+            AppError::Attachment(error) => error.kind(),
+            AppError::Transfer(error) => error.kind(),
             AppError::Stats(error) => error.kind(),
             AppError::Csv(error) => error.kind(),
             AppError::CsvMapping(error) => error.kind(),
             AppError::Import(error) => error.kind(),
             AppError::Pdf(error) => error.kind(),
+            AppError::Interchange(error) => error.kind(),
+            AppError::SourceDocument(error) => error.kind(),
+            AppError::Investment(error) => error.kind(),
+            AppError::Price(error) => error.kind(),
+            AppError::Currency(error) => error.kind(),
+            AppError::Backup(error) => error.kind(),
+            AppError::Encryption(error) => error.kind(),
         }
     }
 }
@@ -123,11 +189,22 @@ impl AppError {
             AppError::Category(error) => ErrorDetail::Category(error.clone()),
             AppError::Schedule(error) => ErrorDetail::Schedule(error.clone()),
             AppError::Rule(error) => ErrorDetail::Rule(error.clone()),
+            AppError::Payee(error) => ErrorDetail::Payee(error.clone()),
+            AppError::Tag(error) => ErrorDetail::Tag(error.clone()),
+            AppError::Attachment(error) => ErrorDetail::Attachment(error.clone()),
+            AppError::Transfer(error) => ErrorDetail::Transfer(error.clone()),
             AppError::Stats(error) => ErrorDetail::Stats(error.clone()),
             AppError::Csv(error) => ErrorDetail::Csv(error.clone()),
             AppError::CsvMapping(error) => ErrorDetail::CsvMapping(error.clone()),
             AppError::Import(error) => ErrorDetail::Import(error.clone()),
             AppError::Pdf(error) => ErrorDetail::Pdf(error.clone()),
+            AppError::Interchange(error) => ErrorDetail::Interchange(error.clone()),
+            AppError::SourceDocument(error) => ErrorDetail::SourceDocument(error.clone()),
+            AppError::Investment(error) => ErrorDetail::Investment(error.clone()),
+            AppError::Price(error) => ErrorDetail::Price(error.clone()),
+            AppError::Currency(error) => ErrorDetail::Currency(error.clone()),
+            AppError::Backup(error) => ErrorDetail::Backup(error.clone()),
+            AppError::Encryption(error) => ErrorDetail::Encryption(error.clone()),
         })
     }
 }

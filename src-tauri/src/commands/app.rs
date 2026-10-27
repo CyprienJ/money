@@ -2,11 +2,10 @@ use std::path::PathBuf;
 
 use serde::Serialize;
 use specta::Type;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 use crate::db::DATA_FILE_NAME;
-use crate::error::{AppError, AppResult};
-use crate::importing::batch;
+use crate::error::AppResult;
 
 /// Version of the application, as declared in `tauri.conf.json`.
 #[tauri::command]
@@ -33,18 +32,26 @@ pub fn data_location(app: AppHandle) -> AppResult<DataLocation> {
     Ok(DataLocation {
         data_file: data_dir(&app)?.join(DATA_FILE_NAME).display().to_string(),
         backups_dir: backups.display().to_string(),
-        backup_count: u32::try_from(batch::backup_count(&backups)?).unwrap_or(u32::MAX),
+        backup_count: u32::try_from(crate::backup::import_count(&backups)).unwrap_or(u32::MAX),
     })
 }
 
-/// `app_data_dir()` of Tauri (README, data location).
+/// Application data directory (README, data location).
 pub(super) fn data_dir(app: &AppHandle) -> AppResult<PathBuf> {
-    app.path()
-        .app_data_dir()
-        .map_err(|error| AppError::Io(std::io::Error::other(error)))
+    crate::startup::data_dir(app)
 }
 
 /// `backups/` in the application data directory.
 pub(super) fn backups_dir(app: &AppHandle) -> AppResult<PathBuf> {
     Ok(data_dir(app)?.join("backups"))
+}
+
+/// `statements/` in the application data directory: the kept imported files.
+pub(super) fn statements_dir(app: &AppHandle) -> AppResult<PathBuf> {
+    Ok(data_dir(app)?.join(crate::importing::source_document::STATEMENTS_DIR))
+}
+
+/// `attachments/` in the application data directory.
+pub(super) fn attachments_dir(app: &AppHandle) -> AppResult<PathBuf> {
+    Ok(data_dir(app)?.join(crate::attachment::ATTACHMENTS_DIR))
 }

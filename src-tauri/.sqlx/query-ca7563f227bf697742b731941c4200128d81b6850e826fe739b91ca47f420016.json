@@ -1,0 +1,57 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT o.id AS operation_id, o.date AS \"date: NaiveDate\", o.amount_cents,\n                  COALESCE(p.name, o.normalized_label) AS \"payee_name!: String\"\n           FROM operation o\n           LEFT JOIN payee p ON p.id = o.payee_id\n           WHERE o.id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "operation_id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "date: NaiveDate",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "name": "amount_cents",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "amount_cents"
+          }
+        }
+      },
+      {
+        "name": "payee_name!: String",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "ca7563f227bf697742b731941c4200128d81b6850e826fe739b91ca47f420016"
+}

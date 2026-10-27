@@ -1,0 +1,172 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT t.id AS \"id!\", t.account_id, t.security_id, s.name AS security_name,\n                  t.date AS \"date: NaiveDate\", t.kind AS \"kind: TransactionKind\",\n                  t.quantity_micro, t.amount_cents, t.fees_cents, t.note,\n                  CAST(NULL AS INTEGER) AS \"realized_cents?: i64\", t.import_batch_id,\n                  COALESCE(b.stored_file IS NOT NULL, 0) AS \"has_source_document!: bool\",\n                  t.source_page AS \"source_page: u32\"\n           FROM investment_transaction t\n           JOIN security s ON s.id = t.security_id\n           LEFT JOIN import_batch b ON b.id = t.import_batch_id\n           WHERE t.account_id = ?1\n           ORDER BY t.date DESC, t.id DESC",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "account_id",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "account_id"
+          }
+        }
+      },
+      {
+        "name": "security_id",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "security_id"
+          }
+        }
+      },
+      {
+        "name": "security_name",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "security",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "date: NaiveDate",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "name": "kind: TransactionKind",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "name": "quantity_micro",
+        "ordinal": 6,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "quantity_micro"
+          }
+        }
+      },
+      {
+        "name": "amount_cents",
+        "ordinal": 7,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "amount_cents"
+          }
+        }
+      },
+      {
+        "name": "fees_cents",
+        "ordinal": 8,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "fees_cents"
+          }
+        }
+      },
+      {
+        "name": "note",
+        "ordinal": 9,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "note"
+          }
+        }
+      },
+      {
+        "name": "realized_cents?: i64",
+        "ordinal": 10,
+        "type_info": "Integer",
+        "origin": "Expression"
+      },
+      {
+        "name": "import_batch_id",
+        "ordinal": 11,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "import_batch_id"
+          }
+        }
+      },
+      {
+        "name": "has_source_document!: bool",
+        "ordinal": 12,
+        "type_info": "Integer",
+        "origin": "Expression"
+      },
+      {
+        "name": "source_page: u32",
+        "ordinal": 13,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "source_page"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "8e95fbde6c2f0e631ce63ec67314aacba004329c6ee36378762ee4c840c1d5c4"
+}

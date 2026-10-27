@@ -1,26 +1,31 @@
 use chrono::NaiveDate;
 use sqlx::SqlitePool;
-use tauri::State;
+use tauri::{AppHandle, State};
 
+use crate::attachment;
 use crate::error::AppResult;
+use crate::labeling::classifier::{self, ClassifierCache, OperationSuggestion};
 use crate::labeling::rules::{self, Rule, RuleInput};
 use crate::operation::category::{self, Category, CategoryInput};
 use crate::operation::same_label::{self, SameLabel};
+use crate::operation::schedule::detection::{self, RecurringSuggestion};
+use crate::operation::schedule::matching::{self, ScheduleMatchProposal};
 use crate::operation::schedule::{
-    self, ScheduledOperation, ScheduledOperationInput, UpcomingOperation,
+    self, MatchedOperation, ScheduledOperation, ScheduledOperationInput, UpcomingOperation,
 };
+use crate::operation::search::{self, OperationFilter};
+use crate::operation::transfer::{self, TransferProposal, TransferSide};
 use crate::operation::{self, NewOperation, Operation, OperationRow, OperationUpdate};
 
-/// Operations of an account, most recent first, with the balance after each one.
+/// Operations matching every filter, most recent first, with the balance of their account
+/// after each one.
 #[tauri::command]
 #[specta::specta]
-pub async fn list_operations(
+pub async fn search_operations(
     pool: State<'_, SqlitePool>,
-    account_id: i64,
-    from: Option<NaiveDate>,
-    to: Option<NaiveDate>,
+    filter: OperationFilter,
 ) -> AppResult<Vec<OperationRow>> {
-    operation::list(&pool, account_id, from, to).await
+    search::search(&pool, &filter).await
 }
 
 #[tauri::command]
@@ -74,10 +79,17 @@ pub async fn categorize_same_label(pool: State<'_, SqlitePool>, id: i64) -> AppR
     same_label::categorize_same_label(&pool, id).await
 }
 
+/// Deletes a manual entry, with the files of its attachments.
 #[tauri::command]
 #[specta::specta]
-pub async fn delete_operation(pool: State<'_, SqlitePool>, id: i64) -> AppResult<()> {
-    operation::delete(&pool, id).await
+pub async fn delete_operation(
+    app: AppHandle,
+    pool: State<'_, SqlitePool>,
+    id: i64,
+) -> AppResult<()> {
+    operation::delete(&pool, id).await?;
+    attachment::sweep(&pool, &super::app::attachments_dir(&app)?).await?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -160,8 +172,7 @@ pub async fn upcoming_operations(
     pool: State<'_, SqlitePool>,
     days: u32,
 ) -> AppResult<Vec<UpcomingOperation>> {
-    let today = chrono::Local::now().date_naive();
-    schedule::upcoming(&pool, today, days).await
+    schedule::upcoming(&pool, today(), days).await
 }
 
 /// Categorization rules, in order, each with the count of operations to categorize it matches.
@@ -209,4 +220,182 @@ pub async fn reorder_rules(pool: State<'_, SqlitePool>, ids: Vec<i64>) -> AppRes
 #[specta::specta]
 pub async fn apply_rule(pool: State<'_, SqlitePool>, id: i64) -> AppResult<u32> {
     rules::apply(&pool, id).await
+}
+
+/// Detected internal transfers to confirm, the most recent first.
+#[tauri::command]
+#[specta::specta]
+pub async fn list_transfer_proposals(
+    pool: State<'_, SqlitePool>,
+) -> AppResult<Vec<TransferProposal>> {
+    transfer::proposals(&pool).await
+}
+
+/// Links the certain internal transfers of the whole history; returns their count.
+#[tauri::command]
+#[specta::specta]
+pub async fn detect_transfers(pool: State<'_, SqlitePool>) -> AppResult<u32> {
+    transfer::link_certain(&pool, None).await
+}
+
+/// Links two operations as the two sides of an internal transfer.
+#[tauri::command]
+#[specta::specta]
+pub async fn link_transfer(pool: State<'_, SqlitePool>, id: i64, other_id: i64) -> AppResult<()> {
+    transfer::link(&pool, id, other_id).await
+}
+
+/// Unlinks an operation from its transfer; both sides keep their category.
+#[tauri::command]
+#[specta::specta]
+pub async fn unlink_transfer(pool: State<'_, SqlitePool>, id: i64) -> AppResult<()> {
+    transfer::unlink(&pool, id).await
+}
+
+/// Dismisses a proposed transfer, which is not proposed again.
+#[tauri::command]
+#[specta::specta]
+pub async fn dismiss_transfer(
+    pool: State<'_, SqlitePool>,
+    debit_id: i64,
+    credit_id: i64,
+) -> AppResult<()> {
+    transfer::dismiss(&pool, debit_id, credit_id).await
+}
+
+/// The other side of the transfer of an operation, if it is linked.
+#[tauri::command]
+#[specta::specta]
+pub async fn transfer_partner(
+    pool: State<'_, SqlitePool>,
+    id: i64,
+) -> AppResult<Option<TransferSide>> {
+    transfer::partner(&pool, id).await
+}
+
+/// Operations that can be linked by hand to an operation, the closest dates first.
+#[tauri::command]
+#[specta::specta]
+pub async fn transfer_link_candidates(
+    pool: State<'_, SqlitePool>,
+    id: i64,
+) -> AppResult<Vec<TransferSide>> {
+    transfer::link_candidates(&pool, id).await
+}
+
+/// Occurrences of the scheduled operations between `from` and `to` (included), with the
+/// operation that realized each one.
+#[tauri::command]
+#[specta::specta]
+pub async fn schedule_occurrences(
+    pool: State<'_, SqlitePool>,
+    from: NaiveDate,
+    to: NaiveDate,
+) -> AppResult<Vec<UpcomingOperation>> {
+    schedule::occurrences_between(&pool, from, to).await
+}
+
+/// Detected matches between occurrences and operations to confirm.
+#[tauri::command]
+#[specta::specta]
+pub async fn list_schedule_match_proposals(
+    pool: State<'_, SqlitePool>,
+) -> AppResult<Vec<ScheduleMatchProposal>> {
+    matching::proposals(&pool, today()).await
+}
+
+/// Makes the certain matches of the whole history; returns their count.
+#[tauri::command]
+#[specta::specta]
+pub async fn detect_schedule_matches(pool: State<'_, SqlitePool>) -> AppResult<u32> {
+    matching::match_certain(&pool, today(), None).await
+}
+
+/// Records that an operation realizes an occurrence of a scheduled operation.
+#[tauri::command]
+#[specta::specta]
+pub async fn match_schedule_occurrence(
+    pool: State<'_, SqlitePool>,
+    scheduled_operation_id: i64,
+    occurrence_date: NaiveDate,
+    operation_id: i64,
+) -> AppResult<()> {
+    matching::match_occurrence(&pool, scheduled_operation_id, occurrence_date, operation_id).await
+}
+
+/// Forgets the operation that realized an occurrence.
+#[tauri::command]
+#[specta::specta]
+pub async fn unmatch_schedule_occurrence(
+    pool: State<'_, SqlitePool>,
+    scheduled_operation_id: i64,
+    occurrence_date: NaiveDate,
+) -> AppResult<()> {
+    matching::unmatch(&pool, scheduled_operation_id, occurrence_date).await
+}
+
+/// Dismisses a proposed match, which is not proposed again.
+#[tauri::command]
+#[specta::specta]
+pub async fn dismiss_schedule_match(
+    pool: State<'_, SqlitePool>,
+    scheduled_operation_id: i64,
+    occurrence_date: NaiveDate,
+    operation_id: i64,
+) -> AppResult<()> {
+    matching::dismiss(&pool, scheduled_operation_id, occurrence_date, operation_id).await
+}
+
+/// Operations that can be matched by hand with an occurrence, the closest dates first.
+#[tauri::command]
+#[specta::specta]
+pub async fn schedule_match_candidates(
+    pool: State<'_, SqlitePool>,
+    scheduled_operation_id: i64,
+    occurrence_date: NaiveDate,
+) -> AppResult<Vec<MatchedOperation>> {
+    matching::match_candidates(&pool, scheduled_operation_id, occurrence_date).await
+}
+
+/// Today in the local time zone.
+/// Categories suggested by the local classifier for the operations to categorize among
+/// `operation_ids`; empty while too few operations are categorized.
+#[tauri::command]
+#[specta::specta]
+pub async fn suggest_categories(
+    pool: State<'_, SqlitePool>,
+    classifier: State<'_, ClassifierCache>,
+    operation_ids: Vec<i64>,
+) -> AppResult<Vec<OperationSuggestion>> {
+    match classifier.get(&pool).await? {
+        Some(classifier) => {
+            classifier::suggest_for_operations(&pool, &classifier, &operation_ids).await
+        }
+        None => Ok(Vec::new()),
+    }
+}
+
+pub(super) fn today() -> NaiveDate {
+    chrono::Local::now().date_naive()
+}
+
+/// Recurring series of operations the schedule does not cover, to add as scheduled operations.
+#[tauri::command]
+#[specta::specta]
+pub async fn recurring_suggestions(
+    pool: State<'_, SqlitePool>,
+) -> AppResult<Vec<RecurringSuggestion>> {
+    detection::suggestions(&pool, today()).await
+}
+
+/// Stops suggesting the series of a payee on an account, in one direction.
+#[tauri::command]
+#[specta::specta]
+pub async fn dismiss_recurring_suggestion(
+    pool: State<'_, SqlitePool>,
+    account_id: i64,
+    payee_id: i64,
+    is_credit: bool,
+) -> AppResult<()> {
+    detection::dismiss(&pool, account_id, payee_id, is_credit).await
 }

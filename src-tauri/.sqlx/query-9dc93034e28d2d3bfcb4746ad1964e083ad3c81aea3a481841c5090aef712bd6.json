@@ -1,0 +1,93 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT o.id AS operation_id, o.account_id, a.name AS account_name,\n                  o.date AS \"date: NaiveDate\", o.amount_cents, o.currency,\n                  COALESCE(p.name, o.normalized_label) AS \"payee_name!: String\"\n           FROM operation o\n           JOIN account a ON a.id = o.account_id\n           LEFT JOIN payee p ON p.id = o.payee_id\n           WHERE o.id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "operation_id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "account_id",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "account_id"
+          }
+        }
+      },
+      {
+        "name": "account_name",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "date: NaiveDate",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "name": "amount_cents",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "amount_cents"
+          }
+        }
+      },
+      {
+        "name": "currency",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "currency"
+          }
+        }
+      },
+      {
+        "name": "payee_name!: String",
+        "ordinal": 6,
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "9dc93034e28d2d3bfcb4746ad1964e083ad3c81aea3a481841c5090aef712bd6"
+}

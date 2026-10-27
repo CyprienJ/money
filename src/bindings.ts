@@ -22,8 +22,105 @@ export const commands = {
 	createValuation: (accountId: number, valuation: ValuationInput) => typedError<Valuation, AppError>(__TAURI_INVOKE("create_valuation", { accountId, valuation })),
 	updateValuation: (id: number, valuation: ValuationInput) => typedError<Valuation, AppError>(__TAURI_INVOKE("update_valuation", { id, valuation })),
 	deleteValuation: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_valuation", { id })),
-	/**  Operations of an account, most recent first, with the balance after each one. */
-	listOperations: (accountId: number, from: string | null, to: string | null) => typedError<OperationRow[], AppError>(__TAURI_INVOKE("list_operations", { accountId, from, to })),
+	/**  Every security, by name, with its count of transactions. */
+	listSecurities: () => typedError<Security[], AppError>(__TAURI_INVOKE("list_securities")),
+	createSecurity: (input: SecurityInput) => typedError<Security, AppError>(__TAURI_INVOKE("create_security", { input })),
+	updateSecurity: (id: number, input: SecurityInput) => typedError<Security, AppError>(__TAURI_INVOKE("update_security", { id, input })),
+	/**  Deletes a security without transactions. */
+	deleteSecurity: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_security", { id })),
+	/**  Transactions of an investment account, the most recent first. */
+	listInvestmentTransactions: (accountId: number) => typedError<InvestmentTransaction[], AppError>(__TAURI_INVOKE("list_investment_transactions", { accountId })),
+	/**  Records a buy, a sell or a dividend; refused when a sell would exceed the units held. */
+	createInvestmentTransaction: (accountId: number, input: TransactionInput) => typedError<InvestmentTransaction, AppError>(__TAURI_INVOKE("create_investment_transaction", { accountId, input })),
+	updateInvestmentTransaction: (id: number, input: TransactionInput) => typedError<InvestmentTransaction, AppError>(__TAURI_INVOKE("update_investment_transaction", { id, input })),
+	deleteInvestmentTransaction: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_investment_transaction", { id })),
+	/**  Securities held in an investment account at the end of `date`, with their cost. */
+	portfolioPositions: (accountId: number, date: string) => typedError<Position[], AppError>(__TAURI_INVOKE("portfolio_positions", { accountId, date })),
+	/**
+	 *  Gains of an investment account at the end of `date`: unrealized, realized, dividends,
+	 *  annual return, and realized gains by year.
+	 */
+	portfolioPerformance: (accountId: number, date: string) => typedError<Performance, AppError>(__TAURI_INVOKE("portfolio_performance", { accountId, date })),
+	/**  Whether prices are fetched from Yahoo Finance, and the day of the last update. */
+	priceSettings: () => typedError<PriceSettings, AppError>(__TAURI_INVOKE("price_settings")),
+	/**  Allows or stops fetching prices from Yahoo Finance, the only network access. */
+	setPriceUpdatesEnabled: (enabled: boolean) => typedError<PriceSettings, AppError>(__TAURI_INVOKE("set_price_updates_enabled", { enabled })),
+	/**  Fetches the recent prices of the securities with a symbol. */
+	updateSecurityPrices: () => typedError<PriceUpdate, AppError>(__TAURI_INVOKE("update_security_prices")),
+	/**  Listings of a security found on Yahoo Finance by its ISIN. */
+	searchSecuritySymbols: (isin: string) => typedError<SymbolCandidate[], AppError>(__TAURI_INVOKE("search_security_symbols", { isin })),
+	/**  Prices of a security, the most recent first. */
+	listSecurityPrices: (securityId: number) => typedError<SecurityPrice[], AppError>(__TAURI_INVOKE("list_security_prices", { securityId })),
+	/**  Records the price of a day by hand; fetched prices never overwrite it. */
+	setSecurityPrice: (securityId: number, date: string, priceCents: number) => typedError<null, AppError>(__TAURI_INVOKE("set_security_price", { securityId, date, priceCents })),
+	deleteSecurityPrice: (securityId: number, date: string) => typedError<null, AppError>(__TAURI_INVOKE("delete_security_price", { securityId, date })),
+	/**  Supported currencies, euros (the reference) first. */
+	supportedCurrencies: () => __TAURI_INVOKE<string[]>("supported_currencies"),
+	/**  Currencies other than euros used by the accounts and securities, with their latest rate. */
+	currenciesInUse: () => typedError<CurrencyUse[], AppError>(__TAURI_INVOKE("currencies_in_use")),
+	/**  Rates of a currency, the most recent first. */
+	listExchangeRates: (currency: string) => typedError<ExchangeRate[], AppError>(__TAURI_INVOKE("list_exchange_rates", { currency })),
+	/**
+	 *  Records the rate of a day by hand (euros for one unit, in billionths); fetched rates never
+	 *  overwrite it.
+	 */
+	setExchangeRate: (currency: string, date: string, rateNano: number) => typedError<null, AppError>(__TAURI_INVOKE("set_exchange_rate", { currency, date, rateNano })),
+	deleteExchangeRate: (currency: string, date: string) => typedError<null, AppError>(__TAURI_INVOKE("delete_exchange_rate", { currency, date })),
+	lockStatus: () => typedError<LockStatus, AppError>(__TAURI_INVOKE("lock_status")),
+	/**  Opens the encrypted data file with its password. */
+	unlock: (password: string) => typedError<null, AppError>(__TAURI_INVOKE("unlock", { password })),
+	/**  Encrypts the data file with a password, then restarts the application. */
+	encryptData: (password: string) => typedError<null, AppError>(__TAURI_INVOKE("encrypt_data", { password })),
+	/**  Encrypts the data file with a new password, then restarts the application. */
+	changeDataPassword: (currentPassword: string, newPassword: string) => typedError<null, AppError>(__TAURI_INVOKE("change_data_password", { currentPassword, newPassword })),
+	/**  Decrypts the data file, then restarts the application. */
+	decryptData: (currentPassword: string) => typedError<null, AppError>(__TAURI_INVOKE("decrypt_data", { currentPassword })),
+	/**  Daily full backups, their folder and the day of the last one. */
+	backupSettings: () => typedError<BackupSettings, AppError>(__TAURI_INVOKE("backup_settings")),
+	setDailyBackups: (daily: boolean) => typedError<BackupSettings, AppError>(__TAURI_INVOKE("set_daily_backups", { daily })),
+	/**  Chooses the folder of the full backups; `null` goes back to the default one. */
+	setBackupFolder: (folder: string | null) => typedError<BackupSettings, AppError>(__TAURI_INVOKE("set_backup_folder", { folder })),
+	/**  Full backups and backups made before an import, the most recent first. */
+	listBackups: () => typedError<Backup[], AppError>(__TAURI_INVOKE("list_backups")),
+	/**  Makes a full backup now. */
+	createFullBackup: () => typedError<Backup, AppError>(__TAURI_INVOKE("create_full_backup")),
+	/**  Backs up the current data, then restarts the application to restore a listed backup. */
+	restoreBackup: (path: string) => typedError<null, AppError>(__TAURI_INVOKE("restore_backup", { path })),
+	/**  Alerts of today: negative forecasts, missing occurrences, unusual expenses. */
+	listAlerts: () => typedError<Alert[], AppError>(__TAURI_INVOKE("list_alerts")),
+	/**  Stops showing the unusual expense alert of a top-level category for the month of `month`. */
+	dismissUnusualExpense: (categoryId: number, month: string) => typedError<null, AppError>(__TAURI_INVOKE("dismiss_unusual_expense", { categoryId, month })),
+	/**  Stops showing an occurrence of a scheduled operation as missing. */
+	dismissMissingOccurrence: (scheduledOperationId: number, occurrenceDate: string) => typedError<null, AppError>(__TAURI_INVOKE("dismiss_missing_occurrence", { scheduledOperationId, occurrenceDate })),
+	/**
+	 *  Operations matching every filter, most recent first, with the balance of their account
+	 *  after each one.
+	 */
+	searchOperations: (filter: OperationFilter) => typedError<OperationRow[], AppError>(__TAURI_INVOKE("search_operations", { filter })),
+	/**  Detected internal transfers to confirm, the most recent first. */
+	listTransferProposals: () => typedError<TransferProposal[], AppError>(__TAURI_INVOKE("list_transfer_proposals")),
+	/**  Links the certain internal transfers of the whole history; returns their count. */
+	detectTransfers: () => typedError<number, AppError>(__TAURI_INVOKE("detect_transfers")),
+	/**  Links two operations as the two sides of an internal transfer. */
+	linkTransfer: (id: number, otherId: number) => typedError<null, AppError>(__TAURI_INVOKE("link_transfer", { id, otherId })),
+	/**  Unlinks an operation from its transfer; both sides keep their category. */
+	unlinkTransfer: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("unlink_transfer", { id })),
+	/**  Dismisses a proposed transfer, which is not proposed again. */
+	dismissTransfer: (debitId: number, creditId: number) => typedError<null, AppError>(__TAURI_INVOKE("dismiss_transfer", { debitId, creditId })),
+	/**  The other side of the transfer of an operation, if it is linked. */
+	transferPartner: (id: number) => typedError<{
+	operationId: number,
+	accountId: number,
+	accountName: string,
+	date: string,
+	/**  In the currency of the account. */
+	amountCents: number,
+	currency: string,
+	/**  Payee name, or the normalized label when the operation has no payee. */
+	payeeName: string,
+} | null, AppError>(__TAURI_INVOKE("transfer_partner", { id })),
+	/**  Operations that can be linked by hand to an operation, the closest dates first. */
+	transferLinkCandidates: (id: number) => typedError<TransferSide[], AppError>(__TAURI_INVOKE("transfer_link_candidates", { id })),
 	getOperation: (id: number) => typedError<Operation, AppError>(__TAURI_INVOKE("get_operation", { id })),
 	createOperation: (operation: NewOperation) => typedError<Operation, AppError>(__TAURI_INVOKE("create_operation", { operation })),
 	updateOperation: (id: number, changes: OperationUpdate) => typedError<Operation, AppError>(__TAURI_INVOKE("update_operation", { id, changes })),
@@ -50,6 +147,7 @@ export const commands = {
 	reorderRules: (ids: number[]) => typedError<null, AppError>(__TAURI_INVOKE("reorder_rules", { ids })),
 	/**  Gives the category of a rule to the operations to categorize it matches; returns their count. */
 	applyRule: (id: number) => typedError<number, AppError>(__TAURI_INVOKE("apply_rule", { id })),
+	/**  Deletes a manual entry, with the files of its attachments. */
 	deleteOperation: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_operation", { id })),
 	listCategories: () => typedError<Category[], AppError>(__TAURI_INVOKE("list_categories")),
 	createCategory: (category: CategoryInput) => typedError<Category, AppError>(__TAURI_INVOKE("create_category", { category })),
@@ -70,6 +168,55 @@ export const commands = {
 	 *  operation is created.
 	 */
 	upcomingOperations: (days: number) => typedError<UpcomingOperation[], AppError>(__TAURI_INVOKE("upcoming_operations", { days })),
+	/**
+	 *  Occurrences of the scheduled operations between `from` and `to` (included), with the
+	 *  operation that realized each one.
+	 */
+	scheduleOccurrences: (from: string, to: string) => typedError<UpcomingOperation[], AppError>(__TAURI_INVOKE("schedule_occurrences", { from, to })),
+	/**  Detected matches between occurrences and operations to confirm. */
+	listScheduleMatchProposals: () => typedError<ScheduleMatchProposal[], AppError>(__TAURI_INVOKE("list_schedule_match_proposals")),
+	/**  Makes the certain matches of the whole history; returns their count. */
+	detectScheduleMatches: () => typedError<number, AppError>(__TAURI_INVOKE("detect_schedule_matches")),
+	/**  Records that an operation realizes an occurrence of a scheduled operation. */
+	matchScheduleOccurrence: (scheduledOperationId: number, occurrenceDate: string, operationId: number) => typedError<null, AppError>(__TAURI_INVOKE("match_schedule_occurrence", { scheduledOperationId, occurrenceDate, operationId })),
+	/**  Forgets the operation that realized an occurrence. */
+	unmatchScheduleOccurrence: (scheduledOperationId: number, occurrenceDate: string) => typedError<null, AppError>(__TAURI_INVOKE("unmatch_schedule_occurrence", { scheduledOperationId, occurrenceDate })),
+	/**  Dismisses a proposed match, which is not proposed again. */
+	dismissScheduleMatch: (scheduledOperationId: number, occurrenceDate: string, operationId: number) => typedError<null, AppError>(__TAURI_INVOKE("dismiss_schedule_match", { scheduledOperationId, occurrenceDate, operationId })),
+	/**  Operations that can be matched by hand with an occurrence, the closest dates first. */
+	scheduleMatchCandidates: (scheduledOperationId: number, occurrenceDate: string) => typedError<MatchedOperation[], AppError>(__TAURI_INVOKE("schedule_match_candidates", { scheduledOperationId, occurrenceDate })),
+	/**  Recurring series of operations the schedule does not cover, to add as scheduled operations. */
+	recurringSuggestions: () => typedError<RecurringSuggestion[], AppError>(__TAURI_INVOKE("recurring_suggestions")),
+	/**
+	 *  Today in the local time zone.
+	 *  Categories suggested by the local classifier for the operations to categorize among
+	 *  `operation_ids`; empty while too few operations are categorized.
+	 */
+	suggestCategories: (operationIds: number[]) => typedError<OperationSuggestion[], AppError>(__TAURI_INVOKE("suggest_categories", { operationIds })),
+	/**  Stops suggesting the series of a payee on an account, in one direction. */
+	dismissRecurringSuggestion: (accountId: number, payeeId: number, isCredit: boolean) => typedError<null, AppError>(__TAURI_INVOKE("dismiss_recurring_suggestion", { accountId, payeeId, isCredit })),
+	/**  Payees that have operations, by name, with their labels. */
+	listPayees: () => typedError<Payee[], AppError>(__TAURI_INVOKE("list_payees")),
+	/**  Renames a payee; refused when another payee already has this name. */
+	renamePayee: (id: number, name: string) => typedError<Payee, AppError>(__TAURI_INVOKE("rename_payee", { id, name })),
+	/**  Merges the `sources` payees into `target`, which keeps its name. */
+	mergePayees: (target: number, sources: number[]) => typedError<Payee, AppError>(__TAURI_INVOKE("merge_payees", { target, sources })),
+	/**  Detaches a label from its payee into a new payee; returns the new payee. */
+	detachPayeeLabel: (normalizedLabel: string) => typedError<Payee, AppError>(__TAURI_INVOKE("detach_payee_label", { normalizedLabel })),
+	/**  Every tag, by name, with the count of its operations. */
+	listTags: () => typedError<Tag[], AppError>(__TAURI_INVOKE("list_tags")),
+	/**  Renames a tag; refused when another tag already has this name. */
+	renameTag: (id: number, name: string) => typedError<Tag, AppError>(__TAURI_INVOKE("rename_tag", { id, name })),
+	/**  Deletes a tag and removes it from its operations. */
+	deleteTag: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_tag", { id })),
+	/**  Attachments of an operation, oldest first. */
+	listAttachments: (operationId: number) => typedError<Attachment[], AppError>(__TAURI_INVOKE("list_attachments", { operationId })),
+	/**  Copies the file at `path` next to the data file and attaches it to an operation. */
+	addAttachment: (operationId: number, path: string) => typedError<Attachment, AppError>(__TAURI_INVOKE("add_attachment", { operationId, path })),
+	/**  Deletes an attachment and its file. */
+	deleteAttachment: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("delete_attachment", { id })),
+	/**  Opens an attachment with the default application of the system. */
+	openAttachment: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("open_attachment", { id })),
 	listCsvMappings: () => typedError<SavedCsvMapping[], AppError>(__TAURI_INVOKE("list_csv_mappings")),
 	getCsvMapping: (id: number) => typedError<SavedCsvMapping, AppError>(__TAURI_INVOKE("get_csv_mapping", { id })),
 	createCsvMapping: (mapping: NewCsvMapping) => typedError<SavedCsvMapping, AppError>(__TAURI_INVOKE("create_csv_mapping", { mapping })),
@@ -99,20 +246,38 @@ export const commands = {
 } | null, AppError>(__TAURI_INVOKE("detect_csv_mapping", { path })),
 	/**  Imports of an account, most recent first. */
 	listImportBatches: (accountId: number) => typedError<ImportBatch[], AppError>(__TAURI_INVOKE("list_import_batches", { accountId })),
-	/**  Deletes an import and all its operations. */
+	/**  Deletes an import and all its operations, with the files of their attachments. */
 	cancelImport: (id: number) => typedError<null, AppError>(__TAURI_INVOKE("cancel_import", { id })),
 	/**  First lines of the file at `path`, decoded with `encoding`. */
 	readFileHead: (path: string, encoding: CsvEncoding) => typedError<string[], AppError>(__TAURI_INVOKE("read_file_head", { path, encoding })),
 	/**
 	 *  Reads the statement file at `path` (CSV with a saved mapping, or PDF of a supported
-	 *  bank) and compares it with the account.
+	 *  bank) and compares it with the account. Lines of unknown labels get a suggested category.
 	 */
 	previewImport: (path: string, accountId: number, format: ImportFormat) => typedError<ImportPreview, AppError>(__TAURI_INVOKE("preview_import", { path, accountId, format })),
 	/**
-	 *  Imports the selected lines of the statement file at `path`, with their categories.
-	 *  `file_hash` comes from the preview and guards against a file changed in between.
+	 *  Imports the selected lines of the statement file at `path`, with their categories, then
+	 *  links the certain internal transfers and schedule occurrences of the new operations.
+	 *  `file_hash` comes from the preview and guards against a file changed in between;
+	 *  `source_categories` are the categories chosen for the categories of a QIF file.
 	 */
-	importStatement: (path: string, accountId: number, format: ImportFormat, fileHash: string, selections: ImportSelection[]) => typedError<ImportBatch, AppError>(__TAURI_INVOKE("import_statement", { path, accountId, format, fileHash, selections })),
+	importStatement: (path: string, accountId: number, format: ImportFormat, fileHash: string, selections: ImportSelection[], sourceCategories: SourceCategoryChoice[]) => typedError<ImportOutcome, AppError>(__TAURI_INVOKE("import_statement", { path, accountId, format, fileHash, selections, sourceCategories })),
+	/**
+	 *  Reads the securities trades of a statement (Trade Republic) and compares them with the
+	 *  portfolio of the investment account.
+	 */
+	previewTrades: (path: string, accountId: number) => typedError<TradePreview, AppError>(__TAURI_INVOKE("preview_trades", { path, accountId })),
+	/**
+	 *  Imports the selected trades of the statement into the portfolio, creating the missing
+	 *  securities. `file_hash` comes from the preview.
+	 */
+	importTrades: (path: string, accountId: number, fileHash: string, indexes: number[]) => typedError<TradeImport, AppError>(__TAURI_INVOKE("import_trades", { path, accountId, fileHash, indexes })),
+	/**  The kept file of an import: name, date and how it is shown. */
+	sourceDocument: (importBatchId: number) => typedError<SourceDocument, AppError>(__TAURI_INVOKE("source_document", { importBatchId })),
+	/**  Text of a kept CSV, OFX or QIF file. */
+	sourceDocumentText: (importBatchId: number) => typedError<string, AppError>(__TAURI_INVOKE("source_document_text", { importBatchId })),
+	/**  Opens the kept file of an import with the default application of the system. */
+	openSourceDocument: (importBatchId: number) => typedError<null, AppError>(__TAURI_INVOKE("open_source_document", { importBatchId })),
 	/**  Banks whose PDF statements can be imported. */
 	supportedBanks: () => __TAURI_INVOKE<SupportedBank[]>("supported_banks"),
 	/**  Bank of the PDF statement at `path`, `null` when no parser recognizes it. */
@@ -129,6 +294,11 @@ export const commands = {
 	incomeVsExpenses: (from: string, to: string, accounts: number[] | null, granularity: Granularity) => typedError<PeriodIncomeExpenses[], AppError>(__TAURI_INVOKE("income_vs_expenses", { from, to, accounts, granularity })),
 	/**  Total balance of the accounts at the end of each day, week or month. */
 	balanceHistory: (from: string, to: string, accounts: number[] | null, step: BalanceStep) => typedError<BalancePoint[], AppError>(__TAURI_INVOKE("balance_history", { from, to, accounts, step })),
+	/**
+	 *  Projected balance from today over `days` days, from the schedule occurrences not realized
+	 *  yet. `accounts`: `null` for every account with operations.
+	 */
+	balanceForecast: (days: number, accounts: number[] | null) => typedError<BalanceForecast, AppError>(__TAURI_INVOKE("balance_forecast", { days, accounts })),
 	/**  Net worth at the end of `date`, with its breakdown (cash, investments, assets, debts). */
 	netWorthAt: (date: string) => typedError<NetWorth, AppError>(__TAURI_INVOKE("net_worth_at", { date })),
 	/**  Net worth at the end of each day, week or month between `from` and `to`. */
@@ -160,12 +330,18 @@ export type AccountError = { code: "notFound"; params: number } | { code: "empty
 export type AccountSummary = {
 	account: Account,
 	/**
-	 *  Balance from the operations; for investments and assets, the last valuation on or
-	 *  before the date; for liabilities, minus the last outstanding capital. `None` for a
-	 *  valued account without valuation yet.
+	 *  Balance from the operations; for an investment account, the market value of its
+	 *  portfolio from its first transaction on, else its last valuation on or before the date
+	 *  (as for assets); for liabilities, minus the last outstanding capital. `None` for a
+	 *  valued account without valuation yet. In the currency of the account.
 	 */
 	balanceCents: number | null,
-	/**  Date of the valuation behind the balance of a valued account. */
+	/**  The balance in euros at the rate of the date; 0 without a rate. */
+	referenceBalanceCents: number | null,
+	/**
+	 *  Date of the valuation behind the balance of a valued account, or of the most recent
+	 *  price of its portfolio.
+	 */
 	valuedOn: string | null,
 };
 
@@ -179,13 +355,27 @@ export type AccountType = "CHECKING" | "SAVINGS" |
 /**  Loan, tracked by its outstanding capital. */
 "LIABILITY";
 
-/**  Editable fields of an existing account. The type is fixed at creation. */
+/**
+ *  Editable fields of an existing account. The type is fixed at creation, the currency once
+ *  the account has data.
+ */
 export type AccountUpdate = {
 	name: string,
+	currency: string,
 	institution: string | null,
 	openingBalanceCents: number,
 	openingDate: string,
 };
+
+export type Alert = { kind: "missingRate"; currency: string } | { kind: "negativeForecast"; accountId: number; 
+/**  First day the projected balance is negative. */
+firstNegativeDate: string; lowest: BalancePoint } | { kind: "missingOccurrence"; occurrence: UpcomingOperation } | { kind: "unusualExpense"; categoryId: number; 
+/**  First day of the current month. */
+month: string; 
+/**  Net expenses of the month up to today. */
+expenseCents: number; 
+/**  Average monthly expenses of the history, rounded. */
+averageCents: number };
 
 export type AmbiguityReason = 
 /**  The account has this exact operation, but fewer times than the file. */
@@ -212,6 +402,50 @@ export type AppError = {
 	detail: ErrorDetail | null,
 };
 
+export type Attachment = {
+	id: number,
+	operationId: number,
+	/**  Original file name. */
+	fileName: string,
+	sizeBytes: number,
+	/**  `YYYY-MM-DDTHH:MM:SSZ`. */
+	addedAt: string,
+};
+
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type AttachmentError = { code: "notFound"; params: number } | { code: "notAFile"; params: string } | { code: "tooLarge"; params: {
+	maxBytes: number,
+} } | { code: "fileMissing"; params: number };
+
+export type Backup = {
+	path: string,
+	kind: BackupKind,
+	/**  Local date and time of the backup, from its name. */
+	createdAt: string,
+	/**  Size of the data file, of the attachments and of the kept statements. */
+	sizeBytes: number,
+	attachmentCount: number,
+};
+
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type BackupError = { code: "notABackup"; params: string } | { code: "folderUnavailable"; params: string };
+
+export type BackupKind = 
+/**  Data file, attachments and kept statements. */
+"FULL" | 
+/**  Data file only, made before an import. */
+"IMPORT";
+
+export type BackupSettings = {
+	/**  A full backup is made at startup once a day. */
+	daily: boolean,
+	/**  Folder of the full backups. */
+	folder: string,
+	/**  The folder was chosen by the user. */
+	customFolder: boolean,
+	lastFullOn: string | null,
+};
+
 export type BalanceCheck = {
 	status: BalanceCheckStatus,
 	/**  Sum of the statement lines. */
@@ -224,6 +458,17 @@ export type BalanceCheck = {
 export type BalanceCheckStatus = "OK" | "MISMATCH" | 
 /**  The statement gives no balances (CSV files). */
 "NOT_AVAILABLE";
+
+export type BalanceForecast = {
+	/**  Balance at the end of today from the operations only, in euros like the points. */
+	currentBalanceCents: number,
+	/**  Projected balance at the end of each day from today to the horizon. */
+	points: BalancePoint[],
+	/**  The first day with the lowest projected balance. */
+	lowest: BalancePoint,
+	/**  Occurrences counted, by date. */
+	occurrences: ForecastOccurrence[],
+};
 
 export type BalancePoint = {
 	date: string,
@@ -277,6 +522,13 @@ export type CategoryExpense = {
 	/**  Net amount spent: positive, or negative when refunds exceed spending. */
 	expenseCents: number,
 };
+
+/**  Category of the operations to keep. */
+export type CategoryFilter = 
+/**  Operations still to categorize. */
+{ kind: "uncategorized" } | 
+/**  Operations of the category, or of one of its subcategories. */
+{ kind: "category"; id: number };
 
 /**
  *  Fields of a category to create or update. For a subcategory, `color` and `is_income` are
@@ -344,6 +596,16 @@ export type CsvMapping = {
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
 export type CsvMappingError = { code: "notFound"; params: number } | { code: "emptyName" } | { code: "duplicateName"; params: string } | { code: "corrupt"; params: number };
 
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type CurrencyError = { code: "unsupported"; params: string } | { code: "referenceRate" } | { code: "invalidRate" } | { code: "accountCurrencyLocked" } | { code: "securityCurrencyLocked" };
+
+/**  A currency other than euros used by an account or a security. */
+export type CurrencyUse = {
+	currency: string,
+	/**  Most recent rate; `None` when the currency has none, and its amounts count 0. */
+	latest: ExchangeRate | null,
+};
+
 /**  Where the application keeps its data, for the Settings screen. */
 export type DataLocation = {
 	/**  The SQLite data file. */
@@ -362,12 +624,29 @@ export type DateRange = {
 /**  Decimal separator of the amounts. */
 export type DecimalSeparator = "," | ".";
 
+/**  Sign of the operations to keep. */
+export type Direction = 
+/**  Negative amounts. */
+"debit" | 
+/**  Positive amounts. */
+"credit";
+
+/**  How a document is shown. */
+export type DocumentKind = 
+/**  Opened with the application of the system. */
+"pdf" | 
+/**  Shown in the application, line by line. */
+"text";
+
 export type DuplicateStatus = { status: "new" } | { status: "duplicate"; operationId: number } | { status: "ambiguous"; reason: AmbiguityReason; 
 /**  Existing operations the line may duplicate. */
 candidateIds: number[] };
 
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type EncryptionError = { code: "wrongPassword" } | { code: "passwordTooShort"; params: number } | { code: "alreadyEncrypted" } | { code: "notEncrypted" };
+
 /**  Business error with its code and parameters, for a message in French on the frontend. */
-export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "rule"; error: RuleError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError };
+export type ErrorDetail = { domain: "account"; error: AccountError } | { domain: "operation"; error: OperationError } | { domain: "category"; error: CategoryError } | { domain: "schedule"; error: ScheduleError } | { domain: "rule"; error: RuleError } | { domain: "payee"; error: PayeeError } | { domain: "tag"; error: TagError } | { domain: "attachment"; error: AttachmentError } | { domain: "transfer"; error: TransferError } | { domain: "stats"; error: StatsError } | { domain: "csv"; error: CsvError } | { domain: "csvMapping"; error: CsvMappingError } | { domain: "import"; error: ImportError } | { domain: "pdf"; error: PdfError } | { domain: "interchange"; error: InterchangeError } | { domain: "sourceDocument"; error: SourceDocumentError } | { domain: "investment"; error: InvestmentError } | { domain: "price"; error: PriceError } | { domain: "currency"; error: CurrencyError } | { domain: "backup"; error: BackupError } | { domain: "encryption"; error: EncryptionError };
 
 /**  Stable identifier the frontend can match on. */
 export type ErrorKind = "database" | "migration" | "io" | 
@@ -376,6 +655,14 @@ export type ErrorKind = "database" | "migration" | "io" |
 /**  The input breaks a business rule; the message says which. */
 "validation";
 
+export type ExchangeRate = {
+	currency: string,
+	date: string,
+	/**  Euros for one unit of the currency, in billionths. */
+	rateNano: number,
+	source: PriceSourceKind,
+};
+
 /**  An existing operation of the account, as needed for duplicate detection. */
 export type ExistingOperation = {
 	id: number,
@@ -383,6 +670,21 @@ export type ExistingOperation = {
 	amountCents: number,
 	rawLabel: string,
 	isManual: boolean,
+};
+
+/**  An occurrence counted in the forecast. */
+export type ForecastOccurrence = {
+	scheduledOperationId: number,
+	/**  Date of the occurrence in the schedule. */
+	occurrenceDate: string,
+	/**  Date it counts in the forecast: today for a late occurrence. */
+	date: string,
+	accountId: number,
+	label: string,
+	/**  In the currency of the account. */
+	amountCents: number,
+	currency: string,
+	categoryId: number | null,
 };
 
 export type Frequency = "WEEKLY" | "MONTHLY" | "QUARTERLY" | "SEMIANNUAL" | "YEARLY";
@@ -412,7 +714,20 @@ export type ImportFormat =
 /**  CSV export read with a saved mapping. */
 { kind: "csv"; mappingId: number } | 
 /**  PDF statement read by the parser of its bank, detected from its content. */
-{ kind: "pdf" };
+{ kind: "pdf" } | 
+/**  OFX file (Money, bank downloads): one bank or card statement. */
+{ kind: "ofx" } | 
+/**  QIF file (Money, Quicken): one bank or card account. */
+{ kind: "qif" };
+
+/**  Result of an import. */
+export type ImportOutcome = {
+	batch: ImportBatch,
+	/**  Internal transfers linked automatically with operations of other accounts. */
+	linkedTransfers: number,
+	/**  Occurrences of scheduled operations realized automatically by the new operations. */
+	matchedOccurrences: number,
+};
 
 export type ImportPreview = {
 	fileName: string,
@@ -434,6 +749,8 @@ export type ImportPreview = {
 	endBalanceCents: number | null,
 	/**  `start balance + Σ lines = end balance`, over every line read. */
 	balanceCheck: BalanceCheck,
+	/**  Categories given by a QIF file (transfers excepted), by name. */
+	sourceCategories: SourceCategory[],
 };
 
 /**  A preview line to import, with the category the user kept or chose. */
@@ -444,13 +761,64 @@ export type ImportSelection = {
 	categoryId: number | null,
 };
 
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type InterchangeError = { code: "notOfx" } | { code: "notQif" } | { code: "noAccount" } | { code: "severalAccounts"; params: number } | { code: "investmentStatement" } | { code: "invalidDate"; params: {
+	line: number,
+	text: string,
+} } | { code: "invalidAmount"; params: {
+	line: number,
+	text: string,
+} } | { code: "incompleteTransaction"; params: {
+	line: number,
+} } | { code: "currencyMismatch"; params: {
+	file: string,
+	account: string,
+} };
+
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type InvestmentError = { code: "securityNotFound"; params: number } | { code: "transactionNotFound"; params: number } | { code: "emptySecurityName" } | { code: "invalidIsin"; params: string } | { code: "invalidSymbol"; params: string } | { code: "isinTaken"; params: string } | { code: "securityInUse" } | { code: "notAnInvestmentAccount" } | { code: "dateBeforeOpening"; params: string } | { code: "missingQuantity" } | { code: "quantityOnDividend" } | { code: "zeroAmount" } | { code: "oversold"; params: {
+	date: string,
+	security: string,
+} };
+
+export type InvestmentTransaction = {
+	id: number,
+	accountId: number,
+	securityId: number,
+	securityName: string,
+	date: string,
+	kind: TransactionKind,
+	/**  Millionths of a unit; 0 for a dividend. */
+	quantityMicro: number,
+	/**  Quantity × unit price for a buy or a sell, amount received for a dividend. */
+	amountCents: number,
+	feesCents: number,
+	note: string | null,
+	/**  Gain of a sell: proceeds net of fees − cost of the units sold; `None` otherwise. */
+	realizedCents: number | null,
+	/**  Import of the statement it was read from; `None` when entered by hand. */
+	importBatchId: number | null,
+	/**  The statement was kept: it can be opened. */
+	hasSourceDocument: boolean,
+	/**  Page of the trade in its statement, from 1. */
+	sourcePage: number | null,
+};
+
 export type LargestExpense = {
 	operationId: number,
 	date: string,
 	normalizedLabel: string,
+	payeeName: string,
 	/**  Amount spent, positive. */
 	expenseCents: number,
 	categoryId: number | null,
+};
+
+export type LockStatus = {
+	/**  The data file is encrypted. */
+	encrypted: boolean,
+	/**  The data is open: false until the password of an encrypted file is given. */
+	unlocked: boolean,
 };
 
 /**  A saved mapping that reads a file without error. */
@@ -458,6 +826,15 @@ export type MappingSuggestion = {
 	mapping: SavedCsvMapping,
 	/**  Statement lines read from the file with this mapping. */
 	lineCount: number,
+};
+
+/**  An operation matched, or to match, with an occurrence. */
+export type MatchedOperation = {
+	operationId: number,
+	date: string,
+	amountCents: number,
+	/**  Payee name, or the normalized label when the operation has no payee. */
+	payeeName: string,
 };
 
 export type NetWorth = {
@@ -476,6 +853,7 @@ export type NetWorth = {
 export type NewAccount = {
 	name: string,
 	type: AccountType,
+	currency: string,
 	institution: string | null,
 	openingBalanceCents: number,
 	openingDate: string,
@@ -495,6 +873,9 @@ export type NewOperation = {
 	amountCents: number,
 	label: string,
 	categoryId: number | null,
+	note: string | null,
+	/**  Tag names; unknown ones create a tag. */
+	tags: string[],
 };
 
 /**  An operation with its category. V1 has exactly one split per operation. */
@@ -508,26 +889,67 @@ export type Operation = {
 	rawLabel: string,
 	/**  Cleaned label used for categorization and payees. */
 	normalizedLabel: string,
+	/**  Payee of the normalized label. */
+	payeeId: number | null,
+	/**  Name of the payee, or the normalized label when the operation has no payee yet. */
+	payeeName: string,
 	/**  `None` for manual entries. */
 	importBatchId: number | null,
+	/**  The file of the import was kept: it can be opened (imports made since V2). */
+	hasSourceDocument: boolean,
+	/**  Page of the operation in its PDF statement, from 1. */
+	sourcePage: number | null,
+	/**  Line of the operation in its text file (CSV, OFX, QIF), from 1. */
+	sourceLine: number | null,
 	/**  `None` while the operation is still to categorize. */
 	categoryId: number | null,
 	/**  Derived from the category; excluded from income and expense statistics. */
 	isInternalTransfer: boolean,
+	/**  The other side of the internal transfer, on another account, once linked. */
+	transferPairId: number | null,
+	note: string | null,
+	/**  Tag names, by name. */
+	tags: string[],
+	attachmentCount: number,
 };
 
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
 export type OperationError = { code: "notFound"; params: number } | { code: "categoryNotFound"; params: number } | { code: "emptyLabel" } | { code: "zeroAmount" } | { code: "accountWithoutOperations" } | { code: "dateBeforeOpening"; params: string } | { code: "importedFieldsLocked" } | { code: "importedOperationNotDeletable" };
 
-/**  An operation in an account listing, with the account balance after it. */
+/**  Filters combined with AND; a `None` filter keeps everything. Bounds are included. */
+export type OperationFilter = {
+	/**  `None` for every account. */
+	accountId: number | null,
+	/**  Whether archived accounts are searched when `account_id` is `None`. */
+	includeArchived: boolean,
+	from: string | null,
+	to: string | null,
+	direction: Direction | null,
+	/**  Lowest amount, in absolute value. */
+	minCents: number | null,
+	/**  Highest amount, in absolute value. */
+	maxCents: number | null,
+	payeeId: number | null,
+	category: CategoryFilter | null,
+	tagId: number | null,
+};
+
+/**  An operation in a listing, with the balance of its account after it. */
 export type OperationRow = {
 	operation: Operation,
 	balanceCents: number,
 };
 
+/**  A category suggested for an operation to categorize. */
+export type OperationSuggestion = {
+	operationId: number,
+	suggestion: Suggestion,
+};
+
 /**
  *  New values of an operation. For an imported operation, `date`, `amount_cents` and `label`
- *  must be left unchanged: only the value date and the category can be edited.
+ *  must be left unchanged: only the value date, the category, the note and the tags can be
+ *  edited.
  */
 export type OperationUpdate = {
 	date: string,
@@ -535,10 +957,36 @@ export type OperationUpdate = {
 	amountCents: number,
 	label: string,
 	categoryId: number | null,
+	note: string | null,
+	/**  Tag names; unknown ones create a tag. */
+	tags: string[],
 };
 
+/**  A payee with its labels and the activity of its operations. */
+export type Payee = {
+	id: number,
+	name: string,
+	/**  Normalized labels merged into this payee, alphabetically. */
+	labels: string[],
+	operationCount: number,
+	/**
+	 *  Sum of the operation amounts, internal transfers excluded; `None` when all its
+	 *  operations are internal transfers.
+	 */
+	totalCents: number | null,
+	lastDate: string | null,
+};
+
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type PayeeError = { code: "notFound"; params: number } | { code: "labelNotFound"; params: string } | { code: "emptyName" } | { code: "nameTaken"; params: {
+	name: string,
+	payeeId: number,
+} } | { code: "mergeIntoItself" } | { code: "lastLabel" };
+
 export type PayeeExpense = {
-	normalizedLabel: string,
+	/**  `None` for operations without a payee yet, grouped by normalized label. */
+	payeeId: number | null,
+	payeeName: string,
 	/**  Net amount spent with this payee, positive. */
 	expenseCents: number,
 	operationCount: number,
@@ -547,7 +995,32 @@ export type PayeeExpense = {
 };
 
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
-export type PdfError = { code: "libraryUnavailable"; params: string } | { code: "invalidPdf"; params: string } | { code: "unknownFormat" } | { code: "layout"; params: string };
+export type PdfError = { code: "libraryUnavailable"; params: string } | { code: "invalidPdf"; params: string } | { code: "unknownFormat" } | { code: "layout"; params: string } | { code: "noTrades"; params: string };
+
+/**  Gains of an investment account at a date. */
+export type Performance = {
+	/**  Cost of the units held. */
+	costCents: number,
+	marketValueCents: number,
+	unrealizedCents: number,
+	/**  Gains of the sells: proceeds net of fees − cost of the units sold. */
+	realizedCents: number,
+	/**  Dividends net of their fees. */
+	dividendsCents: number,
+	/**  Unrealized + realized + dividends. */
+	totalGainCents: number,
+	/**  Every buy, fees included: the base of the percentage. */
+	boughtCents: number,
+	/**  Total gain ÷ bought, in hundredths of a percent; `None` without buys. */
+	totalGainBasisPoints: number | null,
+	/**
+	 *  Money-weighted annual return (XIRR) of the buys, sells, dividends and market value, in
+	 *  hundredths of a percent; `None` under a year after the first buy.
+	 */
+	annualizedBasisPoints: number | null,
+	/**  Realized gains and dividends by calendar year, the most recent first. */
+	years: YearGains[],
+};
 
 export type PeriodIncomeExpenses = {
 	/**  First day of the month or year. */
@@ -557,10 +1030,38 @@ export type PeriodIncomeExpenses = {
 	expenseCents: number,
 };
 
+/**  A security held in an account at a date. */
+export type Position = {
+	securityId: number,
+	securityName: string,
+	isin: string | null,
+	/**  Millionths of a unit. */
+	quantityMicro: number,
+	/**  Weighted average cost of the units held, buying fees included. */
+	costCents: number,
+	/**  Cost of one unit, rounded to the cent. */
+	unitCostCents: number,
+	/**  Dividends received since the first buy, net of their fees. */
+	dividendsCents: number,
+	/**  Last known price on or before the date, in the currency of the security. */
+	lastPrice: PricePoint | null,
+	/**  Currency of the prices of the security. */
+	currency: string,
+	/**
+	 *  Quantity × last price, converted to the currency of the account at the rate of the day
+	 *  of the price; the cost without a price or a rate.
+	 */
+	marketValueCents: number,
+	/**  Market value − cost; 0 without a price. */
+	unrealizedCents: number,
+};
+
 /**  A statement line in the import preview. */
 export type PreviewLine = {
 	line: RawLine,
 	normalizedLabel: string,
+	/**  Payee of the label, or the name its new payee will get. */
+	payeeName: string,
 	duplicate: DuplicateStatus,
 	/**
 	 *  Dated before the account opening: already counted in the opening balance, never
@@ -570,12 +1071,54 @@ export type PreviewLine = {
 	/**  Checked in the preview unless the user unchecks it: new lines only. */
 	includedByDefault: boolean,
 	/**
-	 *  Category given at import: by the first matching rule, or else remembered for this
-	 *  label; `None`: unknown label.
+	 *  Category given at import: by the category of the QIF file, or else by the first
+	 *  matching rule, or else remembered for this label; `None`: unknown label.
 	 */
 	categoryId: number | null,
 	/**  Text of the rule that gave the category; `None` when remembered or unknown. */
 	rulePattern: string | null,
+	/**
+	 *  Category suggested by the classifier for an unknown label, never applied without the
+	 *  user's validation.
+	 */
+	suggestion: Suggestion | null,
+};
+
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type PriceError = { code: "disabled" } | { code: "network"; params: string } | { code: "unexpectedResponse"; params: string } | { code: "unknownSymbol"; params: string } | { code: "unsupportedCurrency"; params: {
+	symbol: string,
+	currency: string,
+} } | { code: "currencyMismatch"; params: {
+	symbol: string,
+	currency: string,
+	expected: string,
+} } | { code: "invalidPrice" };
+
+export type PriceFailure = {
+	/**  Name of the security, or "USD/EUR" for an exchange rate. */
+	name: string,
+	error: PriceError,
+};
+
+export type PricePoint = {
+	date: string,
+	priceCents: number,
+};
+
+export type PriceSettings = {
+	/**  The user allowed fetching prices from Yahoo Finance. */
+	updatesEnabled: boolean,
+	/**  Day of the last update. */
+	updatedOn: string | null,
+};
+
+export type PriceSourceKind = "MANUAL" | "YAHOO";
+
+/**  Result of an update of the prices. */
+export type PriceUpdate = {
+	/**  Securities and currencies whose prices or rates were fetched. */
+	updated: number,
+	failures: PriceFailure[],
 };
 
 /**
@@ -589,6 +1132,33 @@ export type RawLine = {
 	label: string,
 	/**  Negative for a debit, positive for a credit. */
 	amountCents: number,
+	/**  Memo of an OFX or QIF line, kept as the note of the operation. */
+	note: string | null,
+	/**  Category given by a QIF file, e.g. "Alimentation:Courses"; `[Compte]` for a transfer. */
+	sourceCategory: string | null,
+	/**  Page of the line in a PDF statement, from 1. */
+	sourcePage: number | null,
+	/**  Line in a text file (CSV, OFX, QIF), from 1. */
+	sourceLine: number | null,
+};
+
+/**  A recurring series suggested as a scheduled operation. */
+export type RecurringSuggestion = {
+	accountId: number,
+	payeeId: number,
+	/**  Suggested label of the scheduled operation. */
+	payeeName: string,
+	/**  Amount of the most recent operation. */
+	amountCents: number,
+	/**  Category of the most recent operation. */
+	categoryId: number | null,
+	frequency: Frequency,
+	/**  Weekday (1 = Monday) for a weekly series, the usual day of the month otherwise. */
+	dayOfPeriod: number,
+	/**  Date of the first operation of the series. */
+	startDate: string,
+	lastDate: string,
+	occurrenceCount: number,
 };
 
 export type Rule = {
@@ -626,7 +1196,13 @@ export type SavedCsvMapping = {
 };
 
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
-export type ScheduleError = { code: "notFound"; params: number } | { code: "emptyLabel" } | { code: "zeroAmount" } | { code: "invalidDay" } | { code: "endBeforeStart" } | { code: "accountWithoutOperations" } | { code: "categoryNotFound"; params: number };
+export type ScheduleError = { code: "notFound"; params: number } | { code: "emptyLabel" } | { code: "zeroAmount" } | { code: "invalidDay" } | { code: "endBeforeStart" } | { code: "accountWithoutOperations" } | { code: "categoryNotFound"; params: number } | { code: "notAnOccurrence"; params: string } | { code: "otherAccount" } | { code: "alreadyRealized" } | { code: "operationAlreadyMatched"; params: number };
+
+/**  A detected match the user has to confirm. */
+export type ScheduleMatchProposal = {
+	occurrence: UpcomingOperation,
+	operation: MatchedOperation,
+};
 
 export type ScheduledOperation = {
 	id: number,
@@ -653,7 +1229,66 @@ export type ScheduledOperationInput = {
 	endDate: string | null,
 };
 
-export type SourceType = "CSV" | "PDF";
+export type Security = {
+	id: number,
+	name: string,
+	isin: string | null,
+	/**  Yahoo Finance symbol of the listing whose prices are fetched, e.g. `CW8.PA`. */
+	symbol: string | null,
+	/**  Currency of the prices; fixed once the security has prices. */
+	currency: string,
+	/**  Transactions of the security, in every account. */
+	transactionCount: number,
+	hasPrices: boolean,
+};
+
+export type SecurityInput = {
+	name: string,
+	isin: string | null,
+	symbol: string | null,
+	currency: string,
+};
+
+export type SecurityPrice = {
+	securityId: number,
+	date: string,
+	/**  Price of one unit. */
+	priceCents: number,
+	source: PriceSourceKind,
+};
+
+/**  A category of the file, in the import preview. */
+export type SourceCategory = {
+	name: string,
+	/**
+	 *  Category of the application its lines get; `None`: categorized by the rules and the
+	 *  memory, as a CSV line.
+	 */
+	categoryId: number | null,
+	/**  The category comes from an earlier choice, not from the name. */
+	remembered: boolean,
+	lineCount: number,
+};
+
+/**  Category chosen in the preview for a category of the file. */
+export type SourceCategoryChoice = {
+	name: string,
+	/**  `None` forgets the earlier choice. */
+	categoryId: number | null,
+};
+
+export type SourceDocument = {
+	importBatchId: number,
+	/**  Original file name. */
+	fileName: string,
+	importedAt: string,
+	kind: DocumentKind,
+};
+
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type SourceDocumentError = { code: "notKept"; params: number } | { code: "fileMissing"; params: number } | { code: "notText"; params: number };
+
+export type SourceType = "CSV" | "PDF" | "OFX" | "QIF";
 
 /**  Lines kept according to a state column, e.g. only `COMPLETED` operations. */
 export type StateFilter = {
@@ -668,13 +1303,115 @@ export type StatsError = { code: "invalidPeriod"; params: {
 	to: string,
 } };
 
+/**  A category suggested for a label. */
+export type Suggestion = {
+	categoryId: number,
+	/**  Probability of the category, in percent (50 to 100). */
+	confidencePercent: number,
+};
+
 /**  A bank whose PDF statements can be imported. */
 export type SupportedBank = {
 	id: string,
 	name: string,
 };
 
-/**  An upcoming occurrence of a scheduled operation. */
+/**  A listing of a security found by its ISIN. */
+export type SymbolCandidate = {
+	symbol: string,
+	name: string,
+	/**  Exchange, e.g. "Paris" or "Amsterdam". */
+	exchange: string,
+};
+
+/**  A tag with the count of its operations. */
+export type Tag = {
+	id: number,
+	name: string,
+	operationCount: number,
+};
+
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type TagError = { code: "notFound"; params: number } | { code: "emptyName" } | { code: "nameTaken"; params: string };
+
+/**
+ *  A buy or a sell of securities read from a statement. The amount is the total paid or
+ *  received, fees included.
+ */
+export type Trade = {
+	date: string,
+	kind: TransactionKind,
+	isin: string,
+	/**  Name of the security as written by the bank, e.g. "ASML HOLDING EO -,09". */
+	name: string,
+	/**  Millionths of a unit. */
+	quantityMicro: number,
+	/**  Positive. */
+	amountCents: number,
+	/**  Page of the trade in the statement, from 1. */
+	sourcePage: number | null,
+};
+
+export type TradeImport = {
+	imported: number,
+	createdSecurities: number,
+};
+
+export type TradeLine = {
+	trade: Trade,
+	/**  Security of the ISIN; `None`: created at import. */
+	securityId: number | null,
+	/**  Already in the account: never imported. */
+	duplicate: boolean,
+	/**  Dated before the account opening: never imported. */
+	beforeOpening: boolean,
+};
+
+export type TradePreview = {
+	fileName: string,
+	/**  To check at import time that the file did not change. */
+	fileHash: string,
+	/**  Bank recognized from the statement. */
+	bank: string,
+	/**  Trades in file order; the import refers to them by index. */
+	lines: TradeLine[],
+};
+
+export type TransactionInput = {
+	securityId: number,
+	date: string,
+	kind: TransactionKind,
+	quantityMicro: number,
+	amountCents: number,
+	feesCents: number,
+	note: string | null,
+};
+
+export type TransactionKind = "BUY" | "SELL" | "DIVIDEND";
+
+/**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
+export type TransferError = { code: "sameAccount" } | { code: "amountsNotOpposite" } | { code: "differentCurrencies" } | { code: "alreadyLinked"; params: number };
+
+/**  A detected transfer the user has to confirm. */
+export type TransferProposal = {
+	debit: TransferSide,
+	credit: TransferSide,
+};
+
+/**  One side of a transfer, as shown to the user. */
+export type TransferSide = {
+	operationId: number,
+	accountId: number,
+	accountName: string,
+	date: string,
+	/**  In the currency of the account. */
+	amountCents: number,
+	currency: string,
+	/**  Payee name, or the normalized label when the operation has no payee. */
+	payeeName: string,
+};
+
+/**  An occurrence of a scheduled operation. */
 export type UpcomingOperation = {
 	scheduledOperationId: number,
 	date: string,
@@ -682,6 +1419,8 @@ export type UpcomingOperation = {
 	label: string,
 	amountCents: number,
 	categoryId: number | null,
+	/**  The operation that realized the occurrence, once matched. */
+	realizedBy: MatchedOperation | null,
 };
 
 export type Valuation = {
@@ -696,6 +1435,12 @@ export type Valuation = {
 export type ValuationInput = {
 	date: string,
 	valueCents: number,
+};
+
+export type YearGains = {
+	year: number,
+	realizedCents: number,
+	dividendsCents: number,
 };
 
 /* Tauri Specta runtime */

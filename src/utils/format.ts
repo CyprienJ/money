@@ -9,7 +9,7 @@ const NBSP = " ";
 const THOUSANDS_SEPARATOR = "\u00a0";
 
 /** Groups digits by three. Done by hand: Intl locale data varies between web engines. */
-function groupThousands(value: number): string {
+export function groupThousands(value: number): string {
   return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, THOUSANDS_SEPARATOR);
 }
 
@@ -18,14 +18,23 @@ export interface AmountFormatOptions {
   signed?: boolean;
   /** Show cents ("1 234,56 €"); otherwise round to the nearest euro ("1 235 €"). */
   cents?: boolean;
+  /** ISO code of the currency, euros by default. */
+  currency?: string;
+}
+
+const CURRENCY_SYMBOLS: Record<string, string> = { EUR: "€", USD: "$", GBP: "£" };
+
+/** Symbol written after an amount: "€", "$", "£", or the ISO code ("CHF"). */
+export function currencySymbol(currency: string): string {
+  return CURRENCY_SYMBOLS[currency] ?? currency;
 }
 
 /**
- * Formats an amount in cents as euros, e.g. `-123456` → `"−1 234,56 €"`.
+ * Formats an amount in cents, in euros unless told otherwise, e.g. `-123456` → `"−1 234,56 €"`.
  * Uses integer arithmetic only: amounts never go through floating point.
  */
 export function formatAmount(amountCents: number, options: AmountFormatOptions = {}): string {
-  const { signed = false, cents = true } = options;
+  const { signed = false, cents = true, currency = "EUR" } = options;
   if (!Number.isSafeInteger(amountCents)) {
     throw new RangeError(`amount must be an integer number of cents, got ${amountCents}`);
   }
@@ -37,7 +46,7 @@ export function formatAmount(amountCents: number, options: AmountFormatOptions =
 
   const isZero = cents ? abs === 0 : abs < 50;
   const sign = isZero ? "" : amountCents < 0 ? MINUS : signed ? "+" : "";
-  return `${sign}${body}${NBSP}€`;
+  return `${sign}${body}${NBSP}${currencySymbol(currency)}`;
 }
 
 export type DateStyle = "day-month" | "short" | "long";
@@ -147,4 +156,18 @@ export function displayLabel(normalizedLabel: string): string {
       );
     })
     .join(" ");
+}
+
+/** "820 o", "12 Ko", "3,4 Mo": sizes of attached files. */
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} o`;
+  const units = ["Ko", "Mo", "Go"];
+  let value = bytes / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  const digits = value < 10 && !Number.isInteger(value) ? 1 : 0;
+  return `${value.toLocaleString("fr-FR", { maximumFractionDigits: digits })} ${units[unit]}`;
 }

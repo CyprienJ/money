@@ -7,6 +7,8 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 
 use crate::error::AppResult;
 
+pub mod encryption;
+
 /// File name of the data file inside the application data directory.
 pub const DATA_FILE_NAME: &str = "money.sqlite";
 

@@ -1,0 +1,81 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT m.scheduled_operation_id, m.occurrence_date AS \"occurrence_date: NaiveDate\",\n                  o.id, o.date AS \"date: NaiveDate\", o.amount_cents,\n                  COALESCE(p.name, o.normalized_label) AS \"payee_name!: String\"\n           FROM schedule_match m\n           JOIN operation o ON o.id = m.operation_id\n           LEFT JOIN payee p ON p.id = o.payee_id\n           WHERE m.occurrence_date BETWEEN ?1 AND ?2",
+  "describe": {
+    "columns": [
+      {
+        "name": "scheduled_operation_id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "schedule_match",
+            "name": "scheduled_operation_id"
+          }
+        }
+      },
+      {
+        "name": "occurrence_date: NaiveDate",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "schedule_match",
+            "name": "occurrence_date"
+          }
+        }
+      },
+      {
+        "name": "id",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "date: NaiveDate",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "name": "amount_cents",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "amount_cents"
+          }
+        }
+      },
+      {
+        "name": "payee_name!: String",
+        "ordinal": 5,
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "69c49ddf3827b82d7e2fecc3d0191fc65abaeeda6d5585a1cd5c1ec8bae2e943"
+}

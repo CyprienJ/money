@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT v.account_id, a.type AS \"account_type: AccountType\", a.currency,\n                  v.date AS \"date!: NaiveDate\", v.value_cents\n           FROM valuation v\n           JOIN account a ON a.id = v.account_id\n           WHERE a.archived = 0 AND v.date <= ?1\n           ORDER BY v.account_id, v.date",
+  "describe": {
+    "columns": [
+      {
+        "name": "account_id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "valuation",
+            "name": "account_id"
+          }
+        }
+      },
+      {
+        "name": "account_type: AccountType",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "type"
+          }
+        }
+      },
+      {
+        "name": "currency",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "currency"
+          }
+        }
+      },
+      {
+        "name": "date!: NaiveDate",
+        "ordinal": 3,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "valuation",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "name": "value_cents",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "valuation",
+            "name": "value_cents"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "c20bb8f42c27bd0cfaf48fd9e3e044fa4e429cb40d7d7d72a3a039dc904c1511"
+}

@@ -19,6 +19,10 @@ fn line(day: &str, label: &str, amount_cents: i64) -> RawLine {
         value_date: None,
         label: label.to_owned(),
         amount_cents,
+        note: None,
+        source_category: None,
+        source_page: None,
+        source_line: None,
     }
 }
 
@@ -57,7 +61,7 @@ fn signed_mapping() -> CsvMapping {
 }
 
 fn parse_text(text: &str, mapping: &CsvMapping) -> Result<Vec<RawLine>, CsvError> {
-    parse(text.as_bytes(), mapping)
+    parse(text.as_bytes(), mapping).map(crate::importing::unplaced)
 }
 
 #[test]
@@ -67,6 +71,10 @@ fn parses_debit_credit_windows_1252_fixture() {
         &debit_credit_mapping(),
     )
     .unwrap();
+    // Line of each row in the file: header lines, then a skipped total on line 12.
+    let positions: Vec<Option<u32>> = lines.iter().map(|l| l.source_line).collect();
+    assert_eq!(positions, [6, 7, 8, 9, 10, 11, 13].map(Some));
+    let lines = crate::importing::unplaced(lines);
     assert_eq!(
         lines,
         vec![
@@ -87,7 +95,9 @@ fn parses_debit_credit_windows_1252_fixture() {
 
 #[test]
 fn parses_signed_utf8_fixture_with_bom() {
-    let lines = parse(&fixture("csv_signed_utf8_bom.csv"), &signed_mapping()).unwrap();
+    let lines = crate::importing::unplaced(
+        parse(&fixture("csv_signed_utf8_bom.csv"), &signed_mapping()).unwrap(),
+    );
     assert_eq!(
         lines,
         vec![

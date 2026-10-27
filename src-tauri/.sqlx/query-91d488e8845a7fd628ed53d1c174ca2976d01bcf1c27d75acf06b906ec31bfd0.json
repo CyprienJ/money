@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT m.occurrence_date AS \"occurrence_date: NaiveDate\", o.account_id\n           FROM schedule_match m\n           JOIN operation o ON o.id = m.operation_id\n           WHERE m.scheduled_operation_id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "occurrence_date: NaiveDate",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "schedule_match",
+            "name": "occurrence_date"
+          }
+        }
+      },
+      {
+        "name": "account_id",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "account_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "91d488e8845a7fd628ed53d1c174ca2976d01bcf1c27d75acf06b906ec31bfd0"
+}

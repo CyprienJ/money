@@ -160,5 +160,9 @@ fn read_line(
         value_date: None,
         label: label.to_owned(),
         amount_cents,
+        note: None,
+        source_category: None,
+        source_page: None,
+        source_line: u32::try_from(line).ok(),
     }))
 }

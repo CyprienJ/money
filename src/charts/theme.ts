@@ -1,4 +1,7 @@
+import { registerTheme } from "echarts/core";
+import { computed } from "vue";
 import type { CategoryColor } from "../bindings";
+import { resolvedTheme } from "../utils/theme";
 
 /** Design tokens used by the charts, read from the CSS variables of `tokens.css`. */
 export interface ChartTokens {
@@ -48,6 +51,27 @@ export function readTokens(element: Element = document.documentElement): ChartTo
     increase: { background: token("--cat-restaurants-bg"), text: token("--cat-restaurants-fg") },
     decrease: { background: token("--cat-transport-bg"), text: token("--cat-transport-fg") },
   };
+}
+
+/** Chart tokens of the theme in use, read again when the theme changes. */
+export function useChartTokens() {
+  return computed(() => {
+    // Read once the `data-theme` of the new theme is applied.
+    void resolvedTheme.value;
+    return readTokens();
+  });
+}
+
+const registeredThemes = new Set<string>();
+
+/** Name of the ECharts theme of the theme in use, registered on first use. */
+export function chartThemeName(): string {
+  const name = `money-${resolvedTheme.value}`;
+  if (!registeredThemes.has(name)) {
+    registerTheme(name, createTheme(readTokens()));
+    registeredThemes.add(name);
+  }
+  return name;
 }
 
 /** ECharts theme matching the mockups: tabular numbers, muted axes, light grid lines. */

@@ -1,0 +1,59 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT p.id AS \"id!\", p.name AS \"name!\",\n                  COUNT(o.id) AS \"operation_count!: i64\",\n                  SUM(CASE WHEN o.is_internal_transfer = 0 THEN o.amount_cents END)\n                      AS \"total_cents: i64\",\n                  MAX(o.date) AS \"last_date: NaiveDate\"\n           FROM payee p\n           LEFT JOIN operation o ON o.payee_id = p.id\n           WHERE ?1 IS NULL OR p.id = ?1\n           GROUP BY p.id\n           HAVING ?1 IS NOT NULL OR COUNT(o.id) > 0\n           ORDER BY p.name COLLATE NOCASE",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "payee",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "name!",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "payee",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "operation_count!: i64",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": "Expression"
+      },
+      {
+        "name": "total_cents: i64",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": "Expression"
+      },
+      {
+        "name": "last_date: NaiveDate",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      true,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "e7b9dbca4f51f71360c84b614ef20d4b4eadd07f8a8497bc5a1581d5d1f2288d"
+}

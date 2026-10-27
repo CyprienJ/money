@@ -1,0 +1,33 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT account_id AS \"account_id!\", MAX(date) AS \"date!: NaiveDate\"\n           FROM operation\n           GROUP BY account_id",
+  "describe": {
+    "columns": [
+      {
+        "name": "account_id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "account_id"
+          }
+        }
+      },
+      {
+        "name": "date!: NaiveDate",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true,
+      false
+    ]
+  },
+  "hash": "6d4ca4834c27ee87befbe3449dd7273e84809f0c52ca8a25a006815f69006a47"
+}

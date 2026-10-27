@@ -11,9 +11,18 @@ function operation(fields: Partial<Operation>): Operation {
     amountCents: -6428,
     rawLabel: "CB CARREFOUR MKT 18/10 CARTE 4417",
     normalizedLabel: "CARREFOUR MKT",
+    payeeId: 1,
+    payeeName: "Carrefour Mkt",
     importBatchId: 1,
+    hasSourceDocument: false,
+    sourcePage: null,
+    sourceLine: null,
     categoryId: 2,
     isInternalTransfer: false,
+    transferPairId: null,
+    note: null,
+    tags: [],
+    attachmentCount: 0,
     ...fields,
   };
 }
@@ -39,10 +48,12 @@ describe("summarize", () => {
 describe("matchesSearch", () => {
   const carrefour = operation({});
 
-  it("searches both labels, ignoring case and accents", () => {
+  it("searches the labels, the note and the tags, ignoring case and accents", () => {
     expect(matchesSearch(carrefour, "carrefour")).toBe(true);
     expect(matchesSearch(carrefour, "carte 4417")).toBe(true);
     expect(matchesSearch(operation({ rawLabel: "Crédit immobilier" }), "credit")).toBe(true);
+    expect(matchesSearch(operation({ note: "Anniversaire de Léa" }), "lea")).toBe(true);
+    expect(matchesSearch(operation({ tags: ["Vacances d'été"] }), "ETE")).toBe(true);
     expect(matchesSearch(carrefour, "sncf")).toBe(false);
   });
 

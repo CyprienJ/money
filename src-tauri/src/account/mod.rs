@@ -60,16 +60,19 @@ pub struct NewAccount {
     pub name: String,
     #[serde(rename = "type")]
     pub account_type: AccountType,
+    pub currency: String,
     pub institution: Option<String>,
     pub opening_balance_cents: i64,
     pub opening_date: NaiveDate,
 }
 
-/// Editable fields of an existing account. The type is fixed at creation.
+/// Editable fields of an existing account. The type is fixed at creation, the currency once
+/// the account has data.
 #[derive(Debug, Clone, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct AccountUpdate {
     pub name: String,
+    pub currency: String,
     pub institution: Option<String>,
     pub opening_balance_cents: i64,
     pub opening_date: NaiveDate,

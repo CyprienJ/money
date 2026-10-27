@@ -1,0 +1,69 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT s.isin AS \"isin!\", t.date AS \"date: NaiveDate\", t.kind AS \"kind: TransactionKind\",\n                  t.quantity_micro, t.amount_cents + t.fees_cents AS \"total!: i64\"\n           FROM investment_transaction t\n           JOIN security s ON s.id = t.security_id\n           WHERE t.account_id = ?1 AND s.isin IS NOT NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "isin!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "security",
+            "name": "isin"
+          }
+        }
+      },
+      {
+        "name": "date: NaiveDate",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "name": "kind: TransactionKind",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "name": "quantity_micro",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "investment_transaction",
+            "name": "quantity_micro"
+          }
+        }
+      },
+      {
+        "name": "total!: i64",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "8bf5e4f641be39b3b3f53a65f1e3d21327acab6044c059cf6d250da273e78856"
+}

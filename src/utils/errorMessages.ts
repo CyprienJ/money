@@ -1,17 +1,28 @@
 import type {
+  SourceDocumentError,
+  InterchangeError,
+  CurrencyError,
   AccountError,
+  AttachmentError,
+  BackupError,
   CategoryError,
   CsvError,
   CsvMappingError,
+  EncryptionError,
   ErrorDetail,
   ImportError,
+  InvestmentError,
   OperationError,
+  PayeeError,
   PdfError,
+  PriceError,
   RuleError,
   ScheduleError,
   StatsError,
+  TagError,
+  TransferError,
 } from "../bindings";
-import { formatDate } from "./format";
+import { formatDate, formatFileSize } from "./format";
 
 /**
  * French messages of the business errors. Each switch covers every code: a code added on the
@@ -100,6 +111,14 @@ function schedule(error: ScheduleError): string {
       return "Une échéance se rattache à un compte courant, d'épargne ou à une carte.";
     case "categoryNotFound":
       return "Cette catégorie n'existe plus.";
+    case "notAnOccurrence":
+      return `Le ${formatDate(error.params)} n'est pas une date de cette échéance.`;
+    case "otherAccount":
+      return "L'opération n'est pas sur le compte de l'échéance.";
+    case "alreadyRealized":
+      return "Cette échéance est déjà réalisée par une autre opération.";
+    case "operationAlreadyMatched":
+      return "Cette opération réalise déjà une autre échéance.";
   }
   return unreachable(error);
 }
@@ -114,6 +133,64 @@ function rule(error: RuleError): string {
       return "Cette catégorie n'existe plus.";
     case "invalidOrder":
       return "La liste des règles a changé entre-temps : recharge l'écran.";
+  }
+  return unreachable(error);
+}
+
+function payee(error: PayeeError): string {
+  switch (error.code) {
+    case "notFound":
+      return "Ce tiers n'existe plus.";
+    case "labelNotFound":
+      return `Le libellé « ${error.params} » n'appartient plus à aucun tiers.`;
+    case "emptyName":
+      return "Le nom du tiers est obligatoire.";
+    case "nameTaken":
+      return `Un tiers s'appelle déjà « ${error.params.name} ».`;
+    case "mergeIntoItself":
+      return "Un tiers ne peut pas être fusionné avec lui-même.";
+    case "lastLabel":
+      return "C'est le seul libellé de ce tiers : il ne peut pas en être détaché.";
+  }
+  return unreachable(error);
+}
+
+function tag(error: TagError): string {
+  switch (error.code) {
+    case "notFound":
+      return "Ce tag n'existe plus.";
+    case "emptyName":
+      return "Le nom du tag est obligatoire.";
+    case "nameTaken":
+      return `Un tag s'appelle déjà « ${error.params} ».`;
+  }
+  return unreachable(error);
+}
+
+function attachment(error: AttachmentError): string {
+  switch (error.code) {
+    case "notFound":
+      return "Cette pièce jointe n'existe plus.";
+    case "notAFile":
+      return "Seul un fichier peut être joint.";
+    case "tooLarge":
+      return `Le fichier dépasse ${formatFileSize(error.params.maxBytes)}.`;
+    case "fileMissing":
+      return "Le fichier de cette pièce jointe a disparu du dossier des données.";
+  }
+  return unreachable(error);
+}
+
+function transfer(error: TransferError): string {
+  switch (error.code) {
+    case "sameAccount":
+      return "Les deux côtés d'un virement interne doivent être sur des comptes différents.";
+    case "amountsNotOpposite":
+      return "Les deux côtés d'un virement interne doivent avoir des montants opposés.";
+    case "differentCurrencies":
+      return "Seuls deux comptes de même devise peuvent être liés par un virement.";
+    case "alreadyLinked":
+      return "Une de ces opérations est déjà liée à un autre virement.";
   }
   return unreachable(error);
 }
@@ -190,6 +267,42 @@ function importing(error: ImportError): string {
   return unreachable(error);
 }
 
+function interchange(error: InterchangeError): string {
+  switch (error.code) {
+    case "notOfx":
+      return "Ce fichier n'est pas un fichier OFX.";
+    case "notQif":
+      return "Ce fichier n'est pas un fichier QIF.";
+    case "noAccount":
+      return "Ce fichier ne contient aucun compte bancaire ni carte.";
+    case "severalAccounts":
+      return `Ce fichier contient ${error.params} comptes : exporte un seul compte par fichier.`;
+    case "investmentStatement":
+      return "Les relevés de placements ne peuvent pas être importés : saisis tes mouvements dans le portefeuille.";
+    case "invalidDate":
+      return `Ligne ${error.params.line} : date illisible « ${error.params.text} ».`;
+    case "invalidAmount":
+      return `Ligne ${error.params.line} : montant illisible « ${error.params.text} ».`;
+    case "incompleteTransaction":
+      return `Ligne ${error.params.line} : une opération sans date ou sans montant.`;
+    case "currencyMismatch":
+      return `Le fichier est en ${error.params.file}, mais le compte en ${error.params.account} : choisis un compte de la même devise.`;
+  }
+  return unreachable(error);
+}
+
+function sourceDocument(error: SourceDocumentError): string {
+  switch (error.code) {
+    case "notKept":
+      return "Le fichier de cet import n'a pas été conservé : il date d'avant la conservation des relevés.";
+    case "fileMissing":
+      return "Le fichier de cet import est introuvable dans le dossier des relevés.";
+    case "notText":
+      return "Ce relevé est un PDF : ouvre-le avec ton lecteur PDF.";
+  }
+  return unreachable(error);
+}
+
 function pdf(error: PdfError): string {
   switch (error.code) {
     case "libraryUnavailable":
@@ -200,6 +313,100 @@ function pdf(error: PdfError): string {
       return "Ce PDF n'est pas un relevé d'une banque prise en charge.";
     case "layout":
       return `La mise en page de ce relevé n'est pas celle attendue (${error.params}).`;
+    case "noTrades":
+      return `Les relevés ${error.params} ne contiennent pas de mouvements de titres : importe-le dans un compte courant.`;
+  }
+  return unreachable(error);
+}
+
+function investment(error: InvestmentError): string {
+  switch (error.code) {
+    case "securityNotFound":
+      return "Ce titre n'existe plus.";
+    case "transactionNotFound":
+      return "Ce mouvement n'existe plus.";
+    case "emptySecurityName":
+      return "Le nom du titre est obligatoire.";
+    case "invalidIsin":
+      return `« ${error.params} » n'est pas un code ISIN valide (2 lettres, 9 caractères et un chiffre de contrôle).`;
+    case "invalidSymbol":
+      return `« ${error.params} » n'est pas un symbole valide (lettres, chiffres, point ou tiret, par exemple CW8.PA).`;
+    case "isinTaken":
+      return `Un titre a déjà le code ISIN ${error.params}.`;
+    case "securityInUse":
+      return "Ce titre a des mouvements : supprime-les d'abord.";
+    case "notAnInvestmentAccount":
+      return "Seuls les comptes de placement ont un portefeuille.";
+    case "dateBeforeOpening":
+      return `La date précède l'ouverture du compte (${formatDate(error.params)}).`;
+    case "missingQuantity":
+      return "Un achat ou une vente demande une quantité.";
+    case "quantityOnDividend":
+      return "Un dividende n'a pas de quantité.";
+    case "zeroAmount":
+      return "Le montant doit être positif.";
+    case "oversold":
+      return `Le ${formatDate(error.params.date)}, la vente dépasserait la quantité détenue de ${error.params.security}.`;
+  }
+  return unreachable(error);
+}
+
+export function priceMessage(error: PriceError): string {
+  switch (error.code) {
+    case "disabled":
+      return "La récupération des cours est désactivée : active-la dans les Paramètres.";
+    case "network":
+      return `Yahoo Finance est injoignable (${error.params}). Vérifie la connexion et réessaie.`;
+    case "unexpectedResponse":
+      return "Yahoo Finance a répondu dans un format inattendu : réessaie plus tard, ou saisis le cours à la main.";
+    case "unknownSymbol":
+      return `Le symbole ${error.params} est inconnu de Yahoo Finance.`;
+    case "unsupportedCurrency":
+      return `${error.params.symbol} est coté en ${error.params.currency}, une devise non prise en charge.`;
+    case "currencyMismatch":
+      return `${error.params.symbol} est coté en ${error.params.currency}, mais les cours du titre sont en ${error.params.expected}.`;
+    case "invalidPrice":
+      return "Le cours doit être positif.";
+  }
+  return unreachable(error);
+}
+
+function currency(error: CurrencyError): string {
+  switch (error.code) {
+    case "unsupported":
+      return `La devise ${error.params} n'est pas prise en charge.`;
+    case "referenceRate":
+      return "L'euro est la devise de référence : il n'a pas de taux de change.";
+    case "invalidRate":
+      return "Le taux de change doit être positif, par exemple 0,9234.";
+    case "accountCurrencyLocked":
+      return "Le compte contient déjà des données : sa devise ne peut plus être modifiée.";
+    case "securityCurrencyLocked":
+      return "Le titre a déjà des cours : sa devise ne peut plus être modifiée.";
+  }
+  return unreachable(error);
+}
+
+function backup(error: BackupError): string {
+  switch (error.code) {
+    case "notABackup":
+      return `${error.params} n'est pas une sauvegarde de l'application.`;
+    case "folderUnavailable":
+      return `Le dossier ${error.params} est inaccessible en écriture : choisis-en un autre.`;
+  }
+  return unreachable(error);
+}
+
+function encryption(error: EncryptionError): string {
+  switch (error.code) {
+    case "wrongPassword":
+      return "Mot de passe incorrect.";
+    case "passwordTooShort":
+      return `Le mot de passe doit faire au moins ${error.params} caractères.`;
+    case "alreadyEncrypted":
+      return "Les données sont déjà chiffrées.";
+    case "notEncrypted":
+      return "Les données ne sont pas chiffrées.";
   }
   return unreachable(error);
 }
@@ -217,6 +424,14 @@ export function businessMessage(detail: ErrorDetail): string {
       return schedule(detail.error);
     case "rule":
       return rule(detail.error);
+    case "payee":
+      return payee(detail.error);
+    case "tag":
+      return tag(detail.error);
+    case "attachment":
+      return attachment(detail.error);
+    case "transfer":
+      return transfer(detail.error);
     case "stats":
       return stats(detail.error);
     case "csv":
@@ -227,6 +442,20 @@ export function businessMessage(detail: ErrorDetail): string {
       return importing(detail.error);
     case "pdf":
       return pdf(detail.error);
+    case "interchange":
+      return interchange(detail.error);
+    case "sourceDocument":
+      return sourceDocument(detail.error);
+    case "investment":
+      return investment(detail.error);
+    case "price":
+      return priceMessage(detail.error);
+    case "currency":
+      return currency(detail.error);
+    case "backup":
+      return backup(detail.error);
+    case "encryption":
+      return encryption(detail.error);
   }
   return unreachable(detail);
 }

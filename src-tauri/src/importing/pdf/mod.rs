@@ -13,23 +13,29 @@ mod trade_republic;
 
 pub use text::{DocumentText, extract};
 
-use chrono::NaiveDate;
 use serde::Serialize;
 use specta::Type;
 
-use super::RawLine;
+pub use super::Statement;
 use crate::error::ErrorKind;
+use crate::investment::TransactionKind;
 
-/// What a parser reads from a statement.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Statement {
-    pub lines: Vec<RawLine>,
-    /// Balance before the first line, when the statement gives it.
-    pub start_balance_cents: Option<i64>,
-    /// Balance after the last line, when the statement gives it.
-    pub end_balance_cents: Option<i64>,
-    /// First and last days covered by the statement, when it gives them.
-    pub period: Option<(NaiveDate, NaiveDate)>,
+/// A buy or a sell of securities read from a statement. The amount is the total paid or
+/// received, fees included.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct Trade {
+    pub date: chrono::NaiveDate,
+    pub kind: TransactionKind,
+    pub isin: String,
+    /// Name of the security as written by the bank, e.g. "ASML HOLDING EO -,09".
+    pub name: String,
+    /// Millionths of a unit.
+    pub quantity_micro: i64,
+    /// Positive.
+    pub amount_cents: i64,
+    /// Page of the trade in the statement, from 1.
+    pub source_page: Option<u32>,
 }
 
 /// A parser for the PDF statements of one bank.
@@ -42,6 +48,11 @@ pub trait StatementParser: Send + Sync {
     fn recognizes(&self, document: &DocumentText) -> bool;
     /// Reads a statement recognized by this parser.
     fn parse(&self, document: &DocumentText) -> Result<Statement, PdfError>;
+    /// Reads the securities trades of a statement recognized by this parser; `None` when the
+    /// statements of this bank give none.
+    fn parse_trades(&self, _document: &DocumentText) -> Result<Option<Vec<Trade>>, PdfError> {
+        Ok(None)
+    }
 }
 
 /// Parsers of the supported banks, tried in this order.
@@ -106,6 +117,9 @@ pub enum PdfError {
 
     #[error("unexpected statement layout: {0}")]
     Layout(String),
+
+    #[error("the statements of {0} give no securities transactions")]
+    NoTrades(String),
 }
 
 impl PdfError {

@@ -4,11 +4,15 @@ pub mod category;
 mod repository;
 pub mod same_label;
 pub mod schedule;
+pub mod search;
 #[cfg(test)]
 mod tests;
+pub mod transfer;
 
 pub(crate) use repository::{check_account, internal_transfer_flag, timestamp};
-pub use repository::{create, delete, get, list, set_category, update};
+pub use repository::{create, delete, get, set_category, update};
+#[cfg(test)]
+pub use search::list;
 
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
@@ -29,15 +33,31 @@ pub struct Operation {
     pub raw_label: String,
     /// Cleaned label used for categorization and payees.
     pub normalized_label: String,
+    /// Payee of the normalized label.
+    pub payee_id: Option<i64>,
+    /// Name of the payee, or the normalized label when the operation has no payee yet.
+    pub payee_name: String,
     /// `None` for manual entries.
     pub import_batch_id: Option<i64>,
+    /// The file of the import was kept: it can be opened (imports made since V2).
+    pub has_source_document: bool,
+    /// Page of the operation in its PDF statement, from 1.
+    pub source_page: Option<u32>,
+    /// Line of the operation in its text file (CSV, OFX, QIF), from 1.
+    pub source_line: Option<u32>,
     /// `None` while the operation is still to categorize.
     pub category_id: Option<i64>,
     /// Derived from the category; excluded from income and expense statistics.
     pub is_internal_transfer: bool,
+    /// The other side of the internal transfer, on another account, once linked.
+    pub transfer_pair_id: Option<i64>,
+    pub note: Option<String>,
+    /// Tag names, by name.
+    pub tags: Vec<String>,
+    pub attachment_count: i64,
 }
 
-/// An operation in an account listing, with the account balance after it.
+/// An operation in a listing, with the balance of its account after it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct OperationRow {
@@ -55,10 +75,14 @@ pub struct NewOperation {
     pub amount_cents: i64,
     pub label: String,
     pub category_id: Option<i64>,
+    pub note: Option<String>,
+    /// Tag names; unknown ones create a tag.
+    pub tags: Vec<String>,
 }
 
 /// New values of an operation. For an imported operation, `date`, `amount_cents` and `label`
-/// must be left unchanged: only the value date and the category can be edited.
+/// must be left unchanged: only the value date, the category, the note and the tags can be
+/// edited.
 #[derive(Debug, Clone, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct OperationUpdate {
@@ -67,6 +91,9 @@ pub struct OperationUpdate {
     pub amount_cents: i64,
     pub label: String,
     pub category_id: Option<i64>,
+    pub note: Option<String>,
+    /// Tag names; unknown ones create a tag.
+    pub tags: Vec<String>,
 }
 
 /// Serialized for the frontend as `{ code, params }`, to show a message in French.

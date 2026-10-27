@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { commands, type Category, type Rule } from "../bindings";
+import { commands, type Category, type Rule, type Tag } from "../bindings";
 import CategoryFormModal from "../components/CategoryFormModal.vue";
 import CategoryPill from "../components/CategoryPill.vue";
 import PageHeader from "../components/PageHeader.vue";
 import RuleFormModal from "../components/RuleFormModal.vue";
+import TagFormModal from "../components/TagFormModal.vue";
 import { managementTree } from "../utils/categories";
 import { errorMessage, unwrap } from "../utils/commands";
 import { operationCount } from "../utils/format";
 
 const categories = ref<Category[]>([]);
 const rules = ref<Rule[]>([]);
+const tags = ref<Tag[]>([]);
 /** Result of the last change of the rules. */
 const notice = ref("");
 const loaded = ref(false);
@@ -22,6 +24,9 @@ const newParentId = ref<number | null>(null);
 
 const ruleModalOpen = ref(false);
 const editedRule = ref<Rule | null>(null);
+
+const editedTag = ref<Tag | null>(null);
+const tagNotice = ref("");
 
 const categoriesById = computed(() => new Map(categories.value.map((c) => [c.id, c])));
 
@@ -38,6 +43,7 @@ async function load() {
   try {
     categories.value = await unwrap(commands.listCategories());
     rules.value = await unwrap(commands.listRules());
+    tags.value = await unwrap(commands.listTags());
   } catch (e) {
     error.value = errorMessage(e);
   } finally {
@@ -96,6 +102,12 @@ async function applyRule(rule: Rule) {
   } catch (e) {
     error.value = errorMessage(e);
   }
+  await load();
+}
+
+async function onTagChanged(message: string) {
+  editedTag.value = null;
+  tagNotice.value = message;
   await load();
 }
 
@@ -160,6 +172,24 @@ onMounted(load);
     <p v-else class="hint">Aucune règle. Exemple : « Intérêts nets » → Intérêts.</p>
   </section>
 
+  <section v-if="loaded" class="card tags">
+    <h2 class="card-title">Tags</h2>
+    <p class="hint">
+      Les tags se posent depuis la fiche d'une opération, et se créent en les tapant. Clique sur un
+      tag pour le renommer ou le supprimer.
+    </p>
+    <p v-if="tagNotice" class="notice">{{ tagNotice }}</p>
+    <ul v-if="tags.length > 0" class="tag-list">
+      <li v-for="tag in tags" :key="tag.id">
+        <button type="button" class="tag-button" title="Modifier le tag" @click="editedTag = tag">
+          <span class="tag-name">{{ tag.name }}</span>
+          <span class="tag-count">{{ tag.operationCount }}</span>
+        </button>
+      </li>
+    </ul>
+    <p v-else class="hint">Aucun tag. Exemple : « Vacances 2026 », « À rembourser ».</p>
+  </section>
+
   <div v-if="!error && loaded" class="groups">
     <section
       v-for="{ parent, children, totalCount } in groups"
@@ -217,6 +247,13 @@ onMounted(load);
     @changed="onRuleChanged"
   />
 
+  <TagFormModal
+    :open="editedTag !== null"
+    :tag="editedTag"
+    @close="editedTag = null"
+    @changed="onTagChanged"
+  />
+
   <CategoryFormModal
     :open="modalOpen"
     :categories="categories"
@@ -231,6 +268,47 @@ onMounted(load);
 .rules {
   gap: 12px;
   margin-bottom: 16px;
+}
+
+.tags {
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tag-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 12px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--cat-neutral-bg);
+  color: var(--cat-neutral-fg);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tag-button:hover {
+  background: var(--color-border);
+}
+
+.tag-count {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-card);
+  font-size: 11px;
+  text-align: center;
 }
 
 .add-rule {

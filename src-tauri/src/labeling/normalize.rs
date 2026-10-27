@@ -11,6 +11,7 @@ use regex::Regex;
 use sqlx::SqlitePool;
 
 use crate::error::AppResult;
+use crate::payee;
 
 fn regex(pattern: &str) -> Regex {
     Regex::new(pattern).expect("normalization patterns are valid")
@@ -142,20 +143,24 @@ fn collapse(text: &str) -> String {
 
 /// Recomputes the normalized label of every operation from its raw label, so that a change of
 /// the rules applies to existing data. Only rows that change are written; returns their count.
-/// The category remembered for an old label carries over to the new one, the most recent winning.
+/// The category remembered for an old label carries over to the new one, the most recent winning;
+/// the operation keeps its payee unless the new label already belongs to one.
 pub async fn renormalize_all(pool: &SqlitePool) -> AppResult<u64> {
     let mut tx = pool.begin().await?;
-    let rows = sqlx::query!(r#"SELECT id AS "id!", raw_label, normalized_label FROM operation"#)
-        .fetch_all(&mut *tx)
-        .await?;
+    let rows =
+        sqlx::query!(r#"SELECT id AS "id!", raw_label, normalized_label, payee_id FROM operation"#)
+            .fetch_all(&mut *tx)
+            .await?;
     let mut updated = 0;
     for row in rows {
         let normalized = normalize_label(&row.raw_label);
         if normalized != row.normalized_label {
+            let payee_id = payee::follow_label(&mut tx, row.payee_id, &normalized).await?;
             sqlx::query!(
-                "UPDATE operation SET normalized_label = ?2 WHERE id = ?1",
+                "UPDATE operation SET normalized_label = ?2, payee_id = ?3 WHERE id = ?1",
                 row.id,
-                normalized
+                normalized,
+                payee_id
             )
             .execute(&mut *tx)
             .await?;

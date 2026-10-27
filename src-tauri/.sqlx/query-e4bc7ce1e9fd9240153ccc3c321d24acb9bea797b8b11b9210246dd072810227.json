@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO payee_alias (normalized_label, payee_id) VALUES (?1, ?2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "e4bc7ce1e9fd9240153ccc3c321d24acb9bea797b8b11b9210246dd072810227"
+}

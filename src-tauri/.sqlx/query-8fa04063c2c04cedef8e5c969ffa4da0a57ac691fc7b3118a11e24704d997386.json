@@ -1,0 +1,21 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT EXISTS (SELECT 1 FROM operation WHERE account_id = ?1)\n               OR EXISTS (SELECT 1 FROM valuation WHERE account_id = ?1)\n               OR EXISTS (SELECT 1 FROM investment_transaction WHERE account_id = ?1)\n               OR EXISTS (SELECT 1 FROM scheduled_operation WHERE account_id = ?1)\n               AS \"has_data!: bool\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "has_data!: bool",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "8fa04063c2c04cedef8e5c969ffa4da0a57ac691fc7b3118a11e24704d997386"
+}

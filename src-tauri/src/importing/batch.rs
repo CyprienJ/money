@@ -14,6 +14,7 @@ use super::RawLine;
 use crate::error::{AppResult, ErrorKind};
 use crate::labeling::{memory, normalize_label};
 use crate::operation::{check_account, internal_transfer_flag, timestamp};
+use crate::payee;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Type, sqlx::Type)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -21,6 +22,8 @@ use crate::operation::{check_account, internal_transfer_flag, timestamp};
 pub enum SourceType {
     Csv,
     Pdf,
+    Ofx,
+    Qif,
 }
 
 /// Result of `start balance + Σ operations = end balance` on the statement.
@@ -60,6 +63,8 @@ pub struct NewImportBatch {
     pub statement_start_balance_cents: Option<i64>,
     pub statement_end_balance_cents: Option<i64>,
     pub balance_check_status: BalanceCheckStatus,
+    /// Name of the copy of the file in the statements directory.
+    pub stored_file: Option<String>,
 }
 
 /// Serialized for the frontend as `{ code, params }`, to show a message in French.
@@ -122,6 +127,7 @@ pub async fn backup(pool: &SqlitePool, dir: &Path) -> AppResult<PathBuf> {
         .bind(path.to_string_lossy().into_owned())
         .execute(pool)
         .await?;
+    crate::backup::rotate_import(dir, crate::backup::KEEP_IMPORT)?;
     Ok(path)
 }
 
@@ -132,24 +138,6 @@ pub struct ImportLine {
     pub category_id: Option<i64>,
     /// The user chose this category: remember it for the label (category memory).
     pub chosen: bool,
-}
-
-/// Number of backups made by [`backup`] in `dir`; 0 when the directory does not exist yet.
-pub fn backup_count(dir: &Path) -> AppResult<usize> {
-    let entries = match std::fs::read_dir(dir) {
-        Ok(entries) => entries,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(0),
-        Err(error) => return Err(error.into()),
-    };
-    let mut count = 0;
-    for entry in entries {
-        let name = entry?.file_name();
-        let name = name.to_string_lossy();
-        if name.starts_with("money-") && name.ends_with(".sqlite") {
-            count += 1;
-        }
-    }
-    Ok(count)
 }
 
 /// Backs up the data file into `backup_dir`, then inserts the batch and one operation per
@@ -189,8 +177,9 @@ pub async fn import(
     let batch_id = sqlx::query!(
         "INSERT INTO import_batch
          (account_id, source_type, source_file_name, source_file_hash, imported_at,
-          statement_start_balance_cents, statement_end_balance_cents, balance_check_status)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+          statement_start_balance_cents, statement_end_balance_cents, balance_check_status,
+          stored_file)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         batch.account_id,
         batch.source_type,
         batch.source_file_name,
@@ -198,7 +187,8 @@ pub async fn import(
         now,
         batch.statement_start_balance_cents,
         batch.statement_end_balance_cents,
-        batch.balance_check_status
+        batch.balance_check_status,
+        batch.stored_file
     )
     .execute(&mut *tx)
     .await?
@@ -212,20 +202,26 @@ pub async fn import(
     {
         let label = line.label.trim();
         let normalized_label = normalize_label(label);
+        let payee_id = payee::resolve(&mut tx, &normalized_label).await?;
         let is_internal_transfer = internal_transfer[category_id];
         let operation_id = sqlx::query!(
             "INSERT INTO operation
-             (account_id, date, value_date, amount_cents, raw_label, normalized_label,
-              import_batch_id, is_internal_transfer, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)",
+             (account_id, date, value_date, amount_cents, raw_label, normalized_label, payee_id,
+              import_batch_id, is_internal_transfer, note, source_page, source_line, created_at,
+              updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?13)",
             batch.account_id,
             line.date,
             line.value_date,
             line.amount_cents,
             label,
             normalized_label,
+            payee_id,
             batch_id,
             is_internal_transfer,
+            line.note,
+            line.source_page,
+            line.source_line,
             now
         )
         .execute(&mut *tx)
@@ -248,8 +244,9 @@ pub async fn import(
     get(pool, batch_id).await
 }
 
-/// Cancels an import: deletes the batch, its operations and their splits.
-pub async fn cancel(pool: &SqlitePool, id: i64) -> AppResult<()> {
+/// Cancels an import: deletes the batch, its operations and their splits. The kept file goes
+/// away with the last import of its content.
+pub async fn cancel(pool: &SqlitePool, statements_dir: &Path, id: i64) -> AppResult<()> {
     let deleted = sqlx::query!("DELETE FROM import_batch WHERE id = ?1", id)
         .execute(pool)
         .await?
@@ -257,51 +254,32 @@ pub async fn cancel(pool: &SqlitePool, id: i64) -> AppResult<()> {
     if deleted == 0 {
         return Err(ImportError::NotFound(id).into());
     }
+    super::source_document::sweep(pool, statements_dir).await?;
     Ok(())
 }
 
 pub async fn get(pool: &SqlitePool, id: i64) -> AppResult<ImportBatch> {
-    let batch = sqlx::query_as!(
-        ImportBatch,
-        r#"SELECT b.id AS "id!", b.account_id, b.source_type AS "source_type: SourceType",
-                  b.source_file_name, b.source_file_hash,
-                  b.imported_at AS "imported_at: DateTime<Utc>",
-                  b.statement_start_balance_cents, b.statement_end_balance_cents,
-                  b.balance_check_status AS "balance_check_status: BalanceCheckStatus",
-                  (SELECT COUNT(*) FROM operation o WHERE o.import_batch_id = b.id)
-                      AS "operation_count!: i64"
-           FROM import_batch b
-           WHERE b.id = ?1"#,
-        id
-    )
-    .fetch_optional(pool)
-    .await?;
+    let batch = select(pool, Some(id), None, None).await?.pop();
     Ok(batch.ok_or(ImportError::NotFound(id))?)
 }
 
 /// Imports of an account, most recent first.
 pub async fn list(pool: &SqlitePool, account_id: i64) -> AppResult<Vec<ImportBatch>> {
-    let batches = sqlx::query_as!(
-        ImportBatch,
-        r#"SELECT b.id AS "id!", b.account_id, b.source_type AS "source_type: SourceType",
-                  b.source_file_name, b.source_file_hash,
-                  b.imported_at AS "imported_at: DateTime<Utc>",
-                  b.statement_start_balance_cents, b.statement_end_balance_cents,
-                  b.balance_check_status AS "balance_check_status: BalanceCheckStatus",
-                  (SELECT COUNT(*) FROM operation o WHERE o.import_batch_id = b.id)
-                      AS "operation_count!: i64"
-           FROM import_batch b
-           WHERE b.account_id = ?1
-           ORDER BY b.imported_at DESC, b.id DESC"#,
-        account_id
-    )
-    .fetch_all(pool)
-    .await?;
-    Ok(batches)
+    select(pool, None, Some(account_id), None).await
 }
 
 /// Imports of the same file, in any account, most recent first.
 pub async fn find_by_hash(pool: &SqlitePool, hash: &str) -> AppResult<Vec<ImportBatch>> {
+    select(pool, None, None, Some(hash)).await
+}
+
+/// Imports matching every filter given, most recent first.
+async fn select(
+    pool: &SqlitePool,
+    id: Option<i64>,
+    account_id: Option<i64>,
+    hash: Option<&str>,
+) -> AppResult<Vec<ImportBatch>> {
     let batches = sqlx::query_as!(
         ImportBatch,
         r#"SELECT b.id AS "id!", b.account_id, b.source_type AS "source_type: SourceType",
@@ -312,8 +290,12 @@ pub async fn find_by_hash(pool: &SqlitePool, hash: &str) -> AppResult<Vec<Import
                   (SELECT COUNT(*) FROM operation o WHERE o.import_batch_id = b.id)
                       AS "operation_count!: i64"
            FROM import_batch b
-           WHERE b.source_file_hash = ?1
+           WHERE (?1 IS NULL OR b.id = ?1)
+             AND (?2 IS NULL OR b.account_id = ?2)
+             AND (?3 IS NULL OR b.source_file_hash = ?3)
            ORDER BY b.imported_at DESC, b.id DESC"#,
+        id,
+        account_id,
         hash
     )
     .fetch_all(pool)

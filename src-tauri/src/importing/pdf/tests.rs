@@ -1,7 +1,11 @@
 use std::path::PathBuf;
 
+use chrono::NaiveDate;
+
 use super::text::{Segment, TextLine, group_lines};
 use super::*;
+use crate::importing::RawLine;
+use crate::investment::TransactionKind;
 
 /// PDFium downloaded by `tools/fetch_pdfium.sh`.
 fn library_dir() -> PathBuf {
@@ -127,6 +131,10 @@ fn raw(day: &str, value_date: Option<&str>, label: &str, amount_cents: i64) -> R
         value_date: value_date.map(date),
         label: label.to_owned(),
         amount_cents,
+        note: None,
+        source_category: None,
+        source_page: None,
+        source_line: None,
     }
 }
 
@@ -136,6 +144,11 @@ fn parses_the_fortuneo_statement() {
     let parser = detect(&document).expect("Fortuneo recognized");
     assert_eq!(parser.id(), "fortuneo");
     let statement = parser.parse(&document).unwrap();
+    assert!(statement.lines.iter().all(|l| l.source_page == Some(1)));
+    let statement = Statement {
+        lines: crate::importing::unplaced(statement.lines),
+        ..statement
+    };
     assert_eq!(
         statement.lines,
         vec![
@@ -165,11 +178,45 @@ fn parses_the_fortuneo_statement() {
 }
 
 #[test]
+fn reads_the_fortuneo_lines_sharing_a_baseline_with_the_margin() {
+    // The last operation and the closing balance are on the baseline of the margin text
+    // ("Réf : MRELPAR", issue date).
+    let document = fixture("fortuneo_2.pdf");
+    let parser = detect(&document).expect("Fortuneo recognized");
+    let statement = parser.parse(&document).unwrap();
+    let statement = Statement {
+        lines: crate::importing::unplaced(statement.lines),
+        ..statement
+    };
+    assert_eq!(statement.lines.len(), 21);
+    assert_eq!(
+        statement.lines.last(),
+        Some(&raw(
+            "2025-04-30",
+            Some("2025-04-30"),
+            "CARTE 28/04 SC-M'SUSHI PARIS",
+            -1_590
+        ))
+    );
+    assert_eq!(statement.start_balance_cents, Some(0));
+    assert_eq!(statement.end_balance_cents, Some(14_013));
+    let total: i64 = statement.lines.iter().map(|l| l.amount_cents).sum();
+    assert_eq!(total, 14_013);
+}
+
+#[test]
 fn parses_the_current_account_of_the_trade_republic_statement() {
     let document = fixture("trade_republic.pdf");
     let parser = detect(&document).expect("Trade Republic recognized");
     assert_eq!(parser.id(), "trade-republic");
     let statement = parser.parse(&document).unwrap();
+    // The table goes on over the first two pages.
+    assert_eq!(statement.lines[0].source_page, Some(1));
+    assert_eq!(statement.lines[24].source_page, Some(2));
+    let statement = Statement {
+        lines: crate::importing::unplaced(statement.lines),
+        ..statement
+    };
 
     assert_eq!(statement.start_balance_cents, Some(6_984));
     assert_eq!(statement.end_balance_cents, Some(6_687));
@@ -231,4 +278,112 @@ fn parses_the_current_account_of_the_trade_republic_statement() {
         .filter(|a| *a < 0)
         .sum();
     assert_eq!((money_in, -money_out), (420_058, 420_355));
+}
+
+#[test]
+fn parses_the_pea_trades_of_the_trade_republic_statement() {
+    let document = fixture("trade_republic.pdf");
+    let parser = detect(&document).expect("Trade Republic recognized");
+    let trades = parser.parse_trades(&document).unwrap().unwrap();
+    let summary: Vec<(NaiveDate, &str, &str, i64, i64)> = trades
+        .iter()
+        .map(|t| {
+            assert_eq!(t.kind, TransactionKind::Buy);
+            (
+                t.date,
+                t.isin.as_str(),
+                t.name.as_str(),
+                t.quantity_micro,
+                t.amount_cents,
+            )
+        })
+        .collect();
+    let units = |n: i64| n * 1_000_000;
+    assert_eq!(
+        summary,
+        [
+            (
+                date("2026-07-03"),
+                "FR0014005HJ9",
+                "OVH GROUPE (PROM.)EO 1",
+                units(4),
+                5_920
+            ),
+            (
+                date("2026-07-27"),
+                "NL0010273215",
+                "ASML HOLDING EO -,09",
+                units(1),
+                158_200
+            ),
+            (
+                date("2026-07-27"),
+                "FR0000120073",
+                "AIR LIQUIDE INH. EO 5,50",
+                units(1),
+                17_843
+            ),
+            (
+                date("2026-07-27"),
+                "FR0000121329",
+                "THALES S.A. EO 3",
+                units(1),
+                23_975
+            ),
+            // Quantity wrapped on the next line.
+            (
+                date("2026-08-13"),
+                "FR0000120172",
+                "CARREFOUR S.A. INH.EO 2,5",
+                units(6),
+                9_538
+            ),
+            (
+                date("2026-08-13"),
+                "PLOPTTC00011",
+                "CD PROJEKT S.A. C ZY 1",
+                units(1),
+                6_237
+            ),
+            (
+                date("2026-08-13"),
+                "FR0000120404",
+                "ACCOR SA INH. EO 3",
+                units(3),
+                14_142
+            ),
+            (
+                date("2026-08-13"),
+                "FR0010208488",
+                "ENGIE S.A. INH. EO 1",
+                units(10),
+                26_294
+            ),
+            (
+                date("2026-08-13"),
+                "FR0000124141",
+                "VEOLIA ENVIRONNE. EO 5",
+                units(5),
+                17_305
+            ),
+            (
+                date("2026-08-13"),
+                "DE0006231004",
+                "INFINEON TECH.AG NA O.N.",
+                units(4),
+                25_292
+            ),
+            (
+                date("2026-08-13"),
+                "FR0000054470",
+                "UBISOFT ENTMT IN.EO-,0775",
+                units(2),
+                1_051
+            ),
+        ]
+    );
+    // Fortuneo statements give no trades.
+    let fortuneo = fixture("fortuneo.pdf");
+    let parser = detect(&fortuneo).expect("Fortuneo recognized");
+    assert_eq!(parser.parse_trades(&fortuneo).unwrap(), None);
 }

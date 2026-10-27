@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE operation SET normalized_label = 'FNAC 01/10' WHERE id = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "acc4ef761c98696c2cd405c243fc738e62511c6bc159113ac3896b2143fdb1af"
+}

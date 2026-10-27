@@ -4,6 +4,7 @@ import {
   formatAmount,
   formatAmountInput,
   formatDate,
+  formatFileSize,
   localDateOf,
   parseAmount,
 } from "./format";
@@ -15,6 +16,12 @@ describe("formatAmount", () => {
   it("formats cents with thousands grouping", () => {
     expect(plain(formatAmount(218432))).toBe("2 184,32 €");
     expect(plain(formatAmount(21000000))).toBe("210 000,00 €");
+  });
+
+  it("writes the symbol or the code of other currencies", () => {
+    expect(plain(formatAmount(-6428, { currency: "USD" }))).toBe("−64,28 $");
+    expect(plain(formatAmount(6428, { currency: "GBP" }))).toBe("64,28 £");
+    expect(plain(formatAmount(6428, { currency: "CHF" }))).toBe("64,28 CHF");
   });
 
   it("uses a typographic minus for debits", () => {
@@ -123,5 +130,14 @@ describe("displayLabel", () => {
     expect(displayLabel("CAFE L'ARBRE")).toBe("Cafe L'Arbre");
     expect(displayLabel("RETRAIT DAB PARIS 11")).toBe("Retrait Dab Paris 11");
     expect(displayLabel("FNAC.COM")).toBe("Fnac.com");
+  });
+});
+
+describe("formatFileSize", () => {
+  it("picks a readable unit", () => {
+    expect(formatFileSize(820)).toBe("820 o");
+    expect(formatFileSize(12 * 1024)).toBe("12 Ko");
+    expect(formatFileSize(3.4 * 1024 * 1024)).toBe("3,4 Mo");
+    expect(formatFileSize(25 * 1024 * 1024)).toBe("25 Mo");
   });
 });

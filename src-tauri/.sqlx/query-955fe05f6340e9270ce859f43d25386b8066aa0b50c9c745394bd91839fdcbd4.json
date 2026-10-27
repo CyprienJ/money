@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO operation\n                 (account_id, date, amount_cents, raw_label, normalized_label,\n                  created_at, updated_at)\n                 VALUES (?1, '2026-10-12', -250, ?2, ?3,\n                         '2026-10-19T10:00:00Z', '2026-10-19T10:00:00Z')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "955fe05f6340e9270ce859f43d25386b8066aa0b50c9c745394bd91839fdcbd4"
+}

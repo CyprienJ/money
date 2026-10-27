@@ -296,75 +296,164 @@ Maquette : `Dashboard.dc.html`.
 
 ## V2 — Automatiser et enrichir
 
-Ordre indicatif : catégorisation et tiers d'abord (gain quotidien), puis opérations, suivi, placements, technique. À re-prioriser à la fin de la V1.
+Ordre validé le 21/10/2026, à la fin de la V1 :
+
+1. V2-02 · Gestion des tiers (socle des filtres, des analyses et de la détection des abonnements)
+2. V2-04, V2-06, V2-05 · Notes et tags, recherche et filtres avancés, pièces jointes
+3. V2-03 · Appariement des virements internes
+4. V2-07 à V2-10 · Suivi : rapprochement, prévision, abonnements, alertes
+5. V2-01 · Classifieur local (il apprend mieux avec plus d'opérations catégorisées)
+6. V2-17 · Mode clair et mode sombre (indépendant, peut être intercalé)
+7. V2-11 à V2-13 · Placements détaillés
+8. V2-16, V2-15, V2-14 · Technique : sauvegarde complète, chiffrement, multi-devises
+9. V2-18 · Import OFX et QIF (ajouté le 22/10/2026, avancé depuis « Plus tard »)
+10. V2-19 · Mouvements titres des relevés Trade Republic (ajouté le 22/10/2026)
+11. V2-20 · Mémoire des relevés importés (ajouté le 22/10/2026)
+
+Depuis la release 1.0.0, chaque évolution du schéma est une nouvelle migration.
 
 ### Catégorisation et tiers
 
 #### V2-01 · Suggestion de catégorie par classifieur local — M
 Les règles de catégorisation prévues initialement ici ont été avancées en V1 (V1-03.8, décision du 21/10/2026). Ticket remplacé le 21/10/2026 par le classifieur local, avancé depuis « Plus tard ».
-- [ ] Dépendances `linfa-preprocessing` et `linfa-logistic` (validées le 21/10/2026).
-- [ ] Module `labeling/classifier` : TF-IDF sur le libellé normalisé (mots et n-grammes de caractères) plus le sens du montant, régression logistique multiclasse ; entraînement en mémoire sur les opérations catégorisées, au démarrage et après un import ou une catégorisation en masse.
-- [ ] Seuils : pas de suggestion sous un minimum d'opérations catégorisées, ni sous un indice de confiance minimal.
-- [ ] Aperçu d'import : suggestion pour les lignes sans règle ni mémoire, avec indice « Suggestion (xx %) » ; jamais appliquée sans validation.
-- [ ] Écran Opérations : suggestion proposée pour les opérations à catégoriser.
-- [ ] Tests : apprentissage sur un jeu anonymisé, libellé inconnu proche d'un connu, seuils.
+Décisions du 22/10/2026 : dépendances `linfa`, `linfa-logistic` et `ndarray`, sans `linfa-preprocessing` (son TF-IDF calcule l'IDF sur les documents transformés, pas sur l'apprentissage) ; 30 libellés distincts catégorisés et 2 catégories au moins, confiance de 50 % au moins ; aperçu d'import avec ✓ par ligne et « Accepter les N suggestions » ; écran Opérations avec suggestion sous la catégorie et pré-sélection dans la fiche.
+- [x] Dépendances `linfa`, `linfa-logistic` et `ndarray`.
+- [x] Module `labeling/classifier` : TF-IDF sur le libellé normalisé (mots et trigrammes de caractères, IDF appris) plus le sens du montant, régression logistique multiclasse ; un exemple par libellé distinct et sens, avec sa catégorie la plus fréquente. Modèle en mémoire, entraîné au démarrage puis en tâche de fond quand les opérations catégorisées changent ; les suggestions n'attendent jamais l'entraînement.
+- [x] Seuils : 30 libellés distincts et 2 catégories pour entraîner, 50 % de confiance pour suggérer.
+- [x] Aperçu d'import : « Suggestion : Courses (72 %) » pour les lignes sans règle ni mémoire, ✓ par ligne et « Accepter les N suggestions » ; une suggestion acceptée est un choix, retenu pour le libellé.
+- [x] Écran Opérations : suggestion sous la catégorie des opérations à catégoriser (✓ pour accepter), pré-sélectionnée dans la fiche.
+- [x] Tests : apprentissage sur un jeu anonymisé, libellés inconnus proches de libellés connus, seuils, exemples tirés de la base.
 
 #### V2-02 · Gestion des tiers — L
-- [ ] Tables `payee` et `payee_alias` ; exploitation de `operation.payee_id`.
-- [ ] Fusion de plusieurs libellés normalisés en un tiers, renommage.
-- [ ] Top tiers et analyses basés sur les tiers.
+Décisions du 21/10/2026 : chaque libellé normalisé reçoit automatiquement un tiers, nommé par défaut avec sa forme lisible (« Carrefour Mkt ») ; les tiers se gèrent dans un nouvel écran « Tiers » ; les écrans affichent le nom du tiers à la place du libellé normalisé.
+- [x] Tables `payee` et `payee_alias` ; exploitation de `operation.payee_id`.
+- [x] Fusion de plusieurs libellés normalisés en un tiers, renommage, détachement d'un libellé.
+- [x] Top tiers et analyses basés sur les tiers.
 
 #### V2-03 · Appariement des virements internes — M
-- [ ] Liaison automatique débit compte A ↔ crédit compte B (montant opposé, dates proches) via `transfer_pair_id`.
-- [ ] `is_internal_transfer` explicite ; validation manuelle des appariements incertains.
+Décisions du 21/10/2026 : lier = catégorie « Virement interne » (l'exclusion reste dérivée de la catégorie) ; appariements sûrs liés automatiquement, incertains proposés ; ± 3 jours ; validation par un bandeau et une fenêtre dans l'écran Opérations.
+- [x] Liaison automatique débit compte A ↔ crédit compte B (montant opposé, dates proches) via `transfer_pair_id`, après chaque import et à la demande sur l'historique.
+- [x] Validation manuelle des appariements incertains (Lier / Ignorer, refus mémorisés dans `transfer_dismissal`).
+- [x] Fiche d'une opération : pendant affiché, Délier, Lier à la main ; changer de catégorie délie.
+
+### Import
+
+#### V2-18 · Import OFX et QIF — L
+Décisions du 22/10/2026 : catégories QIF associées par nom ou par un choix retenu, modifiables dans l'aperçu ; ventilations importées en une ligne, détail dans la note ; mémo dans la note ; un seul compte par fichier, placements refusés.
+- [x] Lecteurs OFX 1.x / 2.x et QIF écrits à la main (module `importing/interchange`), sans dépendance ; migration 0012 (`source_type` OFX et QIF, table `source_category_mapping`).
+- [x] Branchement dans l'aperçu et l'import : solde d'ouverture QIF, solde final OFX, devise OFX contrôlée, virements `[Compte]` en Virement interne, notes.
+- [x] Écran Importer : format reconnu à l'extension, carte « Catégories du fichier ».
+- [x] Tests : exports Money 2000 (Windows-1252, dates `31/12' 0`, ventilations), OFX SGML et XML, refus (plusieurs comptes, placements, dates et montants illisibles), import complet avec choix retenus.
+
+#### V2-20 · Mémoire des relevés importés — M
+Décisions du 22/10/2026 : une copie par contenu (empreinte SHA-256) ; PDF ouverts dans le lecteur du système (pas de rendu des pages, pas de nouvelle dépendance), fichiers texte dans une visionneuse intégrée ; mouvements titres liés aussi ; relevés dans les sauvegardes complètes, en clair.
+- [x] Migration 0013 : `import_batch.stored_file`, `operation.source_page` / `source_line`, `investment_transaction.import_batch_id` / `source_page`.
+- [x] Position de chaque ligne relevée par tous les lecteurs (page PDF, ligne CSV, OFX, QIF) ; module `importing/source_document` (copie, nettoyage, lecture du texte) ; import des mouvements titres en lot sans opération.
+- [x] Fiches d'opération et de mouvement : « Relevé source », visionneuse texte avec la ligne surlignée.
+- [x] Sauvegardes complètes : copie et restauration de `statements/`.
 
 ### Opérations
 
 #### V2-04 · Tags et notes — M
-- [ ] Tables `tag` et `operation_tag` ; exploitation de `operation.note`.
+Décisions du 21/10/2026 : note et tags modifiables sur toutes les opérations, importées comprises ; tags créés à la volée depuis la fiche d'une opération, gérés (renommage, suppression) dans une carte « Tags » de l'écran Catégories ; pas de couleur de tag ; affichage sous le libellé dans la liste des opérations.
+- [x] Tables `tag` et `operation_tag` ; exploitation de `operation.note`.
+- [x] Note et tags dans la fiche d'une opération, avec suggestion des tags existants.
+- [x] Tags et note affichés dans la liste des opérations et couverts par la recherche libre (le filtre par tag reste pour V2-06).
+- [x] Renommage et suppression des tags dans l'écran Catégories.
 
 #### V2-05 · Pièces jointes — M
-- [ ] Table `attachment` ; fichiers copiés à côté du fichier de données ; ouverture depuis l'opération.
+Décisions du 21/10/2026 : ouverture par **tauri-plugin-opener** (dépendance validée), appelé depuis Rust ; fichiers supprimés avec leur opération (et nettoyage des orphelins au démarrage) ; 25 Mo au plus par fichier.
+- [x] Table `attachment` ; fichiers copiés à côté du fichier de données ; ouverture depuis l'opération.
+- [x] Section « Pièces jointes » dans la fiche d'une opération : ajout (plusieurs fichiers à la fois), ouverture, suppression.
+- [x] Nombre de pièces jointes affiché dans la liste des opérations.
 
 #### V2-06 · Recherche et filtres avancés — M
-- [ ] Filtres combinés : montant, période, tiers, catégorie, tag, compte.
+Décisions du 21/10/2026 : recherche dans l'écran Opérations, avec un onglet « Tous les comptes » et un panneau « Plus de filtres » ; montant filtré par sens et fourchette en valeur absolue ; période personnalisée ; une seule valeur par filtre.
+- [x] Filtres combinés : montant, période, tiers, catégorie, tag, compte (requête `operation::search`, commande `search_operations`).
+- [x] Onglet « Tous les comptes » (comptes archivés exclus), colonne Compte à la place du solde.
+- [x] Période personnalisée et panneau « Plus de filtres » : sens, montant min–max, tiers, tag ; réinitialisation des filtres.
+- [x] La recherche libre reste côté front (sans accents) et s'applique au résultat des filtres.
 
 ### Suivi
 
 #### V2-07 · Rapprochement échéancier ↔ import — M
-- [ ] Association d'une opération importée à une échéance (montant à une tolérance près, date à ± N jours) ; statut « réalisée ».
+Décisions du 21/10/2026 : montant à ± 10 %, date à ± 5 jours ; associations sûres automatiques (après import et à la demande), les autres proposées ; occurrences des 60 derniers jours affichées avec leur statut.
+- [x] Association d'une opération importée à une échéance (montant à une tolérance près, date à ± N jours) ; statut « réalisée ».
+- [x] Propositions à valider (Associer / Ignorer), association et dissociation à la main depuis l'échéancier.
+- [x] Échéances récentes (60 jours) avec statut, échéances à venir déjà réalisées marquées (échéancier et tableau de bord).
 
 #### V2-08 · Détection automatique des abonnements — M
-- [ ] Repérage des opérations récurrentes absentes de l'échéancier, proposition d'ajout.
+Décisions du 21/10/2026 : 3 opérations au moins (2 pour l'annuel) ; toutes les séries (dépenses, revenus, virements internes) ; suggestions dans une carte de l'échéancier ; ajout suivi de l'association des opérations passées.
+- [x] Repérage des opérations récurrentes absentes de l'échéancier (module `operation/schedule/detection`), proposition d'ajout.
+- [x] « Ajouter » pré-remplit le formulaire d'échéance puis associe les opérations passées ; « Ignorer » mémorisé dans `recurring_dismissal`.
 
 #### V2-09 · Prévision de trésorerie — M
-- [ ] Solde projeté à partir du solde actuel et de l'échéancier.
+Décisions du 22/10/2026 : carte dans l'échéancier et KPI sur le tableau de bord ; horizon 30, 60 ou 90 jours ; occurrence en retard de moins de 5 jours comptée aujourd'hui ; échéances de virement interne ignorées quand la vue couvre plusieurs comptes.
+- [x] Solde projeté jour par jour à partir du solde actuel et des occurrences non réalisées (`stats::balance_forecast`), avec le point bas.
+- [x] Carte « Prévision de trésorerie » (compte, horizon, courbe, échéances prises en compte) et KPI « Solde projeté à 30 j ».
 
 #### V2-10 · Alertes — M
-- [ ] Solde projeté négatif, dépense inhabituelle pour une catégorie, échéance manquante.
+Décisions du 22/10/2026 : solde négatif par compte courant ou d'épargne à 30 jours ; dépense inhabituelle = mois en cours > moyenne des 6 mois précédents + 50 % et + 50 € (3 mois de dépense au moins) ; échéance manquante quand l'import couvre la date + 5 jours ; dépenses inhabituelles et échéances manquantes masquables ; carte du tableau de bord et pastille dans la barre latérale.
+- [x] Module `alert` : trois règles calculées à la demande, masquage dans `unusual_expense_dismissal` et `missing_occurrence_dismissal`.
+- [x] Carte « Alertes » du tableau de bord (lien vers l'écran concerné, « Masquer ») et pastille sur « Tableau de bord ».
 
 ### Placements
 
 #### V2-11 · Portefeuille détaillé — L
-- [ ] Tables `security` et `investment_transaction` : titres, quantités, prix de revient, achats, ventes, dividendes.
+Décisions du 22/10/2026 : quantités à 6 décimales ; prix de revient au coût moyen pondéré, frais d'achat inclus ; saisie à la main (import des ordres Trade Republic éventuellement dans un ticket à part) ; valeur du compte et patrimoine net inchangés jusqu'à V2-13 ; écran Portefeuille par compte de placement.
+- [x] Tables `security` et `investment_transaction` : titres, quantités, prix de revient, achats, ventes, dividendes (module `investment`).
+- [x] Écran Portefeuille (`/accounts/:id/portfolio`) : positions, mouvements, titres ; lien depuis l'écran Comptes.
+
+#### V2-19 · Mouvements titres des relevés Trade Republic — M
+Décisions du 22/10/2026 : import du PDF dans le compte de placement (un import par compte) ; montant total frais compris, frais à 0 ; titres inconnus créés automatiquement (ISIN et nom du relevé).
+- [x] Lecteur : section titres du relevé (soldes vérifiés), lignes « Buy trade », « Sell trade », « Savings plan execution » (cette dernière sans exemple réel) ; arrêt du tableau au pied de page.
+- [x] Module `importing/trade_import` : aperçu (doublons par ISIN, date, sens, quantité et montant + frais ; titres à créer ; antérieurs à l'ouverture), import d'un bloc après sauvegarde (`transactions::create_many`).
+- [x] Écran Importer : compte de placement comme destination, aperçu des mouvements, ouverture du portefeuille après l'import.
+- [ ] Dividendes : à ajouter avec un relevé qui en contient.
 
 #### V2-12 · Cours de bourse automatiques — M
-- [ ] Table `security_price` ; récupération des cours.
-- 🟡 Seule exception au « tout local » : source des cours et consentement à valider.
+Décisions du 22/10/2026 : Yahoo Finance (sans clé, non officiel) et saisie manuelle ; consentement explicite dans les Paramètres, désactivé par défaut ; mise à jour quotidienne au démarrage et à la demande ; dépendance `reqwest` (rustls) ; symbole cherché par ISIN ou saisi.
+- [x] Table `security_price`, colonne `security.symbol`, table `app_setting` ; récupération des cours (module `investment/prices`, source `investment/yahoo`), cours saisis à la main prioritaires.
+- [x] Seule exception au « tout local » : option « Récupérer les cours sur Yahoo Finance » dans les Paramètres, avec ce qui est envoyé et à qui.
 
 #### V2-13 · Performance et plus-values — M
-- [ ] Plus-values latentes et réalisées, performance ; patrimoine net basé sur la valorisation du portefeuille.
+Décisions du 22/10/2026 : un compte avec des mouvements vaut son portefeuille (à partir du premier mouvement), sinon ses valorisations ; titre sans cours au prix de revient ; gain simple (€ et % des achats) et rendement annualisé (TRI) après un an ; plus-value par vente et récapitulatif par année.
+- [x] Plus-values latentes et réalisées, dividendes, gain total, rendement annualisé, récapitulatif annuel (`investment::performance`) ; carte Performance et colonnes Valeur et Plus-value latente du portefeuille.
+- [x] Patrimoine net et solde des comptes basés sur la valorisation du portefeuille.
+
+### Interface
+
+#### V2-17 · Mode clair et mode sombre — M
+Décisions du 22/10/2026 : choix mémorisé dans le stockage local du webview (lu avant le premier affichage, hors du fichier de données) ; palette sombre « violet nuit ».
+- [x] Choix « clair », « sombre » ou « système » (par défaut) dans une carte « Apparence » des paramètres ; « système » suit le réglage du système d'exploitation en direct.
+- [x] Thème sombre : variables de `src/styles/tokens.css` redéfinies sous `:root[data-theme="dark"]`, couleurs des catégories comprises ; un thème ECharts par mode, options des graphiques recalculées au changement.
 
 ### Technique
 
 #### V2-14 · Multi-devises — L
-- [ ] Exploitation des colonnes `currency` ; conversion vers la devise de référence dans toutes les statistiques.
+Décisions du 22/10/2026 : euro, devise de référence fixe ; devise portée par le compte (modifiable tant qu'il est vide), les opérations la prennent ; taux saisis à la main ou récupérés avec les cours Yahoo ; flux au taux de leur jour, soldes au taux du jour du solde, montants sans taux comptés zéro avec une alerte ; titres cotés dans une autre devise convertis dans la devise du compte.
+- [x] Exploitation des colonnes `currency` (comptes, opérations par déclencheur, titres) ; table `exchange_rate`, module `currency` (taux, `Rates`, `Amounts`).
+- [x] Conversion vers la devise de référence dans toutes les statistiques : dépenses par catégorie, revenus et dépenses, soldes, patrimoine net, tiers, plus grosses dépenses, prévision, alertes ; soldes des comptes en euros pour les totaux.
+- [x] Cours dans la devise du titre (pence en livres), taux récupérés avec les cours ; virements internes appariés entre comptes de même devise.
+- [x] Front : montants affichés dans la devise du compte, devise dans les fiches compte et titre, carte « Devises » des Paramètres, alerte « Taux de change manquant ».
 
 #### V2-15 · Chiffrement du fichier de données — M
-- [ ] Passage à SQLCipher, mot de passe à l'ouverture, migration d'un fichier existant.
+Décisions du 22/10/2026 : optionnel, dans les Paramètres ; fichier de données seul (pièces jointes en clair) ; OpenSSL embarqué ; aucune récupération d'un mot de passe oublié, avertissement à l'activation.
+- [x] Passage à SQLCipher, mot de passe à l'ouverture (écran de déverrouillage, module `startup`), migration d'un fichier existant par `sqlcipher_export` ; changement de mot de passe et retrait du chiffrement.
 
 #### V2-16 · Sauvegarde complète — M
-- [ ] Sauvegardes planifiées, rotation, restauration depuis l'interface.
+Décisions du 22/10/2026 : un dossier par sauvegarde (données et pièces jointes) ; au démarrage une fois par jour (désactivable) et à la demande ; 10 complètes et 20 avant import gardées ; dossier au choix, `backups/` par défaut.
+- [x] Sauvegardes planifiées, rotation, restauration depuis l'interface (module `backup`, carte « Sauvegardes » des Paramètres) ; restauration appliquée au redémarrage, après une sauvegarde de l'état actuel.
+
+### Corrections
+
+#### V2-21 · Corrections de l'audit du 27/10/2026 — M
+- [x] Import QIF : une ligne sans tiers ni mémo (virement Money `L[Livret A]`) prend sa catégorie comme libellé, sinon « Sans libellé », au lieu de faire échouer tout l'import.
+- [x] Modifier la note, les tags ou la date de valeur d'une opération ne réécrit plus la mémoire des libellés : `write_category` seulement si la catégorie change.
+- [x] Import des mouvements titres : un import refusé supprime aussi les titres qu'il a créés.
+- [x] Compteur des sauvegardes avant import : réutiliser `backup::backups_in` au lieu de `batch::backup_count`.
+- [x] Une seule requête `ImportBatch` pour `get`, `list` et `find_by_hash`.
+- [x] Recalcul des libellés normalisés au démarrage une fois par version de l'application (toujours en debug).
 
 ---
 
@@ -373,4 +462,3 @@ Les règles de catégorisation prévues initialement ici ont été avancées en 
 | Ticket | Question |
 |---|---|
 | V1-02.7 | Lignes d'exemple d'un export Revolut (frais, état) |
-| V2-12 | Source des cours de bourse (accès réseau) |

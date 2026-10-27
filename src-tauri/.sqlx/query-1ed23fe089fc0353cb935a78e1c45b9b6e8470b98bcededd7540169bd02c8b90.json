@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM exchange_rate WHERE currency = ?1 AND date = ?2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "1ed23fe089fc0353cb935a78e1c45b9b6e8470b98bcededd7540169bd02c8b90"
+}

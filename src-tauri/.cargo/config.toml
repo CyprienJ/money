@@ -1,0 +1,3 @@
+# The vendored OpenSSL (SQLCipher) has no PDB: recent MSVC linkers fail on its LNK4099 warning.
+[target.'cfg(target_env = "msvc")']
+rustflags = ["-C", "link-arg=/IGNORE:4099"]

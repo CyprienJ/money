@@ -125,6 +125,7 @@ mod tests {
             NewAccount {
                 name: name.to_owned(),
                 account_type: AccountType::Checking,
+                currency: "EUR".to_owned(),
                 institution: None,
                 opening_balance_cents: 0,
                 opening_date: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
@@ -150,6 +151,8 @@ mod tests {
                 amount_cents: -500,
                 label: label.to_owned(),
                 category_id,
+                note: None,
+                tags: Vec::new(),
             },
         )
         .await

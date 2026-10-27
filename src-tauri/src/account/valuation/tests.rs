@@ -16,6 +16,7 @@ async fn new_account(pool: &SqlitePool, name: &str, account_type: AccountType) -
         NewAccount {
             name: name.to_owned(),
             account_type,
+            currency: "EUR".to_owned(),
             institution: None,
             opening_balance_cents: 0,
             opening_date: date("2026-01-01"),

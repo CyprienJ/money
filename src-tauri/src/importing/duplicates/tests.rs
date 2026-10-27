@@ -18,6 +18,10 @@ fn line(day: &str, amount_cents: i64, label: &str) -> RawLine {
         value_date: None,
         label: label.to_owned(),
         amount_cents,
+        note: None,
+        source_category: None,
+        source_page: None,
+        source_line: None,
     }
 }
 
@@ -223,6 +227,7 @@ async fn new_account(pool: &SqlitePool, name: &str) -> i64 {
         NewAccount {
             name: name.to_owned(),
             account_type: AccountType::Checking,
+            currency: "EUR".to_owned(),
             institution: None,
             opening_balance_cents: 0,
             opening_date: date("2026-01-01"),
@@ -243,6 +248,8 @@ async fn enter(pool: &SqlitePool, account_id: i64, day: &str, amount_cents: i64)
             amount_cents,
             label: format!("Op {amount_cents}"),
             category_id: None,
+            note: None,
+            tags: Vec::new(),
         },
     )
     .await

@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT currency AS \"currency!\" FROM account WHERE archived = 0 AND currency <> ?1\n           UNION\n           SELECT currency FROM security WHERE currency <> ?1\n           ORDER BY 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "currency!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "currency"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "9bc339c0bbd264c7e3b64d0c792739a15ad29ddf4acdddf11dcd31e9af8275e6"
+}

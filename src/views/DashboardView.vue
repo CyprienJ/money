@@ -4,6 +4,8 @@ import {
   commands,
   type Account,
   type AccountSummary,
+  type Alert,
+  type BalanceForecast,
   type BalancePoint,
   type Category,
   type CategoryExpense,
@@ -21,23 +23,30 @@ import {
   categoryDonutOption,
   periodLabel,
 } from "../charts/options";
-import { readTokens } from "../charts/theme";
+import { useChartTokens } from "../charts/theme";
 import { ACCOUNT_TYPES, valuationSubtitle } from "../utils/accounts";
+import { alertCount, describeAlert } from "../utils/alerts";
 import { categorySlices, legendSlices, variationPercent } from "../utils/analyses";
 import { errorMessage, unwrap } from "../utils/commands";
-import { displayLabel, formatAmount, formatDate, localDateOf, todayIso } from "../utils/format";
+import { formatAmount, formatDate, localDateOf, todayIso } from "../utils/format";
 import { analysisPeriod } from "../utils/periods";
+import { FORECAST_DAYS } from "../utils/schedule";
 
 /** Days of upcoming scheduled operations shown. */
 const UPCOMING_DAYS = 15;
 
-const tokens = readTokens();
+const tokens = useChartTokens();
 /** 0 for the current month, -1 for the previous one… */
 const offset = ref(0);
 const month = computed(() => analysisPeriod("month", offset.value));
 const previousMonth = computed(() => analysisPeriod("month", offset.value - 1));
 
 const summaries = ref<AccountSummary[]>([]);
+
+/** Currency of the amounts of an account. */
+function currencyOf(accountId: number): string | undefined {
+  return summaries.value.find((s) => s.account.id === accountId)?.account.currency;
+}
 /** Date of the last import of each account. */
 const lastImports = ref(new Map<number, string>());
 const categories = ref<Category[]>([]);
@@ -46,6 +55,9 @@ const months = ref<PeriodIncomeExpenses[]>([]);
 const expenses = ref<CategoryExpense[]>([]);
 const available = ref<BalancePoint[]>([]);
 const upcoming = ref<UpcomingOperation[]>([]);
+const forecast = ref<BalanceForecast | null>(null);
+const alerts = ref<Alert[]>([]);
+const alertError = ref("");
 const payees = ref<PayeeExpense[]>([]);
 const loaded = ref(false);
 const error = ref("");
@@ -64,6 +76,14 @@ const netWorthChange = computed(() => {
   const sign = tenths > 0 ? "+" : tenths < 0 ? "−" : "";
   return `${sign}${(Math.abs(tenths) / 10).toFixed(1).replace(".", ",")} %`;
 });
+const alertViews = computed(() => {
+  const names = {
+    accounts: new Map(summaries.value.map((s) => [s.account.id, s.account])),
+    categories: new Map(categories.value.map((c) => [c.id, c.name])),
+  };
+  return alerts.value.map((alert) => ({ alert, view: describeAlert(alert, names) }));
+});
+const projected = computed(() => forecast.value?.points[forecast.value.points.length - 1] ?? null);
 const thisMonth = computed(() => months.value[months.value.length - 1] ?? null);
 const lastMonth = computed(() => (months.value.length > 1 ? months.value[0] : null));
 const expenseChange = computed(() =>
@@ -77,19 +97,19 @@ const remaining = computed(() =>
 
 const slices = computed(() => legendSlices(categorySlices(expenses.value, categories.value)));
 const totalExpenses = computed(() => slices.value.reduce((sum, s) => sum + s.amountCents, 0));
-const donutOption = computed(() => categoryDonutOption(slices.value, tokens));
-const availableOption = computed(() => availableHistoryOption(available.value, tokens));
+const donutOption = computed(() => categoryDonutOption(slices.value, tokens.value));
+const availableOption = computed(() => availableHistoryOption(available.value, tokens.value));
 const payeesOption = computed(() =>
   categoryBarsOption(
     payees.value.map((p) => {
       const category = p.categoryId === null ? undefined : categoriesById.value.get(p.categoryId);
       return {
-        name: displayLabel(p.normalizedLabel),
+        name: p.payeeName,
         color: category?.color ?? "neutral",
         amountCents: p.expenseCents,
       };
     }),
-    tokens,
+    tokens.value,
   ),
 );
 
@@ -121,8 +141,17 @@ async function load() {
   const { from, to, trendFrom } = month.value;
   const previous = previousMonth.value;
   try {
-    [categories.value, netWorth.value, months.value, expenses.value, available.value, upcoming.value, payees.value] =
-      await Promise.all([
+    [
+      categories.value,
+      netWorth.value,
+      months.value,
+      expenses.value,
+      available.value,
+      upcoming.value,
+      payees.value,
+      forecast.value,
+      alerts.value,
+    ] = await Promise.all([
         unwrap(commands.listCategories()),
         unwrap(commands.netWorthHistory(previous.to, to, "month")),
         unwrap(commands.incomeVsExpenses(previous.from, to, null, "month")),
@@ -130,12 +159,31 @@ async function load() {
         unwrap(commands.balanceHistory(trendFrom, to, null, "month")),
         unwrap(commands.upcomingOperations(UPCOMING_DAYS)),
         unwrap(commands.topPayees(from, to, null, 5)),
+        unwrap(commands.balanceForecast(FORECAST_DAYS[0], null)),
+        unwrap(commands.listAlerts()),
       ]);
+    alertCount.value = alerts.value.length;
     await loadAccounts();
   } catch (e) {
     error.value = errorMessage(e);
   } finally {
     loaded.value = true;
+  }
+}
+
+async function dismissAlert(alert: Alert) {
+  alertError.value = "";
+  try {
+    if (alert.kind === "unusualExpense") {
+      await unwrap(commands.dismissUnusualExpense(alert.categoryId, alert.month));
+    } else if (alert.kind === "missingOccurrence") {
+      const { scheduledOperationId, date } = alert.occurrence;
+      await unwrap(commands.dismissMissingOccurrence(scheduledOperationId, date));
+    }
+    alerts.value = await unwrap(commands.listAlerts());
+    alertCount.value = alerts.value.length;
+  } catch (e) {
+    alertError.value = errorMessage(e);
   }
 }
 
@@ -179,6 +227,24 @@ watch(offset, load);
   </section>
 
   <template v-else-if="loaded">
+    <section v-if="alertViews.length > 0" class="card alerts" aria-label="Alertes">
+      <div class="card-header">
+        <h2 class="card-title">Alertes</h2>
+        <span class="muted">{{ alertViews.length }}</span>
+      </div>
+      <p v-if="alertError" class="error-banner">{{ alertError }}</p>
+      <ul class="alert-list">
+        <li v-for="{ alert, view } in alertViews" :key="view.key" :class="{ danger: alert.kind === 'negativeForecast' }">
+          <span class="alert-mark" aria-hidden="true">!</span>
+          <span class="details">
+            <RouterLink :to="view.to" class="name alert-title">{{ view.title }}</RouterLink>
+            <span class="sub">{{ view.detail }}</span>
+          </span>
+          <button v-if="view.dismissible" type="button" class="btn btn-link" @click="dismissAlert(alert)">Masquer</button>
+        </li>
+      </ul>
+    </section>
+
     <section aria-label="Indicateurs clés" class="kpis">
       <div class="kpi dark">
         <div class="kpi-head"><span>Patrimoine net</span><span class="kpi-icon accent" /></div>
@@ -213,6 +279,19 @@ watch(offset, load);
           ce mois-ci
         </div>
       </div>
+      <RouterLink v-if="forecast && projected" to="/schedule" class="kpi kpi-link">
+        <div class="kpi-head"><span>Solde projeté à {{ FORECAST_DAYS[0] }} j</span><span class="kpi-icon subscriptions" /></div>
+        <div class="kpi-value" :class="{ negative: projected.balanceCents < 0 }">
+          {{ formatAmount(projected.balanceCents, { cents: false }) }}
+        </div>
+        <div class="kpi-note">
+          Point bas
+          <strong :class="{ negative: forecast.lowest.balanceCents < 0 }">
+            {{ formatAmount(forecast.lowest.balanceCents, { cents: false }) }}
+          </strong>
+          le {{ formatDate(forecast.lowest.date, "day-month") }}
+        </div>
+      </RouterLink>
     </section>
 
     <section class="row two">
@@ -268,7 +347,7 @@ watch(offset, load);
                 <span class="sub">{{ accountSubtitle(summary) }}</span>
               </span>
               <strong v-if="summary.balanceCents !== null" :class="{ negative: summary.balanceCents < 0 }">
-                {{ formatAmount(summary.balanceCents) }}
+                {{ formatAmount(summary.balanceCents, { currency: summary.account.currency }) }}
               </strong>
               <span v-else class="muted">—</span>
             </RouterLink>
@@ -289,10 +368,11 @@ watch(offset, load);
             </span>
             <span class="details">
               <span class="name">{{ item.label }}</span>
-              <span class="sub">{{ item.categoryId !== null ? categoriesById.get(item.categoryId)?.name : "" }}</span>
+              <span v-if="item.realizedBy" class="sub realized">Réalisée le {{ formatDate(item.realizedBy.date, "day-month") }}</span>
+              <span v-else class="sub">{{ item.categoryId !== null ? categoriesById.get(item.categoryId)?.name : "" }}</span>
             </span>
             <strong :class="{ positive: item.amountCents > 0 }">
-              {{ formatAmount(item.amountCents, { signed: true }) }}
+              {{ formatAmount(item.amountCents, { signed: true, currency: currencyOf(item.accountId) }) }}
             </strong>
           </li>
         </ul>
@@ -419,8 +499,8 @@ h1 {
 
 .kpi.dark {
   border-color: transparent;
-  background: var(--color-primary);
-  color: var(--color-on-primary);
+  background: var(--color-feature);
+  color: var(--color-on-feature);
 }
 
 .kpi-head {
@@ -434,7 +514,7 @@ h1 {
 
 .kpi.dark .kpi-head,
 .kpi.dark .kpi-note {
-  color: var(--color-on-primary-muted);
+  color: var(--color-on-feature-muted);
 }
 
 .kpi-icon {
@@ -459,6 +539,64 @@ h1 {
   background: var(--cat-housing-bg);
 }
 
+.alert-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.alert-list > li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.alert-list > li:last-child {
+  border-bottom: 0;
+}
+
+.alert-mark {
+  flex: 0 0 28px;
+  height: 28px;
+  border-radius: 14px;
+  background: var(--cat-groceries-bg);
+  color: var(--cat-groceries-fg);
+  font-weight: 800;
+  line-height: 28px;
+  text-align: center;
+}
+
+.danger .alert-mark {
+  background: var(--cat-restaurants-bg);
+  color: var(--cat-restaurants-fg);
+}
+
+.alert-title {
+  color: inherit;
+  text-decoration: none;
+}
+
+.alert-title:hover {
+  text-decoration: underline;
+}
+
+.kpi-icon.subscriptions {
+  background: var(--cat-subscriptions-bg);
+}
+
+.kpi-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.kpi-link:hover {
+  border-color: var(--cat-housing);
+}
+
 .kpi-value {
   font-size: 30px;
   font-weight: 800;
@@ -480,7 +618,7 @@ h1 {
 
 .change.light {
   background: rgba(255, 255, 255, 0.14);
-  color: var(--color-on-primary);
+  color: var(--color-on-feature);
 }
 
 .change.up {
@@ -624,6 +762,11 @@ a.list-row:hover {
 .sub {
   font-size: 12px;
   color: var(--color-text-muted);
+}
+
+.sub.realized {
+  color: var(--cat-transport-fg);
+  font-weight: 600;
 }
 
 .list-row strong {

@@ -36,7 +36,8 @@ export function summarize(operations: Operation[]): OperationTotals {
   return totals;
 }
 
-function simplify(text: string): string {
+/** Lowercase text without accents nor repeated spaces, for searches. */
+export function simplify(text: string): string {
   return text
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
@@ -46,7 +47,7 @@ function simplify(text: string): string {
 }
 
 /**
- * Free-text search on the labels and the amount, ignoring case and accents.
+ * Free-text search on the labels, the note, the tags and the amount, ignoring case and accents.
  * `"64,28"` and `"-64,28"` both match an amount of −64,28 €.
  */
 export function matchesSearch(operation: Operation, query: string): boolean {
@@ -55,7 +56,12 @@ export function matchesSearch(operation: Operation, query: string): boolean {
     return true;
   }
   const amount = simplify(formatAmount(operation.amountCents)).replace("−", "-");
-  return [operation.rawLabel, operation.normalizedLabel, amount].some((text) =>
-    simplify(text).includes(needle),
-  );
+  return [
+    operation.rawLabel,
+    operation.normalizedLabel,
+    operation.payeeName,
+    operation.note ?? "",
+    ...operation.tags,
+    amount,
+  ].some((text) => simplify(text).includes(needle));
 }

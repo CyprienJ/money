@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { commands, type Account, type AccountType } from "../bindings";
 import { ACCOUNT_TYPES } from "../utils/accounts";
 import { errorMessage, unwrap } from "../utils/commands";
-import { formatAmountInput, parseAmount, todayIso } from "../utils/format";
+import { currencyLabel, REFERENCE_CURRENCY, supportedCurrencies } from "../utils/currency";
+import { currencySymbol, formatAmountInput, parseAmount, todayIso } from "../utils/format";
 import BaseModal from "./BaseModal.vue";
 import ValuationHistory from "./ValuationHistory.vue";
 
@@ -23,6 +24,7 @@ const emit = defineEmits<{
 const form = reactive({
   name: "",
   type: "CHECKING" as AccountType,
+  currency: REFERENCE_CURRENCY,
   institution: "",
   openingBalance: "0",
   openingDate: todayIso(),
@@ -30,6 +32,11 @@ const form = reactive({
 const submitted = ref(false);
 const saving = ref(false);
 const error = ref("");
+const currencies = ref<string[]>([REFERENCE_CURRENCY]);
+
+onMounted(async () => {
+  currencies.value = await supportedCurrencies();
+});
 
 const isEdit = computed(() => props.account !== null);
 const hasOperations = computed(() => ACCOUNT_TYPES[form.type].hasOperations);
@@ -49,6 +56,7 @@ watch(
     const account = props.account;
     form.name = account?.name ?? "";
     form.type = account?.type ?? "CHECKING";
+    form.currency = account?.currency ?? REFERENCE_CURRENCY;
     form.institution = account?.institution ?? "";
     form.openingBalance = formatAmountInput(account?.openingBalanceCents ?? 0);
     form.openingDate = account?.openingDate ?? todayIso();
@@ -68,6 +76,7 @@ async function save() {
   try {
     const fields = {
       name: form.name,
+      currency: form.currency,
       institution: form.institution || null,
       openingBalanceCents: cents,
       openingDate: form.openingDate,
@@ -125,13 +134,25 @@ async function toggleArchived() {
       </label>
 
       <label class="field">
+        Devise
+        <select v-model="form.currency">
+          <option v-for="code in currencies" :key="code" :value="code">
+            {{ currencyLabel(code) }}
+          </option>
+        </select>
+        <span v-if="isEdit" class="field-hint">
+          Modifiable tant que le compte n'a ni opération, ni valorisation, ni mouvement, ni échéance.
+        </span>
+      </label>
+
+      <label class="field">
         Établissement
         <input v-model="form.institution" type="text" autocomplete="off" placeholder="Facultatif" />
       </label>
 
       <div class="row">
         <label v-if="hasOperations" class="field">
-          Solde d'ouverture (€)
+          Solde d'ouverture ({{ currencySymbol(form.currency) }})
           <input v-model="form.openingBalance" type="text" inputmode="decimal" />
           <span v-if="submitted && balanceError" class="field-error">{{ balanceError }}</span>
         </label>

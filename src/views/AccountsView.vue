@@ -6,6 +6,7 @@ import AccountFormModal from "../components/AccountFormModal.vue";
 import PageHeader from "../components/PageHeader.vue";
 import { ACCOUNT_GROUPS, ACCOUNT_TYPES, valuationSubtitle } from "../utils/accounts";
 import { errorMessage, unwrap } from "../utils/commands";
+import { REFERENCE_CURRENCY } from "../utils/currency";
 import { formatAmount } from "../utils/format";
 
 const summaries = ref<AccountSummary[]>([]);
@@ -19,7 +20,10 @@ const editedAccount = ref<Account | null>(null);
 const groups = computed(() =>
   ACCOUNT_GROUPS.map((group) => {
     const items = summaries.value.filter((s) => group.types.includes(s.account.type));
-    const balances = items.map((s) => s.balanceCents).filter((b): b is number => b !== null);
+    // In euros: the accounts may have different currencies.
+    const balances = items
+      .map((s) => s.referenceBalanceCents)
+      .filter((b): b is number => b !== null);
     return {
       title: group.title,
       items,
@@ -42,6 +46,12 @@ async function load() {
 function subtitle({ account, valuedOn }: AccountSummary): string {
   if (!ACCOUNT_TYPES[account.type].hasOperations) return valuationSubtitle(account.type, valuedOn);
   return [ACCOUNT_TYPES[account.type].label, account.institution].filter(Boolean).join(" · ");
+}
+
+/** Balance of an account in another currency, in euros: "≈ 1 234,56 €". */
+function convertedLabel({ balanceCents, referenceBalanceCents }: AccountSummary): string {
+  if (balanceCents !== 0 && referenceBalanceCents === 0) return "taux de change manquant";
+  return `≈ ${formatAmount(referenceBalanceCents ?? 0)}`;
 }
 
 function openCreate() {
@@ -103,15 +113,27 @@ watch(showArchived, load);
               </span>
               <span class="subtitle">{{ subtitle(summary) }}</span>
             </span>
-            <strong
-              v-if="summary.balanceCents !== null"
-              class="amount"
-              :class="{ negative: summary.balanceCents < 0 }"
-            >
-              {{ formatAmount(summary.balanceCents) }}
-            </strong>
+            <span v-if="summary.balanceCents !== null" class="amounts">
+              <strong class="amount" :class="{ negative: summary.balanceCents < 0 }">
+                {{ formatAmount(summary.balanceCents, { currency: summary.account.currency }) }}
+              </strong>
+              <span
+                v-if="summary.account.currency !== REFERENCE_CURRENCY"
+                class="converted"
+                title="Au dernier taux de change connu"
+              >
+                {{ convertedLabel(summary) }}
+              </span>
+            </span>
             <span v-else class="amount pending" title="Ajoute une valorisation depuis la fiche du compte">—</span>
           </button>
+          <RouterLink
+            v-if="summary.account.type === 'INVESTMENT'"
+            :to="{ name: 'portfolio', params: { id: summary.account.id } }"
+            class="portfolio-link"
+          >
+            Portefeuille
+          </RouterLink>
         </li>
       </ul>
     </section>
@@ -167,6 +189,25 @@ watch(showArchived, load);
   font-size: 14px;
 }
 
+.accounts > li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.accounts > li > .account {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+}
+
+.portfolio-link {
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
 .account {
   display: flex;
   align-items: center;
@@ -211,7 +252,20 @@ watch(showArchived, load);
   color: var(--color-text-muted);
 }
 
+.amounts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
 .amount {
+  white-space: nowrap;
+}
+
+.converted {
+  font-size: 12px;
+  color: var(--color-text-muted);
   white-space: nowrap;
 }
 

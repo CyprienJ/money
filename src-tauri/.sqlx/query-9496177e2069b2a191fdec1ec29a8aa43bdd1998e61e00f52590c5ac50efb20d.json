@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT p.name FROM payee_alias a JOIN payee p ON p.id = a.payee_id\n             WHERE a.normalized_label = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "name",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "payee",
+            "name": "name"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "9496177e2069b2a191fdec1ec29a8aa43bdd1998e61e00f52590c5ac50efb20d"
+}

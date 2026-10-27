@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO security_price (security_id, date, price_cents, source)\n         VALUES (?1, ?2, ?3, 'MANUAL')\n         ON CONFLICT (security_id, date)\n         DO UPDATE SET price_cents = excluded.price_cents, source = 'MANUAL'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "d9ce9c7fb6f94e8c7bf7a0a88f3c2333e9068f929d2e6a2741265f2511557ae6"
+}

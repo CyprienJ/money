@@ -10,10 +10,13 @@ import {
   type ImportPreview,
   type MappingSuggestion,
   type SavedCsvMapping,
+  type SourceCategory,
   type SupportedBank,
+  type TradePreview,
 } from "../bindings";
 import CategoryPicker from "../components/CategoryPicker.vue";
 import CsvMappingModal from "../components/CsvMappingModal.vue";
+import TradeImportPreview from "../components/TradeImportPreview.vue";
 import { ACCOUNT_TYPES } from "../utils/accounts";
 import { errorMessage, unwrap } from "../utils/commands";
 import { displayLabel, formatAmount, formatDate, localDateOf, operationCount } from "../utils/format";
@@ -22,10 +25,13 @@ import {
   balanceGap,
   categoryCounts,
   defaultSelection,
+  fileKind,
   groupPreview,
   lineAmount,
   lineCategory,
+  pendingSuggestions,
   periodText,
+  sourceCategoryChoices,
 } from "../utils/importPreview";
 
 type Step = "file" | "preview" | "importing";
@@ -46,11 +52,15 @@ const banks = ref<SupportedBank[]>([]);
 /** Bank recognized from the chosen PDF; `null` when not recognized. */
 const detectedBank = ref<SupportedBank | null>(null);
 const preview = ref<ImportPreview | null>(null);
+/** Trades of a statement imported into an investment account. */
+const tradePreview = ref<TradePreview | null>(null);
 const selected = ref(new Set<number>());
 /** Categories chosen by the user in the preview, by line index. */
 const chosen = ref(new Map<number, number | null>());
 /** Last category chosen for each normalized label, applied to the other lines of the label. */
 const spread = ref(new Map<string, number | null>());
+/** Categories chosen for the categories of a QIF file, when changed in the preview. */
+const sources = ref(new Map<string, number | null>());
 const busy = ref(false);
 const error = ref("");
 
@@ -66,19 +76,35 @@ const stepIndex = computed(() => steps.findIndex((s) => s.id === step.value));
 
 const fileName = computed(() => path.value?.split(/[\\/]/).pop() ?? "");
 const account = computed(() => accounts.value.find((s) => s.account.id === accountId.value)?.account);
+/** An investment account receives the securities trades of a PDF statement. */
+const isInvestment = computed(() => account.value?.type === "INVESTMENT");
+/** Currency of the amounts of the statement: the one of the account. */
+const currency = computed(() => account.value?.currency);
 const mapping = computed(() => mappings.value.find((m) => m.id === mappingId.value));
 const suggestedLines = computed(
   () => new Map(suggestions.value.map((s) => [s.mapping.id, s.lineCount])),
 );
-const isPdf = computed(() => /\.pdf$/i.test(path.value ?? ""));
+const kind = computed(() => fileKind(path.value ?? ""));
+const isPdf = computed(() => kind.value === "pdf");
+/** OFX or QIF: read without a saved format. */
+const isInterchange = computed(() => kind.value === "ofx" || kind.value === "qif");
+/** Short name of the kind of file, in its icon. */
+const kindLabel = computed(() => kind.value.toUpperCase());
 const banksText = computed(() => banks.value.map((b) => b.name).join(", "));
 /** How the chosen file is read: by the parser of its bank, or with a saved CSV format. */
 const format = computed<ImportFormat | null>(() => {
   if (isPdf.value) return detectedBank.value ? { kind: "pdf" } : null;
+  if (kind.value === "ofx") return { kind: "ofx" };
+  if (kind.value === "qif") return { kind: "qif" };
   return mappingId.value === null ? null : { kind: "csv", mappingId: mappingId.value };
 });
 const canPreview = computed(
-  () => path.value !== null && accountId.value !== null && format.value !== null && !busy.value,
+  () =>
+    path.value !== null &&
+    accountId.value !== null &&
+    format.value !== null &&
+    !busy.value &&
+    (!isInvestment.value || isPdf.value),
 );
 
 const groups = computed(() => (preview.value ? groupPreview(preview.value) : null));
@@ -88,7 +114,7 @@ const ambiguousCount = computed(
 const categoriesById = computed(() => new Map(categories.value.map((c) => [c.id, c])));
 const counts = computed(() =>
   preview.value
-    ? categoryCounts(preview.value, selected.value, chosen.value, spread.value)
+    ? categoryCounts(preview.value, selected.value, chosen.value, spread.value, sources.value)
     : { automatic: 0, toCategorize: 0 },
 );
 /** No balance mismatch: balances checked, or not available (CSV). */
@@ -98,7 +124,9 @@ const accountNames = computed(() => new Map(accounts.value.map((s) => [s.account
 async function load() {
   try {
     const summaries = await unwrap(commands.listAccountSummaries(false));
-    accounts.value = summaries.filter((s) => ACCOUNT_TYPES[s.account.type].hasOperations);
+    accounts.value = summaries.filter(
+      (s) => ACCOUNT_TYPES[s.account.type].hasOperations || s.account.type === "INVESTMENT",
+    );
     mappings.value = await unwrap(commands.listCsvMappings());
     categories.value = await unwrap(commands.listCategories());
     banks.value = await commands.supportedBanks();
@@ -117,13 +145,18 @@ async function chooseFile() {
   const chosen = await openDialog({
     multiple: false,
     directory: false,
-    filters: [{ name: "Relevé PDF ou CSV", extensions: ["pdf", "PDF", "csv", "CSV", "txt"] }],
+    filters: [
+      {
+        name: "Relevé PDF, CSV, OFX ou QIF",
+        extensions: ["pdf", "PDF", "csv", "CSV", "txt", "ofx", "OFX", "qfx", "QFX", "qif", "QIF"],
+      },
+    ],
   });
   if (typeof chosen !== "string") return;
   path.value = chosen;
   detectedBank.value = null;
   if (isPdf.value) await detectBank();
-  else await suggest();
+  else if (!isInterchange.value) await suggest();
 }
 
 /** Recognizes the bank of a PDF statement from its content. */
@@ -184,11 +217,19 @@ async function showPreview() {
   if (!path.value || accountId.value === null || format.value === null) return;
   busy.value = true;
   error.value = "";
+  preview.value = null;
+  tradePreview.value = null;
   try {
+    if (isInvestment.value) {
+      tradePreview.value = await unwrap(commands.previewTrades(path.value, accountId.value));
+      step.value = "preview";
+      return;
+    }
     preview.value = await unwrap(commands.previewImport(path.value, accountId.value, format.value));
     selected.value = defaultSelection(preview.value);
     chosen.value = new Map();
     spread.value = new Map();
+    sources.value = new Map();
     step.value = "preview";
   } catch (e) {
     error.value = errorMessage(e);
@@ -199,7 +240,20 @@ async function showPreview() {
 
 function categoryOf(index: number): number | null {
   const current = preview.value;
-  return current ? lineCategory(current.lines[index], index, chosen.value, spread.value) : null;
+  return current ? lineCategory(current.lines[index], index, chosen.value, spread.value, sources.value) : null;
+}
+
+/** Category chosen for a category of the QIF file. */
+function sourceValue(source: SourceCategory): number | null {
+  return sources.value.has(source.name) ? (sources.value.get(source.name) ?? null) : source.categoryId;
+}
+
+/** Chooses the category of a category of the file: its lines not chosen by hand follow. */
+function chooseSource(source: SourceCategory, categoryId: number | null) {
+  const next = new Map(sources.value);
+  if (categoryId === source.categoryId) next.delete(source.name);
+  else next.set(source.name, categoryId);
+  sources.value = next;
 }
 
 /** Chooses the category of a line, and of the other lines of its label not chosen by hand. */
@@ -217,12 +271,31 @@ function categoryHint(index: number): string {
   const category = categoryOf(index);
   if (category === null) return line.categoryId === null ? "Libellé inconnu" : "";
   if (category !== line.categoryId) {
+    if (category === line.suggestion?.categoryId) return "Suggestion acceptée, retenue pour ce libellé";
     return chosen.value.has(index)
       ? "Choisie à la main, retenue pour ce libellé"
       : "Choisie sur une autre ligne de ce libellé";
   }
+  const source = line.line.sourceCategory;
+  if (source !== null && !chosen.value.has(index) && !spread.value.has(line.normalizedLabel)) {
+    if (source.startsWith("[")) return `Virement avec « ${source.slice(1, -1)} » dans le fichier`;
+    const fileCategory = preview.value?.sourceCategories.find((c) => c.name === source);
+    if (fileCategory && category === sourceValue(fileCategory)) return `Catégorie « ${source} » du fichier`;
+  }
   if (line.rulePattern !== null) return `Règle « ${line.rulePattern} »`;
   return `Reprise de « ${displayLabel(line.normalizedLabel)} »`;
+}
+
+/** Lines whose suggestion can still be accepted. */
+const suggested = computed(() =>
+  preview.value ? pendingSuggestions(preview.value, selected.value, chosen.value, spread.value, sources.value) : [],
+);
+
+function acceptSuggestions() {
+  for (const index of suggested.value) {
+    const suggestion = preview.value?.lines[index].suggestion;
+    if (suggestion && categoryOf(index) === null) choose(index, suggestion.categoryId);
+  }
 }
 
 function isInternalTransfer(index: number): boolean {
@@ -239,6 +312,21 @@ function toggle(index: number) {
 function back() {
   step.value = "file";
   error.value = "";
+  tradePreview.value = null;
+}
+
+async function runTradeImport(indexes: number[]) {
+  const current = tradePreview.value;
+  if (!current || !path.value || accountId.value === null) return;
+  step.value = "importing";
+  error.value = "";
+  try {
+    await unwrap(commands.importTrades(path.value, accountId.value, current.fileHash, indexes));
+    await router.push({ name: "portfolio", params: { id: String(accountId.value) } });
+  } catch (e) {
+    error.value = errorMessage(e);
+    step.value = "preview";
+  }
 }
 
 async function runImport() {
@@ -247,7 +335,7 @@ async function runImport() {
   step.value = "importing";
   error.value = "";
   try {
-    await unwrap(
+    const outcome = await unwrap(
       commands.importStatement(
         path.value,
         accountId.value,
@@ -255,11 +343,15 @@ async function runImport() {
         current.fileHash,
         [...selected.value].map((index) => ({
           index,
-          categoryId: lineCategory(current.lines[index], index, chosen.value, spread.value),
+          categoryId: lineCategory(current.lines[index], index, chosen.value, spread.value, sources.value),
         })),
+        sourceCategoryChoices(current, sources.value),
       ),
     );
-    await router.push({ name: "operations", query: { account: String(accountId.value) } });
+    const query: Record<string, string> = { account: String(accountId.value) };
+    if (outcome.linkedTransfers > 0) query.linkedTransfers = String(outcome.linkedTransfers);
+    if (outcome.matchedOccurrences > 0) query.matchedOccurrences = String(outcome.matchedOccurrences);
+    await router.push({ name: "operations", query });
   } catch (e) {
     error.value = errorMessage(e);
     step.value = "preview";
@@ -306,10 +398,12 @@ onMounted(load);
 
     <template v-else>
       <div class="file-row">
-        <span class="file-icon" :class="isPdf ? 'pdf' : 'csv'">{{ isPdf ? "PDF" : "CSV" }}</span>
+        <span class="file-icon" :class="isPdf ? 'pdf' : 'csv'">{{ path ? kindLabel : "CSV" }}</span>
         <div class="file-info">
           <span class="file-name">{{ fileName || "Aucun fichier choisi" }}</span>
-          <span class="muted">Relevé PDF ({{ banksText }}) ou export CSV de ta banque.</span>
+          <span class="muted">
+            Relevé PDF ({{ banksText }}), export CSV ou OFX de ta banque, ou export QIF de Microsoft Money.
+          </span>
         </div>
         <button type="button" class="btn btn-secondary" @click="chooseFile">
           {{ path ? "Changer de fichier" : "Choisir un fichier…" }}
@@ -320,8 +414,16 @@ onMounted(load);
         <label class="field">
           Compte de destination
           <select v-model="accountId">
-            <option v-for="s in accounts" :key="s.account.id" :value="s.account.id">{{ s.account.name }}</option>
+            <option v-for="s in accounts" :key="s.account.id" :value="s.account.id">
+              {{ s.account.type === "INVESTMENT" ? `${s.account.name} (portefeuille)` : s.account.name }}
+            </option>
           </select>
+          <span v-if="isInvestment" class="field-hint">
+            Un compte de placement reçoit les achats et ventes de titres d'un relevé PDF Trade Republic.
+          </span>
+          <span v-if="isInvestment && path && !isPdf" class="field-error">
+            Choisis un relevé PDF Trade Republic, ou un compte courant pour ce fichier.
+          </span>
         </label>
         <div v-if="isPdf" class="field">
           Format du relevé
@@ -330,6 +432,11 @@ onMounted(load);
           <span v-else class="field-error">
             Ce PDF n'est pas un relevé reconnu. Banques prises en charge : {{ banksText }}.
           </span>
+        </div>
+        <div v-else-if="isInterchange" class="field">
+          Format du fichier
+          <span class="recognized-bank">Format reconnu : {{ kindLabel }}</span>
+          <span class="field-hint">Un seul compte par fichier ; les relevés de placements ne sont pas pris en charge.</span>
         </div>
         <div v-else class="field">
           <label for="mapping">Format du fichier</label>
@@ -368,14 +475,31 @@ onMounted(load);
   </section>
 
   <!-- Step 2: check and preview -->
+  <TradeImportPreview
+    v-else-if="tradePreview && account"
+    :preview="tradePreview"
+    :account-name="account.name"
+    :currency="account.currency"
+    :importing="step === 'importing'"
+    @back="back"
+    @import="runTradeImport"
+  />
+
   <template v-else-if="preview && groups">
     <section class="cards">
       <div class="card file-card">
-        <span class="file-icon" :class="preview.bank ? 'pdf' : 'csv'">{{ preview.bank ? "PDF" : "CSV" }}</span>
+        <span class="file-icon" :class="preview.bank ? 'pdf' : 'csv'">{{ kindLabel }}</span>
         <div class="file-info">
           <span class="file-name">{{ preview.fileName }}</span>
           <span class="muted">
-            {{ preview.bank ? `Format reconnu : ${preview.bank}` : `Format : ${mapping?.name}` }} ·
+            {{
+              preview.bank
+                ? `Format reconnu : ${preview.bank}`
+                : isInterchange
+                  ? `Format : ${kindLabel}`
+                  : `Format : ${mapping?.name}`
+            }}
+            ·
             {{ periodText(preview) }}
           </span>
           <span class="muted">Compte de destination : <strong>{{ account?.name }}</strong></span>
@@ -396,19 +520,19 @@ onMounted(load);
         </div>
         <div class="balance-grid">
           <span>Solde initial du relevé</span>
-          <strong>{{ formatAmount(preview.startBalanceCents ?? 0) }}</strong>
+          <strong>{{ formatAmount(preview.startBalanceCents ?? 0, { currency }) }}</strong>
           <span>+ Somme des opérations lues</span>
-          <strong>{{ formatAmount(preview.balanceCheck.linesTotalCents, { signed: true }) }}</strong>
+          <strong>{{ formatAmount(preview.balanceCheck.linesTotalCents, { signed: true, currency }) }}</strong>
           <span class="total">= Solde calculé</span>
-          <strong class="total">{{ formatAmount(preview.balanceCheck.computedEndCents ?? 0) }}</strong>
+          <strong class="total">{{ formatAmount(preview.balanceCheck.computedEndCents ?? 0, { currency }) }}</strong>
           <template v-if="!balanceOk">
             <span>Solde final du relevé</span>
-            <strong>{{ formatAmount(preview.endBalanceCents ?? 0) }}</strong>
+            <strong>{{ formatAmount(preview.endBalanceCents ?? 0, { currency }) }}</strong>
           </template>
         </div>
         <span v-if="balanceOk">Identique au solde final indiqué sur le relevé : aucune ligne manquante.</span>
         <span v-else>
-          Écart de {{ formatAmount(balanceGap(preview) ?? 0, { signed: true }) }} : une ligne du relevé n'a pas
+          Écart de {{ formatAmount(balanceGap(preview) ?? 0, { signed: true, currency }) }} : une ligne du relevé n'a pas
           été lue correctement. Tu peux annuler, ou importer quand même et saisir ensuite l'opération manquante.
         </span>
       </div>
@@ -420,8 +544,43 @@ onMounted(load);
           </svg>
           Soldes non vérifiés
         </div>
-        <span>Un export CSV n'indique pas les soldes du relevé : le contrôle des soldes se fait sur les relevés PDF.</span>
+        <span v-if="preview.endBalanceCents !== null">
+          Le fichier indique un solde final de {{ formatAmount(preview.endBalanceCents, { currency }) }}, mais pas le
+          solde initial : les soldes ne peuvent pas être comparés.
+        </span>
+        <span v-else-if="preview.startBalanceCents !== null">
+          Le fichier commence par un solde d'ouverture de {{ formatAmount(preview.startBalanceCents, { currency }) }},
+          non importé (le compte a son propre solde d'ouverture), mais n'indique pas de solde final.
+        </span>
+        <span v-else>
+          Le fichier n'indique pas les soldes du relevé : le contrôle des soldes se fait sur les relevés PDF.
+        </span>
       </div>
+    </section>
+
+    <section v-if="preview.sourceCategories.length > 0" class="card">
+      <h2 class="card-title">Catégories du fichier</h2>
+      <p class="muted">
+        Chaque catégorie du fichier est associée à une de tes catégories, par son nom ou par ton choix lors d'un
+        import précédent. Choisis pour les autres : tes choix sont retenus pour les prochains fichiers. Sans
+        catégorie, une ligne est catégorisée par tes règles et les libellés connus.
+      </p>
+      <ul class="source-categories">
+        <li v-for="source in preview.sourceCategories" :key="source.name">
+          <span class="source-name">
+            <strong>{{ source.name }}</strong>
+            <span class="muted">
+              {{ operationCount(source.lineCount) }}{{ source.remembered ? " · choix retenu" : "" }}
+            </span>
+          </span>
+          <CategoryPicker
+            :model-value="sourceValue(source)"
+            :categories="categories"
+            :label="`Catégorie pour ${source.name}`"
+            @update:model-value="chooseSource(source, $event)"
+          />
+        </li>
+      </ul>
     </section>
 
     <p v-for="batch in preview.previousImports" :key="batch.id" class="warning-banner">
@@ -446,6 +605,9 @@ onMounted(load);
       <div class="table-title">
         <h2>Nouvelles opérations</h2>
         <span class="muted">Décoche une ligne pour l'exclure</span>
+        <button v-if="suggested.length > 0" type="button" class="btn btn-secondary accept-all" @click="acceptSuggestions">
+          Accepter {{ suggested.length > 1 ? `les ${suggested.length} suggestions` : "la suggestion" }}
+        </button>
       </div>
       <table>
         <thead>
@@ -470,13 +632,13 @@ onMounted(load);
               <input
                 type="checkbox"
                 :checked="selected.has(index)"
-                :aria-label="`Inclure ${displayLabel(line.normalizedLabel)} du ${formatDate(line.line.date, 'day-month')}`"
+                :aria-label="`Inclure ${line.payeeName} du ${formatDate(line.line.date, 'day-month')}`"
                 @change="toggle(index)"
               />
             </td>
             <td class="col-date">{{ formatDate(line.line.date, "day-month") }}</td>
             <td>
-              <span class="label">{{ displayLabel(line.normalizedLabel) }}</span>
+              <span class="label">{{ line.payeeName }}</span>
               <span class="raw">{{ line.line.label }}</span>
               <span v-if="line.duplicate.status === 'ambiguous'" class="hint">
                 {{ ambiguityText(line, preview.matchedOperations) }}
@@ -486,9 +648,20 @@ onMounted(load);
               <CategoryPicker
                 :model-value="categoryOf(index)"
                 :categories="categories"
-                :label="`Catégorie de ${displayLabel(line.normalizedLabel)}`"
+                :label="`Catégorie de ${line.payeeName}`"
                 @update:model-value="choose(index, $event)"
               />
+              <button
+                v-if="categoryOf(index) === null && line.suggestion"
+                type="button"
+                class="suggestion"
+                :title="'Accepter la catégorie suggérée'"
+                @click="choose(index, line.suggestion.categoryId)"
+              >
+                <span aria-hidden="true">✓</span>
+                Suggestion : {{ categoriesById.get(line.suggestion.categoryId)?.name ?? "?" }}
+                ({{ line.suggestion.confidencePercent }} %)
+              </button>
               <span v-if="isInternalTransfer(index)" class="category-hint">Exclu des statistiques</span>
               <span v-else-if="categoryHint(index)" class="category-hint">{{ categoryHint(index) }}</span>
             </td>
@@ -496,7 +669,7 @@ onMounted(load);
               class="col-amount"
               :class="{ positive: line.line.amountCents > 0, internal: isInternalTransfer(index) }"
             >
-              {{ formatAmount(line.line.amountCents, { signed: true }) }}
+              {{ formatAmount(line.line.amountCents, { signed: true, currency }) }}
             </td>
           </tr>
           <tr v-if="groups.candidates.length === 0" class="empty-row">
@@ -510,8 +683,8 @@ onMounted(load);
         <ul>
           <li v-for="{ index, line } in groups.duplicates" :key="index">
             <span class="list-date">{{ formatDate(line.line.date, "day-month") }}</span>
-            <span class="list-label">{{ displayLabel(line.normalizedLabel) }}</span>
-            <span class="list-amount">{{ lineAmount(line) }}</span>
+            <span class="list-label">{{ line.payeeName }}</span>
+            <span class="list-amount">{{ lineAmount(line, currency) }}</span>
           </li>
         </ul>
       </details>
@@ -525,8 +698,8 @@ onMounted(load);
         <ul>
           <li v-for="{ index, line } in groups.beforeOpening" :key="index">
             <span class="list-date">{{ formatDate(line.line.date, "day-month") }}</span>
-            <span class="list-label">{{ displayLabel(line.normalizedLabel) }}</span>
-            <span class="list-amount">{{ lineAmount(line) }}</span>
+            <span class="list-label">{{ line.payeeName }}</span>
+            <span class="list-amount">{{ lineAmount(line, currency) }}</span>
           </li>
         </ul>
       </details>
@@ -619,7 +792,7 @@ h1 {
   width: 28px;
   height: 28px;
   box-sizing: border-box;
-  border: 1.5px solid #d6d0e2;
+  border: 1.5px solid var(--color-control-border);
   border-radius: 14px;
   background: var(--color-card);
   font-size: 13px;
@@ -782,6 +955,32 @@ h1 {
   gap: 16px;
 }
 
+.source-categories {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 10px 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.source-categories li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.source-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.source-name .muted {
+  font-size: 12px;
+}
+
 .file-card {
   flex-direction: row;
   align-items: flex-start;
@@ -848,6 +1047,30 @@ h1 {
   border-color: transparent;
   background: var(--cat-transport-bg);
   color: var(--cat-transport-fg);
+}
+
+.suggestion {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border: 1px dashed var(--color-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cat-housing-fg);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.suggestion:hover {
+  border-style: solid;
+  background: var(--cat-housing-bg);
+}
+
+.accept-all {
+  margin-left: auto;
 }
 
 .category-hint {

@@ -162,6 +162,7 @@ fn renormalizes_stored_labels() {
             NewAccount {
                 name: "Courant".to_owned(),
                 account_type: AccountType::Checking,
+                currency: "EUR".to_owned(),
                 institution: None,
                 opening_balance_cents: 0,
                 opening_date: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
@@ -179,6 +180,8 @@ fn renormalizes_stored_labels() {
                 amount_cents: -1000,
                 label: "CB CARREFOUR MKT 18/10".to_owned(),
                 category_id: None,
+                note: None,
+                tags: Vec::new(),
             },
         )
         .await

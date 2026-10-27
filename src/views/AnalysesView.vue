@@ -21,12 +21,12 @@ import {
   netWorthOption,
   periodLabel,
 } from "../charts/options";
-import { readTokens } from "../charts/theme";
+import { useChartTokens } from "../charts/theme";
 import { ACCOUNT_TYPES } from "../utils/accounts";
 import { categorySlices, comparisonSlices, trendTotals } from "../utils/analyses";
 import { errorMessage, unwrap } from "../utils/commands";
 import CategoryPill from "../components/CategoryPill.vue";
-import { displayLabel, formatAmount, formatDate } from "../utils/format";
+import { formatAmount, formatDate } from "../utils/format";
 import {
   type AnalysisGranularity,
   type ComparisonMode,
@@ -40,7 +40,7 @@ const GRANULARITIES: { id: AnalysisGranularity; label: string }[] = [
   { id: "year", label: "Année" },
 ];
 
-const tokens = readTokens();
+const tokens = useChartTokens();
 const granularity = ref<AnalysisGranularity>("month");
 /** 0 for the current period, -1 for the previous one… */
 const offset = ref(0);
@@ -88,11 +88,11 @@ const comparedLabel = computed(
 );
 const lastBalance = computed(() => balance.value[balance.value.length - 1]?.balanceCents ?? null);
 
-const trendOption = computed(() => incomeExpensesOption(trend.value, "month", tokens));
-const barsOption = computed(() => categoryBarsOption(slices.value, tokens));
-const donutOption = computed(() => categoryDonutOption(currentSlices.value, tokens));
-const balanceOption = computed(() => balanceHistoryOption(balance.value, tokens));
-const netWorthChart = computed(() => netWorthOption(netWorth.value, tokens));
+const trendOption = computed(() => incomeExpensesOption(trend.value, "month", tokens.value));
+const barsOption = computed(() => categoryBarsOption(slices.value, tokens.value));
+const donutOption = computed(() => categoryDonutOption(currentSlices.value, tokens.value));
+const balanceOption = computed(() => balanceHistoryOption(balance.value, tokens.value));
+const netWorthChart = computed(() => netWorthOption(netWorth.value, tokens.value));
 const currentNetWorth = computed(() => netWorth.value[netWorth.value.length - 1]?.netWorthCents ?? 0);
 /** Change over the 12 months of the trend. */
 const netWorthChange = computed(() => currentNetWorth.value - (netWorth.value[0]?.netWorthCents ?? 0));
@@ -265,9 +265,9 @@ watch([period, balanceAccount, comparing, comparisonMode], loadStats);
           <span class="muted">jusqu'à {{ lowerFirst(period.label) }}</span>
         </div>
         <ol v-if="topPayees.length > 0" class="payees">
-          <li v-for="payee in topPayees" :key="payee.normalizedLabel">
+          <li v-for="payee in topPayees" :key="payee.payeeName">
             <span class="payee-row">
-              <span class="payee-name">{{ displayLabel(payee.normalizedLabel) }}</span>
+              <span class="payee-name">{{ payee.payeeName }}</span>
               <CategoryPill
                 :label="categoryOf(payee.categoryId)?.name ?? 'À catégoriser'"
                 :color="categoryOf(payee.categoryId)?.color"
@@ -311,7 +311,7 @@ watch([period, balanceAccount, comparing, comparisonMode], loadStats);
         <span class="tile-meta">
           {{ formatDate(expense.date, "day-month") }} · {{ categoryOf(expense.categoryId)?.name ?? "À catégoriser" }}
         </span>
-        <span class="tile-label">{{ displayLabel(expense.normalizedLabel) }}</span>
+        <span class="tile-label">{{ expense.payeeName }}</span>
         <strong class="tile-amount">{{ formatAmount(expense.expenseCents) }}</strong>
       </div>
     </div>
@@ -502,18 +502,18 @@ h1 {
 .net-worth {
   gap: 12px;
   border-color: transparent;
-  background: var(--color-primary);
-  color: var(--color-on-primary);
+  background: var(--color-feature);
+  color: var(--color-on-feature);
 }
 
 .net-worth .card-title {
-  color: var(--color-on-primary);
+  color: var(--color-on-feature);
 }
 
 .net-worth .change,
 .net-worth .range {
   font-size: 13px;
-  color: var(--color-on-primary-muted);
+  color: var(--color-on-feature-muted);
 }
 
 .net-worth .range {

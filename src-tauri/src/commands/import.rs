@@ -1,5 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use serde::Serialize;
+use specta::Type;
 use sqlx::SqlitePool;
 use tauri::{AppHandle, Manager, State};
 
@@ -7,9 +9,14 @@ use crate::error::{AppError, AppResult};
 use crate::importing::batch::{self, ImportBatch};
 use crate::importing::csv::{self, CsvEncoding};
 use crate::importing::pdf::{self, SupportedBank};
+use crate::importing::source_category::SourceCategoryChoice;
 use crate::importing::statement_import::{
     self, ImportFormat, ImportPreview, ImportSelection, StatementFile,
 };
+use crate::importing::trade_import::{self, TradeFile, TradeImport, TradePreview};
+use crate::labeling::classifier::ClassifierCache;
+use crate::operation::schedule::matching;
+use crate::operation::transfer;
 
 /// Lines shown when defining a CSV mapping.
 const HEAD_LINES: usize = 12;
@@ -24,11 +31,13 @@ pub async fn list_import_batches(
     batch::list(&pool, account_id).await
 }
 
-/// Deletes an import and all its operations.
+/// Deletes an import and all its operations, with the files of their attachments.
 #[tauri::command]
 #[specta::specta]
-pub async fn cancel_import(pool: State<'_, SqlitePool>, id: i64) -> AppResult<()> {
-    batch::cancel(&pool, id).await
+pub async fn cancel_import(app: AppHandle, pool: State<'_, SqlitePool>, id: i64) -> AppResult<()> {
+    batch::cancel(&pool, &super::app::statements_dir(&app)?, id).await?;
+    crate::attachment::sweep(&pool, &super::app::attachments_dir(&app)?).await?;
+    Ok(())
 }
 
 /// First lines of the file at `path`, decoded with `encoding`.
@@ -40,12 +49,13 @@ pub async fn read_file_head(path: String, encoding: CsvEncoding) -> AppResult<Ve
 }
 
 /// Reads the statement file at `path` (CSV with a saved mapping, or PDF of a supported
-/// bank) and compares it with the account.
+/// bank) and compares it with the account. Lines of unknown labels get a suggested category.
 #[tauri::command]
 #[specta::specta]
 pub async fn preview_import(
     app: AppHandle,
     pool: State<'_, SqlitePool>,
+    classifier: State<'_, ClassifierCache>,
     path: String,
     account_id: i64,
     format: ImportFormat,
@@ -53,13 +63,31 @@ pub async fn preview_import(
     let bytes = std::fs::read(&path)?;
     let pdfium_dir = pdfium_dir(&app)?;
     let file = statement_file(&path, account_id, format, &bytes, &pdfium_dir);
-    statement_import::preview(&pool, file).await
+    let mut preview = statement_import::preview(&pool, file).await?;
+    if let Some(classifier) = classifier.get(&pool).await? {
+        statement_import::add_suggestions(&mut preview, &classifier);
+    }
+    Ok(preview)
 }
 
-/// Imports the selected lines of the statement file at `path`, with their categories.
-/// `file_hash` comes from the preview and guards against a file changed in between.
+/// Result of an import.
+#[derive(Serialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportOutcome {
+    pub batch: ImportBatch,
+    /// Internal transfers linked automatically with operations of other accounts.
+    pub linked_transfers: u32,
+    /// Occurrences of scheduled operations realized automatically by the new operations.
+    pub matched_occurrences: u32,
+}
+
+/// Imports the selected lines of the statement file at `path`, with their categories, then
+/// links the certain internal transfers and schedule occurrences of the new operations.
+/// `file_hash` comes from the preview and guards against a file changed in between;
+/// `source_categories` are the categories chosen for the categories of a QIF file.
 #[tauri::command]
 #[specta::specta]
+#[allow(clippy::too_many_arguments, reason = "the arguments of a command")]
 pub async fn import_statement(
     app: AppHandle,
     pool: State<'_, SqlitePool>,
@@ -68,18 +96,87 @@ pub async fn import_statement(
     format: ImportFormat,
     file_hash: String,
     selections: Vec<ImportSelection>,
-) -> AppResult<ImportBatch> {
+    source_categories: Vec<SourceCategoryChoice>,
+) -> AppResult<ImportOutcome> {
     let bytes = std::fs::read(&path)?;
     let pdfium_dir = pdfium_dir(&app)?;
     let file = statement_file(&path, account_id, format, &bytes, &pdfium_dir);
-    statement_import::import(
+    let batch = statement_import::import(
         &pool,
         &super::app::backups_dir(&app)?,
+        &super::app::statements_dir(&app)?,
         file,
         &file_hash,
         &selections,
+        &source_categories,
+    )
+    .await?;
+    let linked_transfers = transfer::link_certain(&pool, Some(batch.id)).await?;
+    let matched_occurrences =
+        matching::match_certain(&pool, super::operation::today(), Some(batch.id)).await?;
+    Ok(ImportOutcome {
+        batch,
+        linked_transfers,
+        matched_occurrences,
+    })
+}
+
+/// Reads the securities trades of a statement (Trade Republic) and compares them with the
+/// portfolio of the investment account.
+#[tauri::command]
+#[specta::specta]
+pub async fn preview_trades(
+    app: AppHandle,
+    pool: State<'_, SqlitePool>,
+    path: String,
+    account_id: i64,
+) -> AppResult<TradePreview> {
+    let bytes = std::fs::read(&path)?;
+    let pdfium_dir = pdfium_dir(&app)?;
+    trade_import::preview(&pool, trade_file(&path, account_id, &bytes, &pdfium_dir)).await
+}
+
+/// Imports the selected trades of the statement into the portfolio, creating the missing
+/// securities. `file_hash` comes from the preview.
+#[tauri::command]
+#[specta::specta]
+pub async fn import_trades(
+    app: AppHandle,
+    pool: State<'_, SqlitePool>,
+    path: String,
+    account_id: i64,
+    file_hash: String,
+    indexes: Vec<u32>,
+) -> AppResult<TradeImport> {
+    let bytes = std::fs::read(&path)?;
+    let pdfium_dir = pdfium_dir(&app)?;
+    trade_import::import(
+        &pool,
+        &super::app::backups_dir(&app)?,
+        &super::app::statements_dir(&app)?,
+        trade_file(&path, account_id, &bytes, &pdfium_dir),
+        &file_hash,
+        &indexes,
     )
     .await
+}
+
+fn trade_file<'a>(
+    path: &'a str,
+    account_id: i64,
+    bytes: &'a [u8],
+    pdfium_dir: &'a Path,
+) -> TradeFile<'a> {
+    let file_name = Path::new(path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(path);
+    TradeFile {
+        account_id,
+        file_name,
+        bytes,
+        pdfium_dir,
+    }
 }
 
 fn statement_file<'a>(

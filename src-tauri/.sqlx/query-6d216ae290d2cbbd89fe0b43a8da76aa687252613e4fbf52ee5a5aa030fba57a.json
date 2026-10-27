@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO import_batch\n         (account_id, source_type, source_file_name, source_file_hash, imported_at,\n          statement_start_balance_cents, statement_end_balance_cents, balance_check_status,\n          stored_file)\n         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 9
+    },
+    "nullable": []
+  },
+  "hash": "6d216ae290d2cbbd89fe0b43a8da76aa687252613e4fbf52ee5a5aa030fba57a"
+}

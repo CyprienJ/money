@@ -1,6 +1,6 @@
 [package]
 name = "money"
-version = "1.0.0"
+version = "1.1.0"
 description = "Local personal finance desktop application"
 edition = "2024"
 
@@ -15,17 +15,21 @@ tauri-build = { version = "2", features = [] }
 chrono = { version = "0.4.45", default-features = false, features = ["std", "clock", "serde"] }
 csv = "1.4.0"
 encoding_rs = "0.8.42"
+libsqlite3-sys = { version = "0.37.0", features = ["bundled-sqlcipher-vendored-openssl"] }
+linfa = "0.8.1"
+linfa-logistic = "0.8.1"
+ndarray = "0.16"
 pdfium-render = { version = "0.9.4", default-features = false, features = ["pdfium_7881", "thread_safe"] }
 regex = "1.13.1"
+reqwest = { version = "0.13.5", default-features = false, features = ["rustls", "json", "query"] }
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 sha2 = "0.11.1"
 specta = { version = "=2.0.0-rc.25", features = ["derive", "chrono"] }
 specta-typescript = "=0.0.12"
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "sqlite-bundled", "migrate", "macros", "chrono"] }
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2.8.3"
+tauri-plugin-opener = "2.7.2"
 tauri-specta = { version = "=2.0.0-rc.25", features = ["typescript"] }
 thiserror = "2"
-
-[dev-dependencies]
-serde_json = "1"

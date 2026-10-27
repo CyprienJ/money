@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT source_category AS \"source_category!\", category_id FROM source_category_mapping",
+  "describe": {
+    "columns": [
+      {
+        "name": "source_category!",
+        "ordinal": 0,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "source_category_mapping",
+            "name": "source_category"
+          }
+        }
+      },
+      {
+        "name": "category_id",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "source_category_mapping",
+            "name": "category_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true,
+      false
+    ]
+  },
+  "hash": "30517fe44e4b40ea9586cc52e0df02b63f5535141169d7c46b10660b27886e77"
+}

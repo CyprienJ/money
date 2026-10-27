@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT d.id AS \"debit_id!\", c.id AS \"credit_id!\"\n           FROM operation d\n           JOIN operation c\n             ON c.amount_cents = -d.amount_cents\n            AND c.account_id <> d.account_id\n            AND c.currency = d.currency\n            AND ABS(julianday(c.date) - julianday(d.date)) <= ?1\n           JOIN operation_split ds ON ds.operation_id = d.id\n           JOIN operation_split cs ON cs.operation_id = c.id\n           WHERE d.amount_cents < 0\n             AND d.transfer_pair_id IS NULL AND c.transfer_pair_id IS NULL\n             AND (ds.category_id IS NULL OR ds.category_id IN\n                     (SELECT id FROM category WHERE is_internal_transfer = 1))\n             AND (cs.category_id IS NULL OR cs.category_id IN\n                     (SELECT id FROM category WHERE is_internal_transfer = 1))\n             AND NOT EXISTS (SELECT 1 FROM transfer_dismissal t\n                             WHERE t.debit_id = d.id AND t.credit_id = c.id)\n           ORDER BY d.date DESC, d.id DESC, c.date, c.id",
+  "describe": {
+    "columns": [
+      {
+        "name": "debit_id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "credit_id!",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "454e0630a7f2ab0ee8b2055b221ebf776ddab8315858e2307e553db7c2b6d2bb"
+}
