@@ -10,7 +10,10 @@ use tauri::{AppHandle, Manager};
 use crate::error::{AppError, AppResult};
 use crate::importing::source_document::STATEMENTS_DIR;
 use crate::labeling::classifier::ClassifierCache;
-use crate::{attachment, backup, importing, investment, labeling, payee};
+use crate::{attachment, backup, importing, investment, labeling, payee, setting};
+
+/// Version of the application whose label normalization was last applied to the data.
+const NORMALIZED_BY: &str = "labels_normalized_by";
 
 /// Application data directory: `app_data_dir()` of Tauri, or its `-dev` sibling in debug
 /// builds so that development never touches the data of the installed application.
@@ -30,8 +33,15 @@ pub fn data_dir(app: &AppHandle) -> AppResult<PathBuf> {
 /// Prepares the open data file, hands the pool to Tauri and starts the background tasks.
 pub async fn start(app: &AppHandle, pool: SqlitePool) -> AppResult<()> {
     let data_dir = data_dir(app)?;
-    // Applies label normalization changes to existing operations.
-    labeling::renormalize_all(&pool).await?;
+    // Applies label normalization changes to existing operations, once per release (always in
+    // debug builds, where the rules change without a new version).
+    let version = env!("CARGO_PKG_VERSION");
+    if cfg!(debug_assertions)
+        || setting::get(&pool, NORMALIZED_BY).await?.as_deref() != Some(version)
+    {
+        labeling::renormalize_all(&pool).await?;
+        setting::set(&pool, NORMALIZED_BY, version).await?;
+    }
     // Gives a payee to operations recorded before payees existed.
     payee::assign_missing(&pool).await?;
     // Removes the files of attachments deleted with their operation.
