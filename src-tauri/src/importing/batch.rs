@@ -140,24 +140,6 @@ pub struct ImportLine {
     pub chosen: bool,
 }
 
-/// Number of backups made by [`backup`] in `dir`; 0 when the directory does not exist yet.
-pub fn backup_count(dir: &Path) -> AppResult<usize> {
-    let entries = match std::fs::read_dir(dir) {
-        Ok(entries) => entries,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(0),
-        Err(error) => return Err(error.into()),
-    };
-    let mut count = 0;
-    for entry in entries {
-        let name = entry?.file_name();
-        let name = name.to_string_lossy();
-        if name.starts_with("money-") && name.ends_with(".sqlite") {
-            count += 1;
-        }
-    }
-    Ok(count)
-}
-
 /// Backs up the data file into `backup_dir`, then inserts the batch and one operation per
 /// line, with its category, in a single transaction. Duplicates and lines dated before the
 /// account opening must have been excluded beforehand: such a line fails the whole import.

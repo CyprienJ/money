@@ -199,13 +199,13 @@ fn backs_up_the_data_before_inserting() {
 fn backup_names_do_not_collide() {
     run_on_file(|pool, dir| async move {
         let backups = TempDir(dir.0.join("backups"));
-        assert_eq!(backup_count(&backups.0).unwrap(), 0);
+        assert_eq!(crate::backup::import_count(&backups.0), 0);
         let first = backup(&pool, &backups.0).await.unwrap();
         let second = backup(&pool, &backups.0).await.unwrap();
         assert_ne!(first, second);
         assert_eq!(backups.files().len(), 2);
         std::fs::write(backups.0.join("notes.txt"), "not a backup").unwrap();
-        assert_eq!(backup_count(&backups.0).unwrap(), 2);
+        assert_eq!(crate::backup::import_count(&backups.0), 2);
     });
 }
 

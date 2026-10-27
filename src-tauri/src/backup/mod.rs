@@ -293,6 +293,11 @@ pub async fn list(pool: &SqlitePool, dirs: &Dirs) -> AppResult<Vec<Backup>> {
     Ok(backups)
 }
 
+/// Number of backups made before an import in `folder`.
+pub fn import_count(folder: &Path) -> usize {
+    backups_in(folder, IMPORT_PREFIX).len()
+}
+
 /// Deletes the oldest full backups of `folder` beyond `keep`.
 pub fn rotate_full(folder: &Path, keep: usize) -> std::io::Result<()> {
     for backup in backups_in(folder, FULL_PREFIX).into_iter().skip(keep) {

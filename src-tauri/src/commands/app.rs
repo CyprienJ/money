@@ -6,7 +6,6 @@ use tauri::AppHandle;
 
 use crate::db::DATA_FILE_NAME;
 use crate::error::AppResult;
-use crate::importing::batch;
 
 /// Version of the application, as declared in `tauri.conf.json`.
 #[tauri::command]
@@ -33,7 +32,7 @@ pub fn data_location(app: AppHandle) -> AppResult<DataLocation> {
     Ok(DataLocation {
         data_file: data_dir(&app)?.join(DATA_FILE_NAME).display().to_string(),
         backups_dir: backups.display().to_string(),
-        backup_count: u32::try_from(batch::backup_count(&backups)?).unwrap_or(u32::MAX),
+        backup_count: u32::try_from(crate::backup::import_count(&backups)).unwrap_or(u32::MAX),
     })
 }
 
