@@ -187,9 +187,14 @@ pub fn parse(bytes: &[u8]) -> Result<Statement, InterchangeError> {
         let (source_category, splits_note) = split_details(record)?;
         let memo = record.memo.clone().filter(|memo| !memo.is_empty());
         let payee = record.payee.clone().filter(|payee| !payee.is_empty());
-        let (label, memo) = match payee {
-            Some(payee) => (payee, memo),
-            None => (memo.unwrap_or_default(), None),
+        let (label, memo) = match (payee, memo) {
+            (Some(payee), memo) => (payee, memo),
+            (None, Some(memo)) => (memo, None),
+            // Money exports transfers without payee: their category ("[Livret A]") names them.
+            (None, None) => (
+                source_category.clone().unwrap_or_else(|| "Sans libellé".to_owned()),
+                None,
+            ),
         };
         let note = [memo, splits_note]
             .into_iter()

@@ -243,6 +243,14 @@ fn reads_a_money_qif_export() {
 }
 
 #[test]
+fn labels_qif_lines_without_payee_nor_memo() {
+    let qif = "!Type:Bank\nD01/02/26\nT-10.00\nL[Livret A]\n^\nD02/02/26\nT-5.00\n^\n";
+    let lines = qif::parse(qif.as_bytes()).unwrap().lines;
+    assert_eq!(lines[0].label, "[Livret A]");
+    assert_eq!(lines[1].label, "Sans libellé");
+}
+
+#[test]
 fn deduces_the_order_of_the_qif_dates() {
     let us = "!Type:CCard\nD12/31/1999\nT-1.00\nPA\n^\nD1/ 2/00\nT-2.00\nPB\n^\n";
     let lines = qif::parse(us.as_bytes()).unwrap().lines;
