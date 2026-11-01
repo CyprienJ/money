@@ -22,7 +22,7 @@ const groups = computed(() =>
     const items = summaries.value.filter((s) => group.types.includes(s.account.type));
     // In euros: the accounts may have different currencies.
     const balances = items
-      .map((s) => s.referenceBalanceCents)
+      .map((s) => s.personalBalanceCents)
       .filter((b): b is number => b !== null);
     return {
       title: group.title,
@@ -84,6 +84,8 @@ watch(showArchived, load);
     </template>
   </PageHeader>
 
+  <p class="field-hint">Soldes des comptes à 100 % · totaux personnels : solo à 100 %, joint à 50 %.</p>
+
   <p v-if="error" class="error-banner">{{ error }}</p>
 
   <section v-else-if="loaded && groups.length === 0" class="card empty">
@@ -98,7 +100,7 @@ watch(showArchived, load);
     <section v-for="group in groups" :key="group.title" class="card">
       <div class="group-header">
         <h2 class="card-title">{{ group.title }}</h2>
-        <span v-if="group.totalCents !== null" class="total">
+        <span v-if="group.totalCents !== null" class="total" title="Part personnelle : solo à 100 %, joint à 50 %">
           {{ formatAmount(group.totalCents) }}
         </span>
       </div>
@@ -109,11 +111,15 @@ watch(showArchived, load);
             <span class="details">
               <span class="name">
                 {{ summary.account.name }}
+                <span class="archived">{{ summary.account.isJoint ? "Joint · 50 %" : "Solo" }}</span>
                 <span v-if="summary.account.archived" class="archived">Archivé</span>
               </span>
               <span class="subtitle">{{ subtitle(summary) }}</span>
             </span>
             <span v-if="summary.balanceCents !== null" class="amounts">
+              <span v-if="summary.account.isJoint" class="converted">
+                Ta part : {{ formatAmount(summary.personalBalanceCents ?? 0) }}
+              </span>
               <strong class="amount" :class="{ negative: summary.balanceCents < 0 }">
                 {{ formatAmount(summary.balanceCents, { currency: summary.account.currency }) }}
               </strong>

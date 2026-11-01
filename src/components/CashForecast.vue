@@ -97,7 +97,7 @@ watch([days, accountId, () => props.accounts], load, { immediate: true });
 
       <p class="muted">
         Solde actuel et échéances non réalisées ; une échéance en retard de moins de 5 jours compte
-        aujourd'hui.<template v-if="accountId === null"> Les virements internes déclarés dans
+        aujourd'hui. Part personnelle : solo à 100 %, joint à 50 % ; les échéances ci-dessous restent à 100 %.<template v-if="accountId === null"> Les virements internes déclarés dans
         l'échéancier ne changent pas le total.</template>
       </p>
 

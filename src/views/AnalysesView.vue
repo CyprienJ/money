@@ -190,6 +190,8 @@ watch([period, balanceAccount, comparing, comparisonMode], loadStats);
     </div>
   </header>
 
+  <p class="muted">Part personnelle : comptes solo à 100 %, joints à 50 %, y compris pour un compte sélectionné.</p>
+
   <p v-if="error" class="error-banner">{{ error }}</p>
 
   <section class="card">

@@ -25,6 +25,7 @@ const form = reactive({
   name: "",
   type: "CHECKING" as AccountType,
   currency: REFERENCE_CURRENCY,
+  isJoint: false,
   institution: "",
   openingBalance: "0",
   openingDate: todayIso(),
@@ -57,6 +58,7 @@ watch(
     form.name = account?.name ?? "";
     form.type = account?.type ?? "CHECKING";
     form.currency = account?.currency ?? REFERENCE_CURRENCY;
+    form.isJoint = account?.isJoint ?? false;
     form.institution = account?.institution ?? "";
     form.openingBalance = formatAmountInput(account?.openingBalanceCents ?? 0);
     form.openingDate = account?.openingDate ?? todayIso();
@@ -77,6 +79,7 @@ async function save() {
     const fields = {
       name: form.name,
       currency: form.currency,
+      isJoint: form.isJoint,
       institution: form.institution || null,
       openingBalanceCents: cents,
       openingDate: form.openingDate,
@@ -131,6 +134,18 @@ async function toggleArchived() {
           </option>
         </select>
         <span v-if="isEdit" class="field-hint">Le type ne peut plus être modifié.</span>
+      </label>
+
+      <label class="field">
+        Détention
+        <select v-model="form.isJoint">
+          <option :value="false">Solo · part personnelle 100 %</option>
+          <option :value="true">Joint · part personnelle 50 %</option>
+        </select>
+        <span class="field-hint">
+          La part personnelle s'applique aux indicateurs sur tout l'historique.
+          Les opérations et le solde du compte restent affichés à 100 %.
+        </span>
       </label>
 
       <label class="field">

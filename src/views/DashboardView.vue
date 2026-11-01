@@ -245,6 +245,8 @@ watch(offset, load);
       </ul>
     </section>
 
+    <p class="muted">Indicateurs personnels : comptes solo à 100 %, joints à 50 %. Les soldes de la liste des comptes restent à 100 %.</p>
+
     <section aria-label="Indicateurs clés" class="kpis">
       <div class="kpi dark">
         <div class="kpi-head"><span>Patrimoine net</span><span class="kpi-icon accent" /></div>
@@ -343,7 +345,7 @@ watch(offset, load);
             >
               <AccountBadge :name="summary.account.name" :type="summary.account.type" />
               <span class="details">
-                <span class="name">{{ summary.account.name }}</span>
+                <span class="name">{{ summary.account.name }} · {{ summary.account.isJoint ? "Joint · 50 %" : "Solo" }}</span>
                 <span class="sub">{{ accountSubtitle(summary) }}</span>
               </span>
               <strong v-if="summary.balanceCents !== null" :class="{ negative: summary.balanceCents < 0 }">

@@ -312,7 +312,7 @@ watch([() => selected.value?.account.id, allAccounts, period, categoryFilter, ad
   <header class="header">
     <div>
       <div class="subtitle">
-        <template v-if="selected">{{ selected.account.name }} · solde au {{ formatDate(todayIso(), "day-month") }}</template>
+        <template v-if="selected">{{ selected.account.name }} · {{ selected.account.isJoint ? "Joint · solde réel à 100 %" : "Solo" }} · solde au {{ formatDate(todayIso(), "day-month") }}</template>
         <template v-else-if="allAccounts">Tous les comptes</template>
         <template v-else>Comptes</template>
       </div>
