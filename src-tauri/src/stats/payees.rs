@@ -9,6 +9,7 @@ use specta::Type;
 use sqlx::SqlitePool;
 
 use super::{accounts_json, check_period};
+use crate::account::personal_share;
 use crate::currency::Rates;
 use crate::error::AppResult;
 
@@ -49,9 +50,9 @@ pub async fn top_payees(
     let accounts = accounts_json(accounts);
     let rows = sqlx::query!(
         r#"SELECT o.payee_id, COALESCE(p.name, o.normalized_label) AS "payee_name!: String",
-                  s.category_id, a.currency, o.date AS "date!: NaiveDate",
-                  -SUM(s.amount_cents) AS "expense_cents!: i64",
-                  COUNT(*) AS "operation_count!: i64"
+                  s.category_id, a.currency, a.is_joint AS "is_joint: bool", o.date AS "date!: NaiveDate",
+                  -s.amount_cents AS "expense_cents!: i64",
+                  1 AS "operation_count!: i64"
            FROM operation_split s
            JOIN operation o ON o.id = s.operation_id
            JOIN account a ON a.id = o.account_id
@@ -62,8 +63,7 @@ pub async fn top_payees(
              AND CASE WHEN ?3 IS NULL
                       THEN a.archived = 0
                       ELSE o.account_id IN (SELECT value FROM json_each(?3)) END
-             AND NOT COALESCE(c.is_income, s.amount_cents > 0)
-           GROUP BY o.payee_id, 2, s.category_id, a.currency, o.date"#,
+             AND NOT COALESCE(c.is_income, s.amount_cents > 0)"#,
         from,
         to,
         accounts
@@ -79,7 +79,10 @@ pub async fn top_payees(
         let total = by_category
             .entry((row.payee_id, row.payee_name, row.category_id))
             .or_default();
-        total.0 += rates.to_reference(row.expense_cents, &row.currency, row.date);
+        total.0 += personal_share(
+            rates.to_reference(row.expense_cents, &row.currency, row.date),
+            row.is_joint,
+        );
         total.1 += row.operation_count;
     }
 
@@ -133,7 +136,7 @@ pub async fn largest_expenses(
     let rows = sqlx::query!(
         r#"SELECT o.id AS "operation_id!", o.date AS "date!: NaiveDate", o.normalized_label,
                   COALESCE(p.name, o.normalized_label) AS "payee_name!: String",
-                  a.currency, -s.amount_cents AS "expense_cents!: i64", s.category_id
+                  a.currency, a.is_joint AS "is_joint: bool", -s.amount_cents AS "expense_cents!: i64", s.category_id
            FROM operation_split s
            JOIN operation o ON o.id = s.operation_id
            JOIN account a ON a.id = o.account_id
@@ -160,7 +163,10 @@ pub async fn largest_expenses(
             date: row.date,
             normalized_label: row.normalized_label,
             payee_name: row.payee_name,
-            expense_cents: rates.to_reference(row.expense_cents, &row.currency, row.date),
+            expense_cents: personal_share(
+                rates.to_reference(row.expense_cents, &row.currency, row.date),
+                row.is_joint,
+            ),
             category_id: row.category_id,
         })
         .collect();
@@ -188,6 +194,7 @@ mod tests {
             let account_id = account::create(
                 &pool,
                 NewAccount {
+                    is_joint: false,
                     name: "Courant".to_owned(),
                     account_type: AccountType::Checking,
                     currency: "EUR".to_owned(),

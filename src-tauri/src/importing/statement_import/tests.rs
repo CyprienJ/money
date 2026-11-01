@@ -53,6 +53,7 @@ fn run<F: Future<Output = ()>>(test: impl FnOnce(Setup) -> F) {
         let account_id = account::create(
             &pool,
             NewAccount {
+                is_joint: false,
                 name: "Courant".to_owned(),
                 account_type: AccountType::Checking,
                 currency: "EUR".to_owned(),

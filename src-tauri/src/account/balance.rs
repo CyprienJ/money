@@ -22,6 +22,8 @@ pub struct AccountSummary {
     pub balance_cents: Option<i64>,
     /// The balance in euros at the rate of the date; 0 without a rate.
     pub reference_balance_cents: Option<i64>,
+    /// Personal share in euros, 50% for a joint account.
+    pub personal_balance_cents: Option<i64>,
     /// Date of the valuation behind the balance of a valued account, or of the most recent
     /// price of its portfolio.
     pub valued_on: Option<NaiveDate>,
@@ -104,9 +106,12 @@ pub async fn list_summaries(
                     None => (None, None),
                 }
             };
+            let reference_balance_cents =
+                balance_cents.map(|balance| rates.to_reference(balance, &account.currency, date));
             AccountSummary {
-                reference_balance_cents: balance_cents
-                    .map(|balance| rates.to_reference(balance, &account.currency, date)),
+                personal_balance_cents: reference_balance_cents
+                    .map(|balance| super::personal_share(balance, account.is_joint)),
+                reference_balance_cents,
                 account,
                 balance_cents,
                 valued_on,
@@ -132,6 +137,7 @@ mod tests {
         account::create(
             pool,
             NewAccount {
+                is_joint: false,
                 name: "Compte courant".to_owned(),
                 account_type: AccountType::Checking,
                 currency: "EUR".to_owned(),
@@ -222,6 +228,7 @@ mod tests {
             account::create(
                 &pool,
                 NewAccount {
+                    is_joint: false,
                     name: "PEA".to_owned(),
                     account_type: AccountType::Investment,
                     currency: "EUR".to_owned(),

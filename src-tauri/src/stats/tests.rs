@@ -32,6 +32,7 @@ async fn new_account(
     account::create(
         pool,
         NewAccount {
+            is_joint: false,
             name: name.to_owned(),
             account_type,
             currency: "EUR".to_owned(),

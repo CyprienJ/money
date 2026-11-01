@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id, name, type AS \"account_type: AccountType\", currency, institution,\n                  opening_balance_cents, opening_date AS \"opening_date: _\", archived AS \"archived: bool\"\n           FROM account\n           WHERE id = ?1",
+  "query": "SELECT id, name, type AS \"account_type: AccountType\", currency, is_joint AS \"is_joint: bool\", institution,\n                  opening_balance_cents, opening_date AS \"opening_date: _\", archived AS \"archived: bool\"\n           FROM account\n           WHERE archived = 0 OR ?1\n           ORDER BY CASE type\n                        WHEN 'CHECKING' THEN 1 WHEN 'SAVINGS' THEN 2 WHEN 'CREDIT_CARD' THEN 3\n                        WHEN 'INVESTMENT' THEN 4 WHEN 'ASSET' THEN 5 ELSE 6\n                    END,\n                    name COLLATE NOCASE",
   "describe": {
     "columns": [
       {
@@ -48,8 +48,19 @@
         }
       },
       {
-        "name": "institution",
+        "name": "is_joint: bool",
         "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "is_joint"
+          }
+        }
+      },
+      {
+        "name": "institution",
+        "ordinal": 5,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -60,7 +71,7 @@
       },
       {
         "name": "opening_balance_cents",
-        "ordinal": 5,
+        "ordinal": 6,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -71,7 +82,7 @@
       },
       {
         "name": "opening_date: _",
-        "ordinal": 6,
+        "ordinal": 7,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -82,7 +93,7 @@
       },
       {
         "name": "archived: bool",
-        "ordinal": 7,
+        "ordinal": 8,
         "type_info": "Integer",
         "origin": {
           "Table": {
@@ -100,11 +111,12 @@
       false,
       false,
       false,
+      false,
       true,
       false,
       false,
       false
     ]
   },
-  "hash": "9874995fee52c8d05d974456abf0dc2413003b5317cdda7bcf5907bd13775f54"
+  "hash": "ee32007857d207f4cc7c1a8ad19998d27271da09276def486688caf442c8b220"
 }

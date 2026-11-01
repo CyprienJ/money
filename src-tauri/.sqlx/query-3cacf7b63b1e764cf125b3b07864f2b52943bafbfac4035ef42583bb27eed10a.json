@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id AS \"id!\", currency FROM account\n           WHERE type IN ('CHECKING', 'SAVINGS', 'CREDIT_CARD')\n             AND CASE WHEN ?1 IS NULL\n                      THEN archived = 0\n                      ELSE id IN (SELECT value FROM json_each(?1)) END",
+  "query": "SELECT id AS \"id!\", is_joint AS \"is_joint: bool\" FROM account WHERE archived = 0 AND type = 'INVESTMENT'",
   "describe": {
     "columns": [
       {
@@ -15,24 +15,24 @@
         }
       },
       {
-        "name": "currency",
+        "name": "is_joint: bool",
         "ordinal": 1,
-        "type_info": "Text",
+        "type_info": "Integer",
         "origin": {
           "Table": {
             "table": "account",
-            "name": "currency"
+            "name": "is_joint"
           }
         }
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 0
     },
     "nullable": [
       false,
       false
     ]
   },
-  "hash": "19d78482c8c1deb9cb084a192844f455f04fa1c7e090c91e3d62725cab01c055"
+  "hash": "3cacf7b63b1e764cf125b3b07864f2b52943bafbfac4035ef42583bb27eed10a"
 }

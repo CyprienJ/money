@@ -67,6 +67,7 @@ async fn new_operation(pool: &SqlitePool) -> i64 {
     let account_id = account::create(
         pool,
         NewAccount {
+            is_joint: false,
             name: "Courant".to_owned(),
             account_type: AccountType::Checking,
             currency: "EUR".to_owned(),

@@ -30,6 +30,7 @@ async fn new_operation(pool: &SqlitePool, label: &str, category_id: Option<i64>)
             account::create(
                 pool,
                 NewAccount {
+                    is_joint: false,
                     name: "Courant".to_owned(),
                     account_type: AccountType::Checking,
                     currency: "EUR".to_owned(),

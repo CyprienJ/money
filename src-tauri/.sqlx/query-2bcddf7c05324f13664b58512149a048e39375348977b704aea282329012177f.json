@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id, opening_date AS \"date!: NaiveDate\", currency, is_joint AS \"is_joint: bool\",\n                  opening_balance_cents AS \"amount!: i64\"\n           FROM account\n           WHERE archived = 0 AND type IN ('CHECKING', 'SAVINGS', 'CREDIT_CARD')",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "date!: NaiveDate",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "opening_date"
+          }
+        }
+      },
+      {
+        "name": "currency",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "currency"
+          }
+        }
+      },
+      {
+        "name": "is_joint: bool",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "is_joint"
+          }
+        }
+      },
+      {
+        "name": "amount!: i64",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "opening_balance_cents"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "2bcddf7c05324f13664b58512149a048e39375348977b704aea282329012177f"
+}

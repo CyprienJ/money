@@ -317,6 +317,7 @@ export type Account = {
 	name: string,
 	type: AccountType,
 	currency: string,
+	isJoint: boolean,
 	institution: string | null,
 	openingBalanceCents: number,
 	openingDate: string,
@@ -338,6 +339,8 @@ export type AccountSummary = {
 	balanceCents: number | null,
 	/**  The balance in euros at the rate of the date; 0 without a rate. */
 	referenceBalanceCents: number | null,
+	/**  Personal share in euros, 50% for a joint account. */
+	personalBalanceCents: number | null,
 	/**
 	 *  Date of the valuation behind the balance of a valued account, or of the most recent
 	 *  price of its portfolio.
@@ -362,6 +365,7 @@ export type AccountType = "CHECKING" | "SAVINGS" |
 export type AccountUpdate = {
 	name: string,
 	currency: string,
+	isJoint: boolean,
 	institution: string | null,
 	openingBalanceCents: number,
 	openingDate: string,
@@ -854,6 +858,7 @@ export type NewAccount = {
 	name: string,
 	type: AccountType,
 	currency: string,
+	isJoint: boolean,
 	institution: string | null,
 	openingBalanceCents: number,
 	openingDate: string,

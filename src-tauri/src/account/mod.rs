@@ -47,6 +47,7 @@ pub struct Account {
     #[serde(rename = "type")]
     pub account_type: AccountType,
     pub currency: String,
+    pub is_joint: bool,
     pub institution: Option<String>,
     pub opening_balance_cents: i64,
     pub opening_date: NaiveDate,
@@ -61,6 +62,7 @@ pub struct NewAccount {
     #[serde(rename = "type")]
     pub account_type: AccountType,
     pub currency: String,
+    pub is_joint: bool,
     pub institution: Option<String>,
     pub opening_balance_cents: i64,
     pub opening_date: NaiveDate,
@@ -73,6 +75,7 @@ pub struct NewAccount {
 pub struct AccountUpdate {
     pub name: String,
     pub currency: String,
+    pub is_joint: bool,
     pub institution: Option<String>,
     pub opening_balance_cents: i64,
     pub opening_date: NaiveDate,
@@ -116,6 +119,33 @@ impl AccountError {
         match self {
             AccountError::NotFound(_) | AccountError::ValuationNotFound(_) => ErrorKind::NotFound,
             _ => ErrorKind::Validation,
+        }
+    }
+}
+
+/// Personal share, rounded to the cent with ties away from zero.
+pub fn personal_share(cents: i64, is_joint: bool) -> i64 {
+    crate::amount::mul_div(cents, 1, if is_joint { 2 } else { 1 })
+}
+
+#[cfg(test)]
+mod ownership_tests {
+    use super::personal_share;
+
+    #[test]
+    fn shares_round_symmetrically_without_overflow() {
+        for (whole, half) in [
+            (0, 0),
+            (1, 1),
+            (-1, -1),
+            (3, 2),
+            (-3, -2),
+            (4, 2),
+            (i64::MAX, 4_611_686_018_427_387_904),
+            (i64::MIN, -4_611_686_018_427_387_904),
+        ] {
+            assert_eq!(personal_share(whole, false), whole);
+            assert_eq!(personal_share(whole, true), half);
         }
     }
 }

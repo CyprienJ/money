@@ -122,6 +122,7 @@ fn learns_the_most_frequent_category_of_each_label_and_retrains_on_changes() {
         let account_id = account::create(
             &pool,
             NewAccount {
+                is_joint: false,
                 name: "Courant".to_owned(),
                 account_type: AccountType::Checking,
                 currency: "EUR".to_owned(),

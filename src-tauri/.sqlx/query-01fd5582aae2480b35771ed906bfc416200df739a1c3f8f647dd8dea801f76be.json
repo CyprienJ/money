@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT a.id, o.date AS \"date!: NaiveDate\", a.currency, a.is_joint AS \"is_joint: bool\",\n                  o.amount_cents AS \"amount_cents!: i64\"\n           FROM operation o\n           JOIN account a ON a.id = o.account_id\n           WHERE o.date <= ?2\n             AND a.type IN ('CHECKING', 'SAVINGS', 'CREDIT_CARD')\n             AND CASE WHEN ?1 IS NULL\n                      THEN a.archived = 0\n                      ELSE o.account_id IN (SELECT value FROM json_each(?1)) END",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "date!: NaiveDate",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "name": "currency",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "currency"
+          }
+        }
+      },
+      {
+        "name": "is_joint: bool",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "is_joint"
+          }
+        }
+      },
+      {
+        "name": "amount_cents!: i64",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "amount_cents"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "01fd5582aae2480b35771ed906bfc416200df739a1c3f8f647dd8dea801f76be"
+}

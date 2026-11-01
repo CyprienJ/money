@@ -83,6 +83,7 @@ async fn new_account(pool: &SqlitePool, account_type: AccountType) -> i64 {
     account::create(
         pool,
         NewAccount {
+            is_joint: false,
             name: format!("{account_type:?}"),
             account_type,
             currency: "EUR".to_owned(),

@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT a.id, o.date AS \"date!: NaiveDate\", a.currency, a.is_joint AS \"is_joint: bool\", o.amount_cents AS \"amount!: i64\"\n           FROM operation o\n           JOIN account a ON a.id = o.account_id\n           WHERE a.archived = 0 AND a.type IN ('CHECKING', 'SAVINGS', 'CREDIT_CARD')\n             AND o.date <= ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "date!: NaiveDate",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "date"
+          }
+        }
+      },
+      {
+        "name": "currency",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "currency"
+          }
+        }
+      },
+      {
+        "name": "is_joint: bool",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "is_joint"
+          }
+        }
+      },
+      {
+        "name": "amount!: i64",
+        "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation",
+            "name": "amount_cents"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "f638c8b33e0b1e8133118294e1144a63a096f44829c8594255e685df459ffeae"
+}

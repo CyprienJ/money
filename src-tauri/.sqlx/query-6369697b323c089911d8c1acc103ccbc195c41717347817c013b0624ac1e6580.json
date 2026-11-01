@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE account\n         SET name = ?2, currency = ?3, institution = ?4, opening_balance_cents = ?5,\n             opening_date = ?6, is_joint = ?7\n         WHERE id = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "6369697b323c089911d8c1acc103ccbc195c41717347817c013b0624ac1e6580"
+}

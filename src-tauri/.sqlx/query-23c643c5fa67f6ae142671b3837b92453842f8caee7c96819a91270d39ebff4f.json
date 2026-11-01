@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT o.payee_id, COALESCE(p.name, o.normalized_label) AS \"payee_name!: String\",\n                  s.category_id, a.currency, o.date AS \"date!: NaiveDate\",\n                  -SUM(s.amount_cents) AS \"expense_cents!: i64\",\n                  COUNT(*) AS \"operation_count!: i64\"\n           FROM operation_split s\n           JOIN operation o ON o.id = s.operation_id\n           JOIN account a ON a.id = o.account_id\n           LEFT JOIN payee p ON p.id = o.payee_id\n           LEFT JOIN category c ON c.id = s.category_id\n           WHERE o.date BETWEEN ?1 AND ?2\n             AND o.is_internal_transfer = 0\n             AND CASE WHEN ?3 IS NULL\n                      THEN a.archived = 0\n                      ELSE o.account_id IN (SELECT value FROM json_each(?3)) END\n             AND NOT COALESCE(c.is_income, s.amount_cents > 0)\n           GROUP BY o.payee_id, 2, s.category_id, a.currency, o.date",
+  "query": "SELECT o.payee_id, COALESCE(p.name, o.normalized_label) AS \"payee_name!: String\",\n                  s.category_id, a.currency, a.is_joint AS \"is_joint: bool\", o.date AS \"date!: NaiveDate\",\n                  -s.amount_cents AS \"expense_cents!: i64\",\n                  1 AS \"operation_count!: i64\"\n           FROM operation_split s\n           JOIN operation o ON o.id = s.operation_id\n           JOIN account a ON a.id = o.account_id\n           LEFT JOIN payee p ON p.id = o.payee_id\n           LEFT JOIN category c ON c.id = s.category_id\n           WHERE o.date BETWEEN ?1 AND ?2\n             AND o.is_internal_transfer = 0\n             AND CASE WHEN ?3 IS NULL\n                      THEN a.archived = 0\n                      ELSE o.account_id IN (SELECT value FROM json_each(?3)) END\n             AND NOT COALESCE(c.is_income, s.amount_cents > 0)",
   "describe": {
     "columns": [
       {
@@ -43,8 +43,19 @@
         }
       },
       {
-        "name": "date!: NaiveDate",
+        "name": "is_joint: bool",
         "ordinal": 4,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "account",
+            "name": "is_joint"
+          }
+        }
+      },
+      {
+        "name": "date!: NaiveDate",
+        "ordinal": 5,
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -55,13 +66,13 @@
       },
       {
         "name": "expense_cents!: i64",
-        "ordinal": 5,
+        "ordinal": 6,
         "type_info": "Integer",
         "origin": "Expression"
       },
       {
         "name": "operation_count!: i64",
-        "ordinal": 6,
+        "ordinal": 7,
         "type_info": "Integer",
         "origin": "Expression"
       }
@@ -71,13 +82,14 @@
     },
     "nullable": [
       true,
+      false,
       true,
-      true,
+      false,
       false,
       false,
       false,
       false
     ]
   },
-  "hash": "e652655a2d71b1249f6f7a727e64cff2c986cc3bd4b02a62428f6750a31254ae"
+  "hash": "23c643c5fa67f6ae142671b3837b92453842f8caee7c96819a91270d39ebff4f"
 }

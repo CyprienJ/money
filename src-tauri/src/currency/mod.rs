@@ -13,7 +13,7 @@ mod tests;
 pub(crate) use rate::update_rates;
 pub use rate::{CurrencyUse, ExchangeRate, delete_rate, in_use, list_rates, set_manual_rate};
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 use chrono::NaiveDate;
 use serde::Serialize;
@@ -130,34 +130,5 @@ impl Rates {
     pub fn to_reference(&self, amount_cents: i64, currency: &str, date: NaiveDate) -> i64 {
         self.convert(amount_cents, currency, REFERENCE, date)
             .unwrap_or(0)
-    }
-}
-
-/// Amounts in several currencies, added up by currency and converted at the end.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct Amounts(BTreeMap<String, i64>);
-
-impl Amounts {
-    pub fn add(&mut self, currency: &str, amount_cents: i64) {
-        match self.0.get_mut(currency) {
-            Some(total) => *total += amount_cents,
-            None => {
-                self.0.insert(currency.to_owned(), amount_cents);
-            }
-        }
-    }
-
-    pub fn add_all(&mut self, other: &Amounts) {
-        for (currency, amount) in &other.0 {
-            self.add(currency, *amount);
-        }
-    }
-
-    /// Total in euros at the rates of `date`.
-    pub fn to_reference(&self, rates: &Rates, date: NaiveDate) -> i64 {
-        self.0
-            .iter()
-            .map(|(currency, amount)| rates.to_reference(*amount, currency, date))
-            .sum()
     }
 }

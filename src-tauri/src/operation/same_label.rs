@@ -123,6 +123,7 @@ mod tests {
         account::create(
             pool,
             NewAccount {
+                is_joint: false,
                 name: name.to_owned(),
                 account_type: AccountType::Checking,
                 currency: "EUR".to_owned(),

@@ -16,6 +16,7 @@ async fn checking_account(pool: &SqlitePool) -> i64 {
     account::create(
         pool,
         NewAccount {
+            is_joint: false,
             name: "Courant".to_owned(),
             account_type: AccountType::Checking,
             currency: "EUR".to_owned(),

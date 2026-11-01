@@ -8,7 +8,7 @@ use crate::error::AppResult;
 pub async fn list(pool: &SqlitePool, include_archived: bool) -> AppResult<Vec<Account>> {
     let accounts = sqlx::query_as!(
         Account,
-        r#"SELECT id, name, type AS "account_type: AccountType", currency, institution,
+        r#"SELECT id, name, type AS "account_type: AccountType", currency, is_joint AS "is_joint: bool", institution,
                   opening_balance_cents, opening_date AS "opening_date: _", archived AS "archived: bool"
            FROM account
            WHERE archived = 0 OR ?1
@@ -27,7 +27,7 @@ pub async fn list(pool: &SqlitePool, include_archived: bool) -> AppResult<Vec<Ac
 pub async fn get(pool: &SqlitePool, id: i64) -> AppResult<Account> {
     let account = sqlx::query_as!(
         Account,
-        r#"SELECT id, name, type AS "account_type: AccountType", currency, institution,
+        r#"SELECT id, name, type AS "account_type: AccountType", currency, is_joint AS "is_joint: bool", institution,
                   opening_balance_cents, opening_date AS "opening_date: _", archived AS "archived: bool"
            FROM account
            WHERE id = ?1"#,
@@ -43,14 +43,15 @@ pub async fn create(pool: &SqlitePool, new: NewAccount) -> AppResult<Account> {
     let institution = clean_optional(new.institution);
     let currency = currency::check_supported(&new.currency)?;
     let id = sqlx::query!(
-        "INSERT INTO account (name, type, currency, institution, opening_balance_cents, opening_date)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        "INSERT INTO account (name, type, currency, institution, opening_balance_cents, opening_date, is_joint)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
         name,
         new.account_type,
         currency,
         institution,
         new.opening_balance_cents,
-        new.opening_date
+        new.opening_date,
+        new.is_joint
     )
     .execute(pool)
     .await?
@@ -68,14 +69,15 @@ pub async fn update(pool: &SqlitePool, id: i64, changes: AccountUpdate) -> AppRe
     sqlx::query!(
         "UPDATE account
          SET name = ?2, currency = ?3, institution = ?4, opening_balance_cents = ?5,
-             opening_date = ?6
+             opening_date = ?6, is_joint = ?7
          WHERE id = ?1",
         id,
         name,
         currency,
         institution,
         changes.opening_balance_cents,
-        changes.opening_date
+        changes.opening_date,
+        changes.is_joint
     )
     .execute(pool)
     .await?;
@@ -139,6 +141,7 @@ mod tests {
 
     fn new_account(name: &str, account_type: AccountType) -> NewAccount {
         NewAccount {
+            is_joint: false,
             name: name.to_owned(),
             account_type,
             currency: "EUR".to_owned(),
@@ -155,6 +158,7 @@ mod tests {
             let created = create(
                 &pool,
                 NewAccount {
+                    is_joint: false,
                     name: "  Compte courant ".to_owned(),
                     account_type: AccountType::Checking,
                     currency: "EUR".to_owned(),
@@ -201,6 +205,7 @@ mod tests {
                 &pool,
                 account.id,
                 AccountUpdate {
+                    is_joint: false,
                     name: "Livret A".to_owned(),
                     currency: "EUR".to_owned(),
                     institution: Some("   ".to_owned()),

@@ -18,10 +18,13 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use sqlx::SqlitePool;
 
-use crate::currency::{Amounts, Rates};
+use crate::account::personal_share;
+use crate::currency::Rates;
 use crate::error::{AppResult, ErrorKind};
 
 mod comparison;
+mod personal;
+use personal::PersonalBalances;
 mod forecast;
 mod net_worth;
 mod payees;
@@ -132,8 +135,8 @@ pub async fn expenses_by_category(
     let top_level = level == CategoryLevel::TopLevel;
     let rows = sqlx::query!(
         r#"SELECT CASE WHEN ?4 THEN COALESCE(c.parent_id, c.id) ELSE c.id END AS "category_id?: i64",
-                  a.currency, o.date AS "date!: NaiveDate",
-                  -SUM(s.amount_cents) AS "expense_cents!: i64"
+                  a.currency, a.is_joint AS "is_joint: bool", o.date AS "date!: NaiveDate",
+                  -s.amount_cents AS "expense_cents!: i64"
            FROM operation_split s
            JOIN operation o ON o.id = s.operation_id
            JOIN account a ON a.id = o.account_id
@@ -143,8 +146,7 @@ pub async fn expenses_by_category(
              AND CASE WHEN ?3 IS NULL
                       THEN a.archived = 0
                       ELSE o.account_id IN (SELECT value FROM json_each(?3)) END
-             AND NOT COALESCE(c.is_income, s.amount_cents > 0)
-           GROUP BY 1, a.currency, o.date"#,
+             AND NOT COALESCE(c.is_income, s.amount_cents > 0)"#,
         from,
         to,
         accounts,
@@ -156,8 +158,10 @@ pub async fn expenses_by_category(
     let rates = Rates::load(pool).await?;
     let mut totals: BTreeMap<Option<i64>, i64> = BTreeMap::new();
     for row in rows {
-        *totals.entry(row.category_id).or_default() +=
-            rates.to_reference(row.expense_cents, &row.currency, row.date);
+        *totals.entry(row.category_id).or_default() += personal_share(
+            rates.to_reference(row.expense_cents, &row.currency, row.date),
+            row.is_joint,
+        );
     }
     let mut expenses: Vec<CategoryExpense> = totals
         .into_iter()
@@ -183,11 +187,11 @@ pub async fn income_vs_expenses(
     check_period(from, to)?;
     let accounts = accounts_json(accounts);
     let rows = sqlx::query!(
-        r#"SELECT o.date AS "date!: NaiveDate", a.currency,
-                  SUM(CASE WHEN COALESCE(c.is_income, s.amount_cents > 0)
-                           THEN s.amount_cents ELSE 0 END) AS "income_cents!: i64",
-                  -SUM(CASE WHEN COALESCE(c.is_income, s.amount_cents > 0)
-                            THEN 0 ELSE s.amount_cents END) AS "expense_cents!: i64"
+        r#"SELECT o.date AS "date!: NaiveDate", a.currency, a.is_joint AS "is_joint: bool",
+                  CASE WHEN COALESCE(c.is_income, s.amount_cents > 0)
+                           THEN s.amount_cents ELSE 0 END AS "income_cents!: i64",
+                  -CASE WHEN COALESCE(c.is_income, s.amount_cents > 0)
+                            THEN 0 ELSE s.amount_cents END AS "expense_cents!: i64"
            FROM operation_split s
            JOIN operation o ON o.id = s.operation_id
            JOIN account a ON a.id = o.account_id
@@ -196,8 +200,7 @@ pub async fn income_vs_expenses(
              AND o.is_internal_transfer = 0
              AND CASE WHEN ?3 IS NULL
                       THEN a.archived = 0
-                      ELSE o.account_id IN (SELECT value FROM json_each(?3)) END
-           GROUP BY o.date, a.currency"#,
+                      ELSE o.account_id IN (SELECT value FROM json_each(?3)) END"#,
         from,
         to,
         accounts
@@ -221,8 +224,14 @@ pub async fn income_vs_expenses(
         let period = periods
             .get_mut(&period_start(row.date, granularity))
             .expect("every date of the range is in a period");
-        period.income_cents += rates.to_reference(row.income_cents, &row.currency, row.date);
-        period.expense_cents += rates.to_reference(row.expense_cents, &row.currency, row.date);
+        period.income_cents += personal_share(
+            rates.to_reference(row.income_cents, &row.currency, row.date),
+            row.is_joint,
+        );
+        period.expense_cents += personal_share(
+            rates.to_reference(row.expense_cents, &row.currency, row.date),
+            row.is_joint,
+        );
     }
     Ok(periods.into_values().collect())
 }
@@ -263,7 +272,7 @@ pub async fn balance_history(
     check_period(from, to)?;
     let accounts = accounts_json(accounts);
     let openings = sqlx::query!(
-        r#"SELECT opening_date AS "date!: NaiveDate", currency,
+        r#"SELECT id, opening_date AS "date!: NaiveDate", currency, is_joint AS "is_joint: bool",
                   opening_balance_cents AS "amount_cents!: i64"
            FROM account
            WHERE type IN ('CHECKING', 'SAVINGS', 'CREDIT_CARD')
@@ -275,16 +284,15 @@ pub async fn balance_history(
     .fetch_all(pool)
     .await?;
     let movements = sqlx::query!(
-        r#"SELECT o.date AS "date!: NaiveDate", a.currency,
-                  SUM(o.amount_cents) AS "amount_cents!: i64"
+        r#"SELECT a.id, o.date AS "date!: NaiveDate", a.currency, a.is_joint AS "is_joint: bool",
+                  o.amount_cents AS "amount_cents!: i64"
            FROM operation o
            JOIN account a ON a.id = o.account_id
            WHERE o.date <= ?2
              AND a.type IN ('CHECKING', 'SAVINGS', 'CREDIT_CARD')
              AND CASE WHEN ?1 IS NULL
                       THEN a.archived = 0
-                      ELSE o.account_id IN (SELECT value FROM json_each(?1)) END
-           GROUP BY o.date, a.currency"#,
+                      ELSE o.account_id IN (SELECT value FROM json_each(?1)) END"#,
         accounts,
         to
     )
@@ -292,24 +300,26 @@ pub async fn balance_history(
     .await?;
 
     // Balance changes by date: account openings and operations.
-    let mut changes: Vec<(NaiveDate, String, i64)> = openings
+    let mut changes: Vec<(NaiveDate, i64, String, bool, i64)> = openings
         .into_iter()
-        .map(|o| (o.date, o.currency, o.amount_cents))
+        .map(|o| (o.date, o.id, o.currency, o.is_joint, o.amount_cents))
         .chain(
             movements
                 .into_iter()
-                .map(|m| (m.date, m.currency, m.amount_cents)),
+                .map(|m| (m.date, m.id, m.currency, m.is_joint, m.amount_cents)),
         )
         .collect();
     changes.sort();
 
     let rates = Rates::load(pool).await?;
     let mut changes = changes.into_iter().peekable();
-    let mut balance = Amounts::default();
+    let mut balance = PersonalBalances::default();
     let mut points = Vec::new();
     for date in step_ends(from, to, step) {
-        while let Some((_, currency, amount)) = changes.next_if(|(day, _, _)| *day <= date) {
-            balance.add(&currency, amount);
+        while let Some((_, id, currency, is_joint, amount)) =
+            changes.next_if(|(day, ..)| *day <= date)
+        {
+            balance.add(id, &currency, is_joint, amount);
         }
         points.push(BalancePoint {
             date,
@@ -341,3 +351,6 @@ fn step_ends(from: NaiveDate, to: NaiveDate, step: BalanceStep) -> Vec<NaiveDate
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod joint_tests;

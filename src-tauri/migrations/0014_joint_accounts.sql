@@ -1,0 +1,1 @@
+ALTER TABLE account ADD COLUMN is_joint INTEGER NOT NULL DEFAULT 0 CHECK (is_joint IN (0, 1));

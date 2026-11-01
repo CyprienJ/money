@@ -17,6 +17,7 @@ async fn new_account(pool: &SqlitePool, name: &str, currency: &str, opening: i64
     account::create(
         pool,
         NewAccount {
+            is_joint: false,
             name: name.to_owned(),
             account_type: AccountType::Checking,
             currency: currency.to_owned(),
@@ -57,6 +58,7 @@ async fn enter(
 
 fn update_of(account: &account::Account, currency: &str) -> AccountUpdate {
     AccountUpdate {
+        is_joint: false,
         name: account.name.clone(),
         currency: currency.to_owned(),
         institution: account.institution.clone(),
@@ -94,12 +96,6 @@ fn converts_at_the_rate_of_the_day() {
             rates.convert(10_000, "USD", "GBP", date("2026-02-15")),
             Some(6_957)
         );
-
-        let mut amounts = Amounts::default();
-        amounts.add("EUR", 1_000);
-        amounts.add("USD", 500);
-        amounts.add("USD", 500);
-        assert_eq!(amounts.to_reference(&rates, date("2026-03-01")), 1_800);
     });
 }
 
@@ -142,6 +138,7 @@ fn the_currency_of_an_account_is_fixed_once_it_has_data() {
         let created = account::create(
             &pool,
             NewAccount {
+                is_joint: false,
                 name: "Compte".to_owned(),
                 account_type: AccountType::Checking,
                 currency: "XYZ".to_owned(),

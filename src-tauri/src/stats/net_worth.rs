@@ -18,9 +18,10 @@ use serde::Serialize;
 use specta::Type;
 use sqlx::SqlitePool;
 
+use super::PersonalBalances;
 use super::{BalanceStep, check_period, step_ends};
-use crate::account::AccountType;
-use crate::currency::{Amounts, Rates};
+use crate::account::{AccountType, personal_share};
+use crate::currency::Rates;
 use crate::error::AppResult;
 use crate::investment::Portfolios;
 
@@ -44,19 +45,19 @@ type Valuations = Vec<(NaiveDate, i64)>;
 /// Account data the computation needs, loaded once.
 struct Data {
     /// Changes of the cash balance by date: account openings and operations.
-    cash_changes: BTreeMap<NaiveDate, Amounts>,
+    cash_changes: BTreeMap<NaiveDate, PersonalBalances>,
     /// Valuations by account: id, type, currency and (date, value) sorted by date.
-    valuations: Vec<(i64, AccountType, String, Valuations)>,
+    valuations: Vec<(i64, AccountType, String, bool, Valuations)>,
     /// Non-archived investment accounts.
-    investment_accounts: Vec<i64>,
+    investment_accounts: Vec<(i64, bool)>,
     portfolios: Portfolios,
     rates: Rates,
 }
 
 async fn load(pool: &SqlitePool, to: NaiveDate) -> AppResult<Data> {
-    let mut cash_changes: BTreeMap<NaiveDate, Amounts> = BTreeMap::new();
+    let mut cash_changes: BTreeMap<NaiveDate, PersonalBalances> = BTreeMap::new();
     let openings = sqlx::query!(
-        r#"SELECT opening_date AS "date!: NaiveDate", currency,
+        r#"SELECT id, opening_date AS "date!: NaiveDate", currency, is_joint AS "is_joint: bool",
                   opening_balance_cents AS "amount!: i64"
            FROM account
            WHERE archived = 0 AND type IN ('CHECKING', 'SAVINGS', 'CREDIT_CARD')"#
@@ -64,31 +65,34 @@ async fn load(pool: &SqlitePool, to: NaiveDate) -> AppResult<Data> {
     .fetch_all(pool)
     .await?;
     for opening in openings {
-        cash_changes
-            .entry(opening.date)
-            .or_default()
-            .add(&opening.currency, opening.amount);
+        cash_changes.entry(opening.date).or_default().add(
+            opening.id,
+            &opening.currency,
+            opening.is_joint,
+            opening.amount,
+        );
     }
     let movements = sqlx::query!(
-        r#"SELECT o.date AS "date!: NaiveDate", a.currency, SUM(o.amount_cents) AS "amount!: i64"
+        r#"SELECT a.id, o.date AS "date!: NaiveDate", a.currency, a.is_joint AS "is_joint: bool", o.amount_cents AS "amount!: i64"
            FROM operation o
            JOIN account a ON a.id = o.account_id
            WHERE a.archived = 0 AND a.type IN ('CHECKING', 'SAVINGS', 'CREDIT_CARD')
-             AND o.date <= ?1
-           GROUP BY o.date, a.currency"#,
+             AND o.date <= ?1"#,
         to
     )
     .fetch_all(pool)
     .await?;
     for movement in movements {
-        cash_changes
-            .entry(movement.date)
-            .or_default()
-            .add(&movement.currency, movement.amount);
+        cash_changes.entry(movement.date).or_default().add(
+            movement.id,
+            &movement.currency,
+            movement.is_joint,
+            movement.amount,
+        );
     }
 
     let rows = sqlx::query!(
-        r#"SELECT v.account_id, a.type AS "account_type: AccountType", a.currency,
+        r#"SELECT v.account_id, a.type AS "account_type: AccountType", a.currency, a.is_joint AS "is_joint: bool",
                   v.date AS "date!: NaiveDate", v.value_cents
            FROM valuation v
            JOIN account a ON a.id = v.account_id
@@ -98,16 +102,16 @@ async fn load(pool: &SqlitePool, to: NaiveDate) -> AppResult<Data> {
     )
     .fetch_all(pool)
     .await?;
-    let mut by_account: BTreeMap<i64, (AccountType, String, Valuations)> = BTreeMap::new();
+    let mut by_account: BTreeMap<i64, (AccountType, String, bool, Valuations)> = BTreeMap::new();
     for row in rows {
         by_account
             .entry(row.account_id)
-            .or_insert_with(|| (row.account_type, row.currency, Vec::new()))
-            .2
+            .or_insert_with(|| (row.account_type, row.currency, row.is_joint, Vec::new()))
+            .3
             .push((row.date, row.value_cents));
     }
-    let investment_accounts = sqlx::query_scalar!(
-        r#"SELECT id AS "id!" FROM account WHERE archived = 0 AND type = 'INVESTMENT'"#
+    let investment_accounts = sqlx::query!(
+        r#"SELECT id AS "id!", is_joint AS "is_joint: bool" FROM account WHERE archived = 0 AND type = 'INVESTMENT'"#
     )
     .fetch_all(pool)
     .await?;
@@ -115,9 +119,14 @@ async fn load(pool: &SqlitePool, to: NaiveDate) -> AppResult<Data> {
         cash_changes,
         valuations: by_account
             .into_iter()
-            .map(|(id, (account_type, currency, values))| (id, account_type, currency, values))
+            .map(|(id, (account_type, currency, is_joint, values))| {
+                (id, account_type, currency, is_joint, values)
+            })
             .collect(),
-        investment_accounts,
+        investment_accounts: investment_accounts
+            .into_iter()
+            .map(|r| (r.id, r.is_joint))
+            .collect(),
         portfolios: Portfolios::load(pool, to).await?,
         rates: Rates::load(pool).await?,
     })
@@ -125,13 +134,13 @@ async fn load(pool: &SqlitePool, to: NaiveDate) -> AppResult<Data> {
 
 impl Data {
     fn at(&self, date: NaiveDate) -> NetWorth {
-        let mut cash = Amounts::default();
+        let mut cash = PersonalBalances::default();
         for (_, amounts) in self.cash_changes.range(..=date) {
             cash.add_all(amounts);
         }
         let cash_cents = cash.to_reference(&self.rates, date);
         let (mut investments_cents, mut assets_cents, mut liabilities_cents) = (0, 0, 0);
-        for (account_id, account_type, currency, valuations) in &self.valuations {
+        for (account_id, account_type, currency, is_joint, valuations) in &self.valuations {
             if self.portfolios.values(*account_id, date) {
                 continue;
             }
@@ -141,7 +150,7 @@ impl Data {
                 .take_while(|(day, _)| *day <= date)
                 .last()
                 .map_or(0, |&(_, value)| value);
-            let last = self.rates.to_reference(last, currency, date);
+            let last = personal_share(self.rates.to_reference(last, currency, date), *is_joint);
             match account_type {
                 AccountType::Investment => investments_cents += last,
                 AccountType::Asset => assets_cents += last,
@@ -149,13 +158,16 @@ impl Data {
                 _ => {}
             }
         }
-        for &account_id in &self.investment_accounts {
+        for &(account_id, is_joint) in &self.investment_accounts {
             if self.portfolios.values(account_id, date) {
                 let value = self.portfolios.value(account_id, date).0;
-                investments_cents += self.rates.to_reference(
-                    value,
-                    self.portfolios.account_currency(account_id),
-                    date,
+                investments_cents += personal_share(
+                    self.rates.to_reference(
+                        value,
+                        self.portfolios.account_currency(account_id),
+                        date,
+                    ),
+                    is_joint,
                 );
             }
         }
@@ -207,6 +219,7 @@ mod tests {
         account::create(
             pool,
             NewAccount {
+                is_joint: false,
                 name: format!("{account_type:?}"),
                 account_type,
                 currency: "EUR".to_owned(),

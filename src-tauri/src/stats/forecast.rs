@@ -6,14 +6,13 @@
 //! several accounts, internal transfer schedules are left out: the money stays in the total.
 //! Occurrences are converted to euros at the last known rates.
 
-use std::collections::HashMap;
-
 use chrono::{Days, NaiveDate};
 use serde::Serialize;
 use specta::Type;
 use sqlx::SqlitePool;
 
-use super::{BalancePoint, BalanceStep, accounts_json, balance_history, check_period};
+use super::{BalancePoint, PersonalBalances, check_period};
+use crate::account::{self, AccountSummary};
 use crate::currency::Rates;
 use crate::error::AppResult;
 use crate::operation::schedule::{self, matching};
@@ -57,12 +56,27 @@ pub async fn balance_forecast(
     accounts: Option<&[i64]>,
 ) -> AppResult<BalanceForecast> {
     check_period(today, to)?;
-    let current_balance_cents = balance_history(pool, today, today, accounts, BalanceStep::Day)
+    let included: Vec<AccountSummary> = account::list_summaries(pool, accounts.is_some(), today)
         .await?
-        .pop()
-        .map_or(0, |point| point.balance_cents);
-    let included = included_accounts(pool, accounts).await?;
+        .into_iter()
+        .filter(|s| s.account.account_type.has_operations())
+        .filter(|s| accounts.is_none_or(|ids| ids.contains(&s.account.id)))
+        .collect();
     let several_accounts = included.len() > 1;
+    let mut balances = PersonalBalances::default();
+    for summary in &included {
+        let a = &summary.account;
+        if a.opening_date <= today {
+            balances.add(
+                a.id,
+                &a.currency,
+                a.is_joint,
+                summary.balance_cents.unwrap_or(0),
+            );
+        }
+    }
+    let rates = Rates::load(pool).await?;
+    let current_balance_cents = balances.to_reference(&rates, today);
 
     let late_from = today
         .checked_sub_days(Days::new(matching::DETECTION_WINDOW_DAYS))
@@ -80,7 +94,12 @@ pub async fn balance_forecast(
                     account_id: o.account_id,
                     label: o.label,
                     amount_cents: o.amount_cents,
-                    currency: included.get(&o.account_id)?.clone(),
+                    currency: included
+                        .iter()
+                        .find(|s| s.account.id == o.account_id)?
+                        .account
+                        .currency
+                        .clone(),
                     category_id: o.category_id,
                 })
             })
@@ -93,19 +112,27 @@ pub async fn balance_forecast(
         (a.date, a.occurrence_date, &a.label).cmp(&(b.date, b.occurrence_date, &b.label))
     });
 
-    let rates = Rates::load(pool).await?;
-    let mut balance = current_balance_cents;
     let mut pending = occurrences.iter().peekable();
     let points: Vec<BalancePoint> = today
         .iter_days()
         .take_while(|date| *date <= to)
         .map(|date| {
             while let Some(o) = pending.next_if(|o| o.date <= date) {
-                balance += rates.to_reference(o.amount_cents, &o.currency, today);
+                let account = &included
+                    .iter()
+                    .find(|s| s.account.id == o.account_id)
+                    .expect("occurrences belong to included accounts")
+                    .account;
+                balances.add(
+                    account.id,
+                    &account.currency,
+                    account.is_joint,
+                    o.amount_cents,
+                );
             }
             BalancePoint {
                 date,
-                balance_cents: balance,
+                balance_cents: balances.to_reference(&rates, today),
             }
         })
         .collect();
@@ -120,25 +147,6 @@ pub async fn balance_forecast(
         lowest,
         occurrences,
     })
-}
-
-/// Accounts the forecast covers, those of `balance_history`, with their currency.
-async fn included_accounts(
-    pool: &SqlitePool,
-    accounts: Option<&[i64]>,
-) -> AppResult<HashMap<i64, String>> {
-    let accounts = accounts_json(accounts);
-    let rows = sqlx::query!(
-        r#"SELECT id AS "id!", currency FROM account
-           WHERE type IN ('CHECKING', 'SAVINGS', 'CREDIT_CARD')
-             AND CASE WHEN ?1 IS NULL
-                      THEN archived = 0
-                      ELSE id IN (SELECT value FROM json_each(?1)) END"#,
-        accounts
-    )
-    .fetch_all(pool)
-    .await?;
-    Ok(rows.into_iter().map(|row| (row.id, row.currency)).collect())
 }
 
 async fn internal_transfer_category(pool: &SqlitePool) -> AppResult<Option<i64>> {

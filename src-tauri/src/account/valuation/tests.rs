@@ -14,6 +14,7 @@ async fn new_account(pool: &SqlitePool, name: &str, account_type: AccountType) -
     account::create(
         pool,
         NewAccount {
+            is_joint: false,
             name: name.to_owned(),
             account_type,
             currency: "EUR".to_owned(),

@@ -24,7 +24,7 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 | Rapprochement bancaire / pointage | Remplacé par le contrôle automatique des soldes à l'import |
 | Budget prévisionnel, budget par enveloppes | Ce n'est pas un outil de budget |
 | Objectifs d'épargne, plan de remboursement de dettes | Idem |
-| Multi-utilisateurs / partage foyer | Usage personnel |
+| Multi-utilisateurs / accès partagé au foyer | Usage personnel ; le suivi local des comptes joints est pris en charge |
 | Synchronisation multi-appareils / version mobile | Client lourd local |
 | API / scripting / plugins | Pas de besoin identifié |
 
@@ -36,6 +36,7 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 
 #### Comptes
 - **Plusieurs comptes** : courant, livret, carte à débit différé…
+- **Comptes solo ou joints** *(décisions du 01/11/2026)* : choix dans la fiche de tout compte (placements, actifs et dettes compris), modifiable et appliqué à tout son historique. Les comptes existants sont solo. Un compte solo compte à 100 %, un compte joint à 50 % dans les indicateurs personnels. Les listes de comptes distinguent les deux. L’application reste locale et mono-utilisateur.
 - **Comptes de placement** (PEA, CTO, assurance-vie) : en V1, seule la **valeur totale** est suivie, saisie manuellement à la date voulue. Le détail des titres arrive en V2.
 - **Actifs et dettes** : immobilier, véhicule, prêts en cours, avec une valeur ou un capital restant dû saisi manuellement et historisé.
 
@@ -124,7 +125,8 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 
 ## Règles de calcul
 
-- **Les virements internes sont exclus** de tous les indicateurs de revenus, de dépenses, des tops et des comparaisons. Ils restent pris en compte dans les soldes.
+- **Quote-part personnelle** : patrimoine, disponible, revenus, dépenses, tops, comparaisons, courbes et prévisions comptent les comptes joints à 50 %. Les analyses restent personnelles même si un seul compte est sélectionné. Les montants bancaires (opérations, soldes, valorisations, portefeuille, échéances) et les contrôles d’import restent à 100 %. Les totaux de groupes de comptes affichent la part personnelle. La quote-part est appliquée après conversion en euros : par ligne de ventilation pour les flux, par solde ou valeur de compte pour le patrimoine et les courbes, puis sommée. Arrondi au centime le plus proche, demi-centime en s’éloignant de zéro. Les prévisions pondèrent le solde projeté de chaque compte avant sommation.
+- **Les virements internes sont exclus** de tous les indicateurs de revenus, de dépenses, des tops et des comparaisons. Ils restent pris en compte dans les soldes, y compris entre un compte solo et un compte joint.
 - **Revenu ou dépense** : une opération est un revenu si sa catégorie est une catégorie de revenus, une dépense sinon, en net : un remboursement classé en Courses diminue les dépenses de Courses. Une opération non catégorisée est classée selon son signe.
 - **Le patrimoine net** à une date D se calcule ainsi :
   - Σ soldes des comptes courants, d'épargne et des cartes à débit différé à D (l'encours d'une carte, négatif, est déjà de l'argent dépensé)
@@ -153,7 +155,8 @@ Les colonnes notées *(prévu)* sont créées dès la V1, mais ne sont exploité
 ```text
 account
   id, name, type (CHECKING | SAVINGS | CREDIT_CARD | INVESTMENT | ASSET | LIABILITY),
-  currency (default 'EUR', fixed once the account has data), institution, opening_balance_cents, opening_date, archived
+  currency (default 'EUR', fixed once the account has data), institution, opening_balance_cents, opening_date, archived,
+  is_joint (default false) -- personal share: 50% if joint, 100% otherwise
 
 operation
   id, account_id, date, value_date,

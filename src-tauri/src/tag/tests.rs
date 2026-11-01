@@ -22,6 +22,7 @@ async fn tagged(pool: &SqlitePool, label: &str, tags: &[&str]) -> Operation {
     let account_id = account::create(
         pool,
         NewAccount {
+            is_joint: false,
             name: format!("Compte {label}"),
             account_type: AccountType::Checking,
             currency: "EUR".to_owned(),
