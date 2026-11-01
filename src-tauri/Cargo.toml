@@ -1,6 +1,6 @@
 [package]
 name = "money"
-version = "1.1.0"
+version = "1.2.0"
 description = "Local personal finance desktop application"
 edition = "2024"
 
