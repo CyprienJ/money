@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT o.account_id, o.payee_id AS \"payee_id!\", p.name AS payee_name,\n                  o.date AS \"date: NaiveDate\", o.amount_cents, s.category_id,\n                  EXISTS (SELECT 1 FROM schedule_match m WHERE m.operation_id = o.id)\n                      AS \"matched!: bool\"\n           FROM operation o\n           JOIN payee p ON p.id = o.payee_id\n           LEFT JOIN operation_split s ON s.operation_id = o.id\n           WHERE o.date <= ?1\n           ORDER BY o.date, o.id",
+  "query": "SELECT o.account_id, o.payee_id AS \"payee_id!\", p.name AS payee_name,\n                  o.date AS \"date: NaiveDate\", o.amount_cents,\n                  (SELECT CASE WHEN COUNT(*) = 1 THEN MAX(s.category_id) END\n                   FROM operation_split s WHERE s.operation_id = o.id) AS \"category_id?: i64\",\n                  EXISTS (SELECT 1 FROM schedule_match m WHERE m.operation_id = o.id)\n                      AS \"matched!: bool\"\n           FROM operation o\n           JOIN payee p ON p.id = o.payee_id\n           WHERE o.date <= ?1\n           ORDER BY o.date, o.id",
   "describe": {
     "columns": [
       {
@@ -59,15 +59,10 @@
         }
       },
       {
-        "name": "category_id",
+        "name": "category_id?: i64",
         "ordinal": 5,
         "type_info": "Integer",
-        "origin": {
-          "Table": {
-            "table": "operation_split",
-            "name": "category_id"
-          }
-        }
+        "origin": "Expression"
       },
       {
         "name": "matched!: bool",
@@ -89,5 +84,5 @@
       false
     ]
   },
-  "hash": "13ba252ff0b568eb8fe2cdc5a4ae112049bc489ab7639aa0989abc7a0f44b797"
+  "hash": "08463a72bf8d3047d05c627c5117646f3c04343646baf78cc2d9012e3be350f7"
 }

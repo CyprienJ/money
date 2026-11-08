@@ -5,6 +5,7 @@ use super::*;
 use crate::account::{self, AccountError, AccountType, NewAccount};
 use crate::db::tests::memory_pool;
 use crate::error::{AppError, AppResult};
+use search::CategoryFilter;
 
 fn date(text: &str) -> NaiveDate {
     text.parse().unwrap()
@@ -43,6 +44,7 @@ fn manual(account_id: i64, day: &str, amount_cents: i64, label: &str) -> NewOper
         amount_cents,
         label: label.to_owned(),
         category_id: None,
+        splits: Vec::new(),
         note: None,
         tags: Vec::new(),
     }
@@ -105,6 +107,7 @@ fn unchanged(operation: &Operation) -> OperationUpdate {
         amount_cents: operation.amount_cents,
         label: operation.raw_label.clone(),
         category_id: operation.category_id,
+        splits: operation.splits.clone(),
         note: operation.note.clone(),
         tags: operation.tags.clone(),
     }
@@ -130,6 +133,7 @@ fn creates_a_manual_operation_with_its_split() {
             &pool,
             NewOperation {
                 category_id: Some(category_id),
+                splits: Vec::new(),
                 ..manual(account_id, "2026-10-08", -840, "  Boulangerie   Martin ")
             },
         )
@@ -157,6 +161,7 @@ fn derives_the_internal_transfer_flag_from_the_category() {
             &pool,
             NewOperation {
                 category_id: Some(transfer),
+                splits: Vec::new(),
                 ..manual(account_id, "2026-10-15", -30000, "Virement vers Livret A")
             },
         )
@@ -199,6 +204,7 @@ fn rejects_invalid_manual_operations() {
         ));
         let unknown_category = NewOperation {
             category_id: Some(99),
+            splits: Vec::new(),
             ..manual(checking, "2026-10-08", -840, "X")
         };
         assert!(matches!(
@@ -282,6 +288,7 @@ fn updates_every_field_of_a_manual_operation() {
                 amount_cents: -920,
                 label: "Boulangerie Martin".to_owned(),
                 category_id: Some(category_id),
+                splits: Vec::new(),
                 note: None,
                 tags: Vec::new(),
             },
@@ -345,6 +352,7 @@ fn locks_the_bank_fields_of_an_imported_operation() {
             OperationUpdate {
                 value_date: Some(date("2026-10-20")),
                 category_id: Some(category_id),
+                splits: Vec::new(),
                 ..unchanged(&operation)
             },
         )
@@ -494,5 +502,251 @@ fn editing_the_note_keeps_the_remembered_category() {
         .await
         .unwrap();
         assert_eq!(remembered, new_category);
+    });
+}
+
+async fn category_named(pool: &SqlitePool, name: &str) -> i64 {
+    category::list(pool)
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|c| c.name == name)
+        .unwrap()
+        .id
+}
+
+fn parts(parts: &[(i64, i64)]) -> Vec<SplitLine> {
+    parts
+        .iter()
+        .map(|&(category_id, amount_cents)| SplitLine {
+            category_id,
+            amount_cents,
+        })
+        .collect()
+}
+
+#[test]
+fn splits_an_operation_over_several_categories() {
+    run(|pool| async move {
+        let account_id = new_account(&pool, AccountType::Checking, 10_000).await;
+        let food = category_named(&pool, "Alimentation").await;
+        let housing = category_named(&pool, "Loyer ou crédit").await;
+        let split = create(
+            &pool,
+            NewOperation {
+                splits: parts(&[(food, -3_000), (housing, -1_000)]),
+                ..manual(account_id, "2026-10-10", -4_000, "CB HYPERMARCHE")
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(split.category_id, None);
+        assert_eq!(split.splits, parts(&[(food, -3_000), (housing, -1_000)]));
+        assert!(!split.is_internal_transfer);
+        create(&pool, manual(account_id, "2026-10-11", -500, "CB BOULANGERIE"))
+            .await
+            .unwrap();
+
+        // One row per operation, the running balance counting it once.
+        let rows = list(&pool, account_id, None, None).await.unwrap();
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[1].operation.id, split.id);
+        assert_eq!(rows[1].operation.splits, split.splits);
+        assert_eq!(rows[1].balance_cents, 6_000);
+        assert_eq!(rows[0].balance_cents, 5_500);
+
+        // Found by the category of any part; never "to categorize".
+        let search_category = |category: CategoryFilter| {
+            let pool = pool.clone();
+            async move {
+                let filter = search::OperationFilter {
+                    account_id: Some(account_id),
+                    category: Some(category),
+                    ..Default::default()
+                };
+                search::search(&pool, &filter)
+                    .await
+                    .unwrap()
+                    .into_iter()
+                    .map(|row| row.operation.id)
+                    .collect::<Vec<_>>()
+            }
+        };
+        assert_eq!(
+            search_category(CategoryFilter::Category { id: housing }).await,
+            [split.id]
+        );
+        assert_eq!(search_category(CategoryFilter::Uncategorized).await.len(), 1);
+        assert!(
+            !search_category(CategoryFilter::Uncategorized)
+                .await
+                .contains(&split.id)
+        );
+
+        // The split is not remembered for the label.
+        let remembered = sqlx::query_scalar!(
+            "SELECT category_id FROM label_category_memory WHERE normalized_label = ?1",
+            split.normalized_label
+        )
+        .fetch_optional(&pool)
+        .await
+        .unwrap();
+        assert_eq!(remembered, None);
+    });
+}
+
+#[test]
+fn rejects_invalid_splits() {
+    run(|pool| async move {
+        let account_id = new_account(&pool, AccountType::Checking, 0).await;
+        let food = category_named(&pool, "Alimentation").await;
+        let housing = category_named(&pool, "Loyer ou crédit").await;
+        let transfer = internal_transfer_category(&pool).await;
+        let cases = [
+            (parts(&[(food, -4_000)]), "too few"),
+            (parts(&[(food, -3_000), (transfer, -1_000)]), "transfer"),
+            (parts(&[(food, -5_000), (housing, 1_000)]), "sign"),
+            (parts(&[(food, -4_000), (housing, 0)]), "zero"),
+            (parts(&[(food, -3_000), (housing, -500)]), "total"),
+        ];
+        for (splits, case) in cases {
+            let result = create(
+                &pool,
+                NewOperation {
+                    splits,
+                    ..manual(account_id, "2026-10-10", -4_000, "CB HYPERMARCHE")
+                },
+            )
+            .await;
+            let expected = match case {
+                "too few" => matches!(
+                    result,
+                    Err(AppError::Operation(OperationError::SplitTooFewParts))
+                ),
+                "transfer" => matches!(
+                    result,
+                    Err(AppError::Operation(OperationError::SplitInternalTransfer))
+                ),
+                "sign" | "zero" => matches!(
+                    result,
+                    Err(AppError::Operation(OperationError::SplitPartAmount))
+                ),
+                _ => matches!(
+                    result,
+                    Err(AppError::Operation(OperationError::SplitTotalMismatch {
+                        expected: -4_000,
+                        actual: -3_500
+                    }))
+                ),
+            };
+            assert!(expected, "{case}: {result:?}");
+        }
+        assert!(list(&pool, account_id, None, None).await.unwrap().is_empty());
+    });
+}
+
+#[test]
+fn edits_and_removes_the_split_of_an_operation() {
+    run(|pool| async move {
+        let account_id = new_account(&pool, AccountType::Checking, 0).await;
+        let food = category_named(&pool, "Alimentation").await;
+        let housing = category_named(&pool, "Loyer ou crédit").await;
+
+        // An imported operation can be split, its amount staying locked.
+        let id = imported(&pool, account_id).await;
+        let operation = get(&pool, id).await.unwrap();
+        let split = update(
+            &pool,
+            id,
+            OperationUpdate {
+                splits: parts(&[(food, -6_000), (housing, -428)]),
+                ..unchanged(&operation)
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(split.splits.len(), 2);
+        assert_eq!(split_count(&pool, id).await, 2);
+
+        // Changing the amount of a manual split operation needs parts that follow.
+        let manual_split = create(
+            &pool,
+            NewOperation {
+                splits: parts(&[(food, -3_000), (housing, -1_000)]),
+                ..manual(account_id, "2026-10-10", -4_000, "CB HYPERMARCHE")
+            },
+        )
+        .await
+        .unwrap();
+        assert!(matches!(
+            update(
+                &pool,
+                manual_split.id,
+                OperationUpdate {
+                    amount_cents: -5_000,
+                    ..unchanged(&manual_split)
+                },
+            )
+            .await,
+            Err(AppError::Operation(OperationError::SplitTotalMismatch { .. }))
+        ));
+
+        // Giving a single category, from the form or the table, removes the split.
+        let single = update(
+            &pool,
+            manual_split.id,
+            OperationUpdate {
+                category_id: Some(food),
+                splits: Vec::new(),
+                amount_cents: -5_000,
+                ..unchanged(&manual_split)
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!((single.category_id, single.splits.len()), (Some(food), 0));
+        assert_eq!(split_count(&pool, manual_split.id).await, 1);
+        let collapsed = set_category(&pool, id, Some(housing)).await.unwrap();
+        assert_eq!((collapsed.category_id, collapsed.splits.len()), (Some(housing), 0));
+        let amount = sqlx::query_scalar!(
+            "SELECT amount_cents FROM operation_split WHERE operation_id = ?1",
+            id
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(amount, -6_428);
+    });
+}
+
+#[test]
+fn keeps_the_parts_of_split_operations_categorized() {
+    run(|pool| async move {
+        let account_id = new_account(&pool, AccountType::Checking, 0).await;
+        let food = category_named(&pool, "Alimentation").await;
+        let housing = category_named(&pool, "Loyer ou crédit").await;
+        let extra = regular_category(&pool).await;
+        let split = create(
+            &pool,
+            NewOperation {
+                splits: parts(&[(food, -3_000), (extra, -1_000)]),
+                ..manual(account_id, "2026-10-10", -4_000, "CB HYPERMARCHE")
+            },
+        )
+        .await
+        .unwrap();
+
+        assert!(matches!(
+            category::delete(&pool, extra, None).await,
+            Err(AppError::Category(category::CategoryError::UsedInSplits))
+        ));
+        let transfer = internal_transfer_category(&pool).await;
+        assert!(matches!(
+            category::delete(&pool, extra, Some(transfer)).await,
+            Err(AppError::Category(category::CategoryError::UsedInSplits))
+        ));
+        category::delete(&pool, extra, Some(housing)).await.unwrap();
+        let moved = get(&pool, split.id).await.unwrap();
+        assert_eq!(moved.splits, parts(&[(food, -3_000), (housing, -1_000)]));
     });
 }

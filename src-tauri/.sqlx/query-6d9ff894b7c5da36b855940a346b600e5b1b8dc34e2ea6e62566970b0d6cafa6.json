@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT s.category_id, COUNT(*) AS \"count!: u32\"\n           FROM operation o\n           JOIN operation_split s ON s.operation_id = o.id\n           WHERE o.normalized_label = ?1 AND o.id <> ?2\n           GROUP BY s.category_id\n           ORDER BY COUNT(*) DESC, s.category_id",
+  "query": "SELECT s.category_id, COUNT(*) AS \"count!: u32\"\n           FROM operation o\n           JOIN operation_split s ON s.operation_id = o.id\n           WHERE o.normalized_label = ?1 AND o.id <> ?2\n             AND NOT EXISTS (SELECT 1 FROM operation_split x\n                             WHERE x.operation_id = s.operation_id AND x.id <> s.id)\n           GROUP BY s.category_id\n           ORDER BY COUNT(*) DESC, s.category_id",
   "describe": {
     "columns": [
       {
@@ -29,5 +29,5 @@
       false
     ]
   },
-  "hash": "91519adceba0ee704c01d732e52db936e08fffedfa0decbb84514dc5e482b884"
+  "hash": "6d9ff894b7c5da36b855940a346b600e5b1b8dc34e2ea6e62566970b0d6cafa6"
 }

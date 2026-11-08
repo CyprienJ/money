@@ -66,14 +66,15 @@ pub async fn search(pool: &SqlitePool, filter: &OperationFilter) -> AppResult<Ve
     };
 
     // Running balances are computed over the whole history of each account, then filtered.
-    // V1 has a single split per operation, so the join does not duplicate rows.
+    // The category is the one of the single split, NULL for a split operation.
     let rows = sqlx::query!(
         r#"SELECT id AS "id!", account_id AS "account_id!", date AS "date!: NaiveDate",
                   value_date AS "value_date: NaiveDate", amount_cents AS "amount_cents!",
                   raw_label AS "raw_label!", normalized_label AS "normalized_label!",
                   payee_id, payee_name AS "payee_name!: String", import_batch_id,
                   has_source_document AS "has_source_document!: bool",
-                  source_page AS "source_page: u32", source_line AS "source_line: u32", category_id,
+                  source_page AS "source_page: u32", source_line AS "source_line: u32",
+                  category_id AS "category_id?: i64",
                   is_internal_transfer AS "is_internal_transfer!: bool", transfer_pair_id, note,
                   (SELECT COUNT(*) FROM attachment WHERE operation_id = id)
                       AS "attachment_count!: i64",
@@ -83,18 +84,22 @@ pub async fn search(pool: &SqlitePool, filter: &OperationFilter) -> AppResult<Ve
                       o.normalized_label, o.payee_id,
                       COALESCE(p.name, o.normalized_label) AS payee_name,
                       o.import_batch_id, b.stored_file IS NOT NULL AS has_source_document,
-                      o.source_page, o.source_line, s.category_id, o.is_internal_transfer,
+                      o.source_page, o.source_line,
+                      (SELECT CASE WHEN COUNT(*) = 1 THEN MAX(s.category_id) END
+                       FROM operation_split s WHERE s.operation_id = o.id) AS category_id,
+                      (SELECT COUNT(*) > 1 FROM operation_split s WHERE s.operation_id = o.id)
+                          AS is_split,
+                      o.is_internal_transfer,
                       o.transfer_pair_id, o.note,
                       a.archived,
                       a.opening_balance_cents + SUM(o.amount_cents)
                           OVER (PARTITION BY o.account_id ORDER BY o.date, o.id) AS balance_cents
                FROM operation o
                JOIN account a ON a.id = o.account_id
-               LEFT JOIN operation_split s ON s.operation_id = o.id
                LEFT JOIN payee p ON p.id = o.payee_id
                LEFT JOIN import_batch b ON b.id = o.import_batch_id
                WHERE ?1 IS NULL OR o.account_id = ?1
-           )
+           ) AS f
            WHERE (?1 IS NOT NULL OR ?2 OR NOT archived)
              AND (?3 IS NULL OR date >= ?3) AND (?4 IS NULL OR date <= ?4)
              AND (?5 IS NULL OR (?5 = 'debit' AND amount_cents < 0)
@@ -102,9 +107,11 @@ pub async fn search(pool: &SqlitePool, filter: &OperationFilter) -> AppResult<Ve
              AND (?6 IS NULL OR ABS(amount_cents) >= ?6)
              AND (?7 IS NULL OR ABS(amount_cents) <= ?7)
              AND (?8 IS NULL OR payee_id = ?8)
-             AND (NOT ?9 OR category_id IS NULL)
-             AND (?10 IS NULL OR category_id IN
-                     (SELECT c.id FROM category c WHERE c.id = ?10 OR c.parent_id = ?10))
+             AND (NOT ?9 OR (category_id IS NULL AND NOT is_split))
+             AND (?10 IS NULL OR EXISTS
+                     (SELECT 1 FROM operation_split s
+                      JOIN category c ON c.id = s.category_id
+                      WHERE s.operation_id = f.id AND (c.id = ?10 OR c.parent_id = ?10)))
              AND (?11 IS NULL OR EXISTS
                      (SELECT 1 FROM operation_tag ot WHERE ot.operation_id = id AND ot.tag_id = ?11))
            ORDER BY date DESC, id DESC"#,
@@ -124,6 +131,7 @@ pub async fn search(pool: &SqlitePool, filter: &OperationFilter) -> AppResult<Ve
     .await?;
 
     let mut tags = tag::names_by_operation(pool, filter.account_id).await?;
+    let mut splits = super::repository::parts_by_operation(pool, filter.account_id).await?;
     Ok(rows
         .into_iter()
         .map(|row| OperationRow {
@@ -142,6 +150,7 @@ pub async fn search(pool: &SqlitePool, filter: &OperationFilter) -> AppResult<Ve
                 source_page: row.source_page,
                 source_line: row.source_line,
                 category_id: row.category_id,
+                splits: splits.remove(&row.id).unwrap_or_default(),
                 is_internal_transfer: row.is_internal_transfer,
                 transfer_pair_id: row.transfer_pair_id,
                 note: row.note,

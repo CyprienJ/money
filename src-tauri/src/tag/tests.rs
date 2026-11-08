@@ -43,6 +43,7 @@ async fn tagged(pool: &SqlitePool, label: &str, tags: &[&str]) -> Operation {
             amount_cents: -1200,
             label: label.to_owned(),
             category_id: None,
+            splits: Vec::new(),
             note: None,
             tags: tags.iter().map(|t| (*t).to_owned()).collect(),
         },

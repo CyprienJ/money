@@ -1,7 +1,7 @@
 //! Top payees and largest expenses. Same rules as the other expense
 //! statistics: internal transfers and income are left out, refunds come off the expenses.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use chrono::NaiveDate;
 use serde::Serialize;
@@ -52,7 +52,7 @@ pub async fn top_payees(
         r#"SELECT o.payee_id, COALESCE(p.name, o.normalized_label) AS "payee_name!: String",
                   s.category_id, a.currency, a.is_joint AS "is_joint: bool", o.date AS "date!: NaiveDate",
                   -s.amount_cents AS "expense_cents!: i64",
-                  1 AS "operation_count!: i64"
+                  o.id AS "operation_id!: i64"
            FROM operation_split s
            JOIN operation o ON o.id = s.operation_id
            JOIN account a ON a.id = o.account_id
@@ -71,36 +71,40 @@ pub async fn top_payees(
     .fetch_all(pool)
     .await?;
 
-    // Totals in euros and counts by (payee id, payee name, category).
+    // Totals in euros by (payee id, payee name, category), and operations by payee: the parts
+    // of a split operation count once.
     let rates = Rates::load(pool).await?;
     type Key = (Option<i64>, String, Option<i64>);
-    let mut by_category: HashMap<Key, (i64, i64)> = HashMap::new();
+    let mut by_category: HashMap<Key, i64> = HashMap::new();
+    let mut operations: HashMap<String, HashSet<i64>> = HashMap::new();
     for row in rows {
-        let total = by_category
+        operations
+            .entry(row.payee_name.clone())
+            .or_default()
+            .insert(row.operation_id);
+        *by_category
             .entry((row.payee_id, row.payee_name, row.category_id))
-            .or_default();
-        total.0 += personal_share(
+            .or_default() += personal_share(
             rates.to_reference(row.expense_cents, &row.currency, row.date),
             row.is_joint,
         );
-        total.1 += row.operation_count;
     }
 
     // Totals by payee, keeping the category with the largest share.
     let mut payees: HashMap<String, (PayeeExpense, i64)> = HashMap::new();
-    for ((payee_id, payee_name, category_id), (expense_cents, operation_count)) in by_category {
+    for ((payee_id, payee_name, category_id), expense_cents) in by_category {
         let (payee, best) = payees.entry(payee_name.clone()).or_insert_with(|| {
+            let operation_count = operations.get(&payee_name).map_or(0, HashSet::len);
             let payee = PayeeExpense {
                 payee_id,
                 payee_name,
                 expense_cents: 0,
-                operation_count: 0,
+                operation_count: i64::try_from(operation_count).unwrap_or(i64::MAX),
                 category_id: None,
             };
             (payee, i64::MIN)
         });
         payee.expense_cents += expense_cents;
-        payee.operation_count += operation_count;
         // Ties go to the smallest category id, whatever the order of the map.
         if (expense_cents, std::cmp::Reverse(category_id))
             > (*best, std::cmp::Reverse(payee.category_id))
@@ -148,7 +152,8 @@ pub async fn largest_expenses(
                       THEN a.archived = 0
                       ELSE o.account_id IN (SELECT value FROM json_each(?3)) END
              AND s.amount_cents < 0
-             AND NOT COALESCE(c.is_income, 0)"#,
+             AND NOT COALESCE(c.is_income, 0)
+           ORDER BY s.id"#,
         from,
         to,
         accounts
@@ -156,19 +161,33 @@ pub async fn largest_expenses(
     .fetch_all(pool)
     .await?;
     let rates = Rates::load(pool).await?;
-    let mut expenses: Vec<LargestExpense> = rows
-        .into_iter()
-        .map(|row| LargestExpense {
-            operation_id: row.operation_id,
-            date: row.date,
-            normalized_label: row.normalized_label,
-            payee_name: row.payee_name,
-            expense_cents: personal_share(
-                rates.to_reference(row.expense_cents, &row.currency, row.date),
-                row.is_joint,
-            ),
-            category_id: row.category_id,
-        })
+    // The expense parts of a split operation make one expense, in the category of its largest part.
+    let mut by_operation: HashMap<i64, (LargestExpense, i64)> = HashMap::new();
+    for row in rows {
+        let cents = personal_share(
+            rates.to_reference(row.expense_cents, &row.currency, row.date),
+            row.is_joint,
+        );
+        let (expense, largest_part) = by_operation.entry(row.operation_id).or_insert_with(|| {
+            let expense = LargestExpense {
+                operation_id: row.operation_id,
+                date: row.date,
+                normalized_label: row.normalized_label,
+                payee_name: row.payee_name,
+                expense_cents: 0,
+                category_id: row.category_id,
+            };
+            (expense, i64::MIN)
+        });
+        expense.expense_cents += cents;
+        if cents > *largest_part {
+            *largest_part = cents;
+            expense.category_id = row.category_id;
+        }
+    }
+    let mut expenses: Vec<LargestExpense> = by_operation
+        .into_values()
+        .map(|(expense, _)| expense)
         .collect();
     expenses.sort_by_key(|e| (std::cmp::Reverse(e.expense_cents), e.date, e.operation_id));
     expenses.truncate(limit as usize);
@@ -227,6 +246,7 @@ mod tests {
                                 amount_cents: cents,
                                 label: label.to_owned(),
                                 category_id,
+                                splits: Vec::new(),
                                 note: None,
                                 tags: Vec::new(),
                             },
@@ -321,6 +341,71 @@ mod tests {
                         category_id: Some(food),
                     },
                 ]
+            );
+        });
+    }
+
+    #[test]
+    fn counts_a_split_operation_once() {
+        tauri::async_runtime::block_on(async {
+            let pool = memory_pool().await;
+            let account_id = account::create(
+                &pool,
+                NewAccount {
+                    is_joint: false,
+                    name: "Courant".to_owned(),
+                    account_type: AccountType::Checking,
+                    currency: "EUR".to_owned(),
+                    institution: None,
+                    opening_balance_cents: 0,
+                    opening_date: date("2026-01-01"),
+                },
+            )
+            .await
+            .unwrap()
+            .id;
+            let categories = category::list(&pool).await.unwrap();
+            let find = |name: &str| categories.iter().find(|c| c.name == name).unwrap().id;
+            let (food, housing) = (find("Alimentation"), find("Loyer ou crédit"));
+            let id = operation::create(
+                &pool,
+                NewOperation {
+                    account_id,
+                    date: date("2026-10-03"),
+                    value_date: None,
+                    amount_cents: -10_000,
+                    label: "CB HYPERMARCHE".to_owned(),
+                    category_id: None,
+                    splits: vec![
+                        operation::SplitLine {
+                            category_id: housing,
+                            amount_cents: -3_000,
+                        },
+                        operation::SplitLine {
+                            category_id: food,
+                            amount_cents: -7_000,
+                        },
+                    ],
+                    note: None,
+                    tags: Vec::new(),
+                },
+            )
+            .await
+            .unwrap()
+            .id;
+            let (from, to) = (date("2026-01-01"), date("2026-12-31"));
+
+            let top = top_payees(&pool, from, to, None, 5).await.unwrap();
+            assert_eq!(top.len(), 1);
+            assert_eq!(
+                (top[0].expense_cents, top[0].operation_count, top[0].category_id),
+                (10_000, 1, Some(food))
+            );
+            let largest = largest_expenses(&pool, from, to, None, 5).await.unwrap();
+            assert_eq!(largest.len(), 1);
+            assert_eq!(
+                (largest[0].operation_id, largest[0].expense_cents, largest[0].category_id),
+                (id, 10_000, Some(food))
             );
         });
     }

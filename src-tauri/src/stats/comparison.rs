@@ -131,6 +131,7 @@ mod tests {
                             amount_cents: cents,
                             label: "Op".to_owned(),
                             category_id,
+                            splits: Vec::new(),
                             note: None,
                             tags: Vec::new(),
                         },

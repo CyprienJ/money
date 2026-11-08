@@ -170,6 +170,7 @@ async fn enter(
             amount_cents,
             label: label.to_owned(),
             category_id: None,
+            splits: Vec::new(),
             note: None,
             tags: Vec::new(),
         },

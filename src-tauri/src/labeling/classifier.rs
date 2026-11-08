@@ -189,6 +189,8 @@ pub async fn examples(pool: &SqlitePool) -> AppResult<Vec<Example>> {
            FROM operation o
            JOIN operation_split s ON s.operation_id = o.id
            WHERE s.category_id IS NOT NULL AND o.normalized_label <> ''
+             AND NOT EXISTS (SELECT 1 FROM operation_split x
+                             WHERE x.operation_id = s.operation_id AND x.id <> s.id)
            GROUP BY 1, 2, 3
            ORDER BY 1, 2, 4 DESC, 5 DESC"#
     )

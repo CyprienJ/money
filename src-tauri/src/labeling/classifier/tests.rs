@@ -150,6 +150,7 @@ fn learns_the_most_frequent_category_of_each_label_and_retrains_on_changes() {
                         amount_cents,
                         label,
                         category_id,
+                        splits: Vec::new(),
                         note: None,
                         tags: Vec::new(),
                     },

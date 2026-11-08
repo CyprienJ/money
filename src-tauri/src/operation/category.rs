@@ -80,6 +80,9 @@ pub enum CategoryError {
 
     #[error("operations cannot be moved to the deleted category itself")]
     ReassignToSelf,
+
+    #[error("parts of split operations need another category than none or internal transfer")]
+    UsedInSplits,
 }
 
 impl CategoryError {
@@ -98,7 +101,7 @@ pub async fn list(pool: &SqlitePool) -> AppResult<Vec<Category>> {
         r#"SELECT c.id, c.name, c.parent_id, c.color AS "color: CategoryColor",
                   c.is_internal_transfer AS "is_internal_transfer: bool",
                   c.is_income AS "is_income: bool",
-                  (SELECT COUNT(*) FROM operation_split s WHERE s.category_id = c.id)
+                  (SELECT COUNT(DISTINCT s.operation_id) FROM operation_split s WHERE s.category_id = c.id)
                       AS "operation_count!: i64"
            FROM category c
            ORDER BY c.name COLLATE NOCASE"#
@@ -177,6 +180,23 @@ pub async fn delete(pool: &SqlitePool, id: i64, reassign_to: Option<i64>) -> App
         Some(target) => fetch(&mut tx, target).await?.is_internal_transfer,
         None => false,
     };
+    // A part of a split operation always has a category, never the internal transfer one.
+    if reassign_to.is_none() || is_internal_transfer {
+        let in_splits = sqlx::query_scalar!(
+            r#"SELECT EXISTS (
+                   SELECT 1 FROM operation_split s
+                   WHERE s.category_id = ?1
+                     AND EXISTS (SELECT 1 FROM operation_split x
+                                 WHERE x.operation_id = s.operation_id AND x.id <> s.id)
+               ) AS "in_splits!: bool""#,
+            id
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+        if in_splits {
+            return Err(CategoryError::UsedInSplits.into());
+        }
+    }
 
     sqlx::query!(
         "UPDATE operation
@@ -215,7 +235,7 @@ async fn fetch(conn: &mut SqliteConnection, id: i64) -> AppResult<Category> {
         r#"SELECT c.id, c.name, c.parent_id, c.color AS "color: CategoryColor",
                   c.is_internal_transfer AS "is_internal_transfer: bool",
                   c.is_income AS "is_income: bool",
-                  (SELECT COUNT(*) FROM operation_split s WHERE s.category_id = c.id)
+                  (SELECT COUNT(DISTINCT s.operation_id) FROM operation_split s WHERE s.category_id = c.id)
                       AS "operation_count!: i64"
            FROM category c
            WHERE c.id = ?1"#,

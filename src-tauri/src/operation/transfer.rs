@@ -13,7 +13,7 @@ use specta::Type;
 use sqlx::{SqliteConnection, SqlitePool};
 
 use super::OperationError;
-use super::repository::timestamp;
+use super::repository::{timestamp, write_single_split};
 use crate::error::{AppError, AppResult, ErrorKind};
 
 #[cfg(test)]
@@ -297,13 +297,8 @@ async fn write_link(conn: &mut SqliteConnection, id: i64, other_id: i64) -> AppR
         )
         .execute(&mut *conn)
         .await?;
-        sqlx::query!(
-            "UPDATE operation_split SET category_id = ?2 WHERE operation_id = ?1",
-            operation_id,
-            category_id
-        )
-        .execute(&mut *conn)
-        .await?;
+        // A split operation linked by hand becomes a single transfer.
+        write_single_split(conn, operation_id, Some(category_id)).await?;
     }
     Ok(())
 }

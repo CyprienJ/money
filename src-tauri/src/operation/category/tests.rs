@@ -87,6 +87,7 @@ async fn operation_in(pool: &SqlitePool, category_id: i64) -> i64 {
             amount_cents: -1000,
             label: "Op".to_owned(),
             category_id: Some(category_id),
+            splits: Vec::new(),
             note: None,
             tags: Vec::new(),
         },

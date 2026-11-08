@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT o.normalized_label AS \"label!\", o.amount_cents > 0 AS \"is_credit!: bool\",\n                  s.category_id AS \"category_id!\", COUNT(*) AS \"count!: i64\",\n                  MAX(o.date) AS \"last_date!: String\"\n           FROM operation o\n           JOIN operation_split s ON s.operation_id = o.id\n           WHERE s.category_id IS NOT NULL AND o.normalized_label <> ''\n           GROUP BY 1, 2, 3\n           ORDER BY 1, 2, 4 DESC, 5 DESC",
+  "query": "SELECT o.normalized_label AS \"label!\", o.amount_cents > 0 AS \"is_credit!: bool\",\n                  s.category_id AS \"category_id!\", COUNT(*) AS \"count!: i64\",\n                  MAX(o.date) AS \"last_date!: String\"\n           FROM operation o\n           JOIN operation_split s ON s.operation_id = o.id\n           WHERE s.category_id IS NOT NULL AND o.normalized_label <> ''\n             AND NOT EXISTS (SELECT 1 FROM operation_split x\n                             WHERE x.operation_id = s.operation_id AND x.id <> s.id)\n           GROUP BY 1, 2, 3\n           ORDER BY 1, 2, 4 DESC, 5 DESC",
   "describe": {
     "columns": [
       {
@@ -55,5 +55,5 @@
       false
     ]
   },
-  "hash": "d9581c7933234edbcc0912f340d474293ab475eaa31b85963d1e3b1fc655fddc"
+  "hash": "fbccebfdc2245b997edbb1582aa2244c5f44c9ea28af3609e5a8ae2721a7a2c6"
 }

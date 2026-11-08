@@ -37,6 +37,7 @@ async fn enter(pool: &SqlitePool, account_id: i64, amount: i64, category_id: Opt
             amount_cents: amount,
             label: "Shop".into(),
             category_id,
+            splits: Vec::new(),
             note: None,
             tags: vec![],
         },

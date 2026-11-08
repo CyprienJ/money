@@ -34,6 +34,8 @@ pub async fn same_label(pool: &SqlitePool, id: i64) -> AppResult<SameLabel> {
            FROM operation o
            JOIN operation_split s ON s.operation_id = o.id
            WHERE o.normalized_label = ?1 AND o.id <> ?2
+             AND NOT EXISTS (SELECT 1 FROM operation_split x
+                             WHERE x.operation_id = s.operation_id AND x.id <> s.id)
            GROUP BY s.category_id
            ORDER BY COUNT(*) DESC, s.category_id"#,
         operation.normalized_label,
@@ -152,6 +154,7 @@ mod tests {
                 amount_cents: -500,
                 label: label.to_owned(),
                 category_id,
+                splits: Vec::new(),
                 note: None,
                 tags: Vec::new(),
             },

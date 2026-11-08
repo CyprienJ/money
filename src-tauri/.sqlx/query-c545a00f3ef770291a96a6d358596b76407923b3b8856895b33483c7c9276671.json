@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT s.operation_id, s.category_id AS \"category_id!\", s.amount_cents\n           FROM operation_split s\n           JOIN operation o ON o.id = s.operation_id\n           WHERE (?1 IS NULL OR o.account_id = ?1)\n             AND s.operation_id IN\n                 (SELECT operation_id FROM operation_split GROUP BY operation_id HAVING COUNT(*) > 1)\n           ORDER BY s.operation_id, s.id",
+  "describe": {
+    "columns": [
+      {
+        "name": "operation_id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation_split",
+            "name": "operation_id"
+          }
+        }
+      },
+      {
+        "name": "category_id!",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation_split",
+            "name": "category_id"
+          }
+        }
+      },
+      {
+        "name": "amount_cents",
+        "ordinal": 2,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation_split",
+            "name": "amount_cents"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "c545a00f3ef770291a96a6d358596b76407923b3b8856895b33483c7c9276671"
+}

@@ -1,8 +1,10 @@
+use std::collections::HashMap;
+
 use chrono::{NaiveDate, Utc};
 use sqlx::{SqliteConnection, SqlitePool};
 
 use super::transfer;
-use super::{NewOperation, Operation, OperationError, OperationUpdate};
+use super::{NewOperation, Operation, OperationError, OperationUpdate, SplitLine};
 use crate::account::{AccountError, AccountType};
 use crate::error::AppResult;
 use crate::labeling::{memory, normalize_label};
@@ -22,7 +24,13 @@ pub async fn create(pool: &SqlitePool, new: NewOperation) -> AppResult<Operation
 
     let mut tx = pool.begin().await?;
     check_account(&mut tx, new.account_id, new.date).await?;
-    let is_internal_transfer = internal_transfer_flag(&mut tx, new.category_id).await?;
+    let category_id = if new.splits.is_empty() {
+        new.category_id
+    } else {
+        check_splits(&mut tx, new.amount_cents, &new.splits).await?;
+        None
+    };
+    let is_internal_transfer = internal_transfer_flag(&mut tx, category_id).await?;
     let normalized_label = normalize_label(&label);
     let payee_id = payee::resolve(&mut tx, &normalized_label).await?;
     let now = timestamp();
@@ -47,15 +55,13 @@ pub async fn create(pool: &SqlitePool, new: NewOperation) -> AppResult<Operation
     .await?
     .last_insert_rowid();
 
-    sqlx::query!(
-        "INSERT INTO operation_split (operation_id, category_id, amount_cents) VALUES (?1, ?2, ?3)",
-        id,
-        new.category_id,
-        new.amount_cents
-    )
-    .execute(&mut *tx)
-    .await?;
-    memory::remember(&mut tx, &normalized_label, new.category_id, &now).await?;
+    if new.splits.is_empty() {
+        write_single_split(&mut tx, id, category_id).await?;
+        memory::remember(&mut tx, &normalized_label, category_id, &now).await?;
+    } else {
+        // A split is not remembered for the label: it is particular to the operation.
+        write_parts(&mut tx, id, &new.splits).await?;
+    }
     tag::set_for_operation(&mut tx, id, &new.tags).await?;
 
     let operation = fetch(&mut tx, id).await?;
@@ -109,18 +115,27 @@ pub async fn update(pool: &SqlitePool, id: i64, changes: OperationUpdate) -> App
         )
         .execute(&mut *tx)
         .await?;
-        sqlx::query!(
-            "UPDATE operation_split SET amount_cents = ?2 WHERE operation_id = ?1",
-            id,
-            changes.amount_cents
-        )
-        .execute(&mut *tx)
-        .await?;
     }
 
-    // Only a new category is a categorization by the user, remembered for the label.
-    if changes.category_id != current.category_id {
+    if !changes.splits.is_empty() {
+        check_splits(&mut tx, changes.amount_cents, &changes.splits).await?;
+        if changes.splits != current.splits {
+            transfer::unlink_conn(&mut tx, id).await?;
+            write_parts(&mut tx, id, &changes.splits).await?;
+            sqlx::query!(
+                "UPDATE operation SET is_internal_transfer = 0, updated_at = ?2 WHERE id = ?1",
+                id,
+                now
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+    } else if changes.category_id != current.category_id || !current.splits.is_empty() {
+        // Only a new category is a categorization by the user, remembered for the label.
         write_category(&mut tx, id, changes.category_id, &now).await?;
+    } else {
+        // The single split follows the amount of the operation.
+        write_single_split(&mut tx, id, current.category_id).await?;
     }
     tag::set_for_operation(&mut tx, id, &changes.tags).await?;
     let operation = fetch(&mut tx, id).await?;
@@ -164,13 +179,11 @@ async fn fetch(conn: &mut SqliteConnection, id: i64) -> AppResult<Operation> {
                   o.import_batch_id,
                   COALESCE(b.stored_file IS NOT NULL, 0) AS "has_source_document!: bool",
                   o.source_page AS "source_page: u32", o.source_line AS "source_line: u32",
-                  s.category_id,
                   o.is_internal_transfer AS "is_internal_transfer: bool", o.transfer_pair_id,
                   o.note,
                   (SELECT COUNT(*) FROM attachment a WHERE a.operation_id = o.id)
                       AS "attachment_count!: i64"
            FROM operation o
-           LEFT JOIN operation_split s ON s.operation_id = o.id
            LEFT JOIN payee p ON p.id = o.payee_id
            LEFT JOIN import_batch b ON b.id = o.import_batch_id
            WHERE o.id = ?1"#,
@@ -179,6 +192,26 @@ async fn fetch(conn: &mut SqliteConnection, id: i64) -> AppResult<Operation> {
     .fetch_optional(&mut *conn)
     .await?
     .ok_or(OperationError::NotFound(id))?;
+    let mut splits = sqlx::query!(
+        "SELECT category_id, amount_cents FROM operation_split WHERE operation_id = ?1 ORDER BY id",
+        id
+    )
+    .fetch_all(&mut *conn)
+    .await?;
+    let (category_id, splits) = if splits.len() == 1 {
+        (splits.remove(0).category_id, Vec::new())
+    } else {
+        let parts = splits
+            .into_iter()
+            .filter_map(|s| {
+                Some(SplitLine {
+                    category_id: s.category_id?,
+                    amount_cents: s.amount_cents,
+                })
+            })
+            .collect();
+        (None, parts)
+    };
     Ok(Operation {
         id: row.id,
         account_id: row.account_id,
@@ -193,7 +226,8 @@ async fn fetch(conn: &mut SqliteConnection, id: i64) -> AppResult<Operation> {
         has_source_document: row.has_source_document,
         source_page: row.source_page,
         source_line: row.source_line,
-        category_id: row.category_id,
+        category_id,
+        splits,
         is_internal_transfer: row.is_internal_transfer,
         transfer_pair_id: row.transfer_pair_id,
         note: row.note,
@@ -202,7 +236,7 @@ async fn fetch(conn: &mut SqliteConnection, id: i64) -> AppResult<Operation> {
     })
 }
 
-/// Writes the category on the split and the derived internal transfer flag on the operation,
+/// Writes the category on the single split (replacing the parts of a split operation) and the derived internal transfer flag on the operation,
 /// and remembers it for the operation label: this is a categorization by the user. An operation
 /// leaving the internal transfer category is unlinked from its transfer.
 async fn write_category(
@@ -215,13 +249,7 @@ async fn write_category(
     if !is_internal_transfer {
         transfer::unlink_conn(conn, id).await?;
     }
-    sqlx::query!(
-        "UPDATE operation_split SET category_id = ?2 WHERE operation_id = ?1",
-        id,
-        category_id
-    )
-    .execute(&mut *conn)
-    .await?;
+    write_single_split(conn, id, category_id).await?;
     sqlx::query!(
         "UPDATE operation SET is_internal_transfer = ?2, updated_at = ?3 WHERE id = ?1",
         id,
@@ -235,6 +263,103 @@ async fn write_category(
             .fetch_one(&mut *conn)
             .await?;
     memory::remember(conn, &normalized_label, category_id, now).await?;
+    Ok(())
+}
+
+/// Parts of the split operations of an account (of every account with `None`), by operation.
+pub(super) async fn parts_by_operation(
+    pool: &SqlitePool,
+    account_id: Option<i64>,
+) -> AppResult<HashMap<i64, Vec<SplitLine>>> {
+    let rows = sqlx::query!(
+        r#"SELECT s.operation_id, s.category_id AS "category_id!", s.amount_cents
+           FROM operation_split s
+           JOIN operation o ON o.id = s.operation_id
+           WHERE (?1 IS NULL OR o.account_id = ?1)
+             AND s.operation_id IN
+                 (SELECT operation_id FROM operation_split GROUP BY operation_id HAVING COUNT(*) > 1)
+           ORDER BY s.operation_id, s.id"#,
+        account_id
+    )
+    .fetch_all(pool)
+    .await?;
+    let mut parts: HashMap<i64, Vec<SplitLine>> = HashMap::new();
+    for row in rows {
+        parts.entry(row.operation_id).or_default().push(SplitLine {
+            category_id: row.category_id,
+            amount_cents: row.amount_cents,
+        });
+    }
+    Ok(parts)
+}
+
+/// Replaces the splits of an operation by one split of its whole amount in `category_id`.
+pub(super) async fn write_single_split(
+    conn: &mut SqliteConnection,
+    id: i64,
+    category_id: Option<i64>,
+) -> AppResult<()> {
+    sqlx::query!("DELETE FROM operation_split WHERE operation_id = ?1", id)
+        .execute(&mut *conn)
+        .await?;
+    sqlx::query!(
+        "INSERT INTO operation_split (operation_id, category_id, amount_cents)
+         SELECT id, ?2, amount_cents FROM operation WHERE id = ?1",
+        id,
+        category_id
+    )
+    .execute(&mut *conn)
+    .await?;
+    Ok(())
+}
+
+/// Replaces the splits of an operation by `parts`, already checked.
+async fn write_parts(conn: &mut SqliteConnection, id: i64, parts: &[SplitLine]) -> AppResult<()> {
+    sqlx::query!("DELETE FROM operation_split WHERE operation_id = ?1", id)
+        .execute(&mut *conn)
+        .await?;
+    for part in parts {
+        sqlx::query!(
+            "INSERT INTO operation_split (operation_id, category_id, amount_cents) VALUES (?1, ?2, ?3)",
+            id,
+            part.category_id,
+            part.amount_cents
+        )
+        .execute(&mut *conn)
+        .await?;
+    }
+    Ok(())
+}
+
+/// Checks the parts of a split operation of `amount_cents`: at least two, existing categories
+/// other than the internal transfer one, non-zero amounts of the operation's sign, summing to it.
+async fn check_splits(
+    conn: &mut SqliteConnection,
+    amount_cents: i64,
+    parts: &[SplitLine],
+) -> AppResult<()> {
+    if parts.len() < 2 {
+        return Err(OperationError::SplitTooFewParts.into());
+    }
+    for part in parts {
+        if part.amount_cents == 0 || part.amount_cents.signum() != amount_cents.signum() {
+            return Err(OperationError::SplitPartAmount.into());
+        }
+        if internal_transfer_flag(conn, Some(part.category_id)).await? {
+            return Err(OperationError::SplitInternalTransfer.into());
+        }
+    }
+    let actual = parts
+        .iter()
+        .try_fold(0_i64, |sum, part| sum.checked_add(part.amount_cents))
+        .ok_or(OperationError::SplitPartAmount)?;
+    if actual != amount_cents {
+        return Err(OperationError::SplitTotalMismatch {
+            expected: amount_cents,
+            actual,
+        }
+        .into());
+    }
     Ok(())
 }
 

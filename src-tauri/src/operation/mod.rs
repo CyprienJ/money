@@ -20,7 +20,7 @@ use specta::Type;
 
 use crate::error::ErrorKind;
 
-/// An operation with its category. V1 has exactly one split per operation.
+/// An operation with its category, or its parts when it is split.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Operation {
@@ -45,8 +45,10 @@ pub struct Operation {
     pub source_page: Option<u32>,
     /// Line of the operation in its text file (CSV, OFX, QIF), from 1.
     pub source_line: Option<u32>,
-    /// `None` while the operation is still to categorize.
+    /// `None` while the operation is still to categorize, and when it is split.
     pub category_id: Option<i64>,
+    /// Parts of a split operation, in entry order; empty when it has a single category.
+    pub splits: Vec<SplitLine>,
     /// Derived from the category; excluded from income and expense statistics.
     pub is_internal_transfer: bool,
     /// The other side of the internal transfer, on another account, once linked.
@@ -74,7 +76,10 @@ pub struct NewOperation {
     pub value_date: Option<NaiveDate>,
     pub amount_cents: i64,
     pub label: String,
+    /// Ignored when `splits` is not empty.
     pub category_id: Option<i64>,
+    /// Parts of a split operation; empty for a single category.
+    pub splits: Vec<SplitLine>,
     pub note: Option<String>,
     /// Tag names; unknown ones create a tag.
     pub tags: Vec<String>,
@@ -90,10 +95,22 @@ pub struct OperationUpdate {
     pub value_date: Option<NaiveDate>,
     pub amount_cents: i64,
     pub label: String,
+    /// Ignored when `splits` is not empty.
     pub category_id: Option<i64>,
+    /// Parts of a split operation; empty for a single category.
+    pub splits: Vec<SplitLine>,
     pub note: Option<String>,
     /// Tag names; unknown ones create a tag.
     pub tags: Vec<String>,
+}
+
+/// A part of a split operation: at least two parts, each with a category other than the
+/// internal transfer one and an amount of the sign of the operation, summing to its amount.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct SplitLine {
+    pub category_id: i64,
+    pub amount_cents: i64,
 }
 
 /// Serialized for the frontend as `{ code, params }`, to show a message in French.
@@ -128,6 +145,18 @@ pub enum OperationError {
 
     #[error("an imported operation cannot be deleted alone, cancel its import instead")]
     ImportedOperationNotDeletable,
+
+    #[error("a split operation needs at least two parts")]
+    SplitTooFewParts,
+
+    #[error("a part of a split operation cannot be an internal transfer")]
+    SplitInternalTransfer,
+
+    #[error("each part of a split operation needs a non-zero amount of the operation's sign")]
+    SplitPartAmount,
+
+    #[error("the parts of a split operation sum to {actual}, not {expected}")]
+    SplitTotalMismatch { expected: i64, actual: i64 },
 }
 
 impl OperationError {

@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT category_id, amount_cents FROM operation_split WHERE operation_id = ?1 ORDER BY id",
+  "describe": {
+    "columns": [
+      {
+        "name": "category_id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation_split",
+            "name": "category_id"
+          }
+        }
+      },
+      {
+        "name": "amount_cents",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "operation_split",
+            "name": "amount_cents"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false
+    ]
+  },
+  "hash": "95839ee1a7ab418319c0ea9f8f61f25ce48e4c6ac73ba4fd14371f65424e7d8b"
+}

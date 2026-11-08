@@ -88,6 +88,7 @@ async fn new_operation(pool: &SqlitePool) -> i64 {
             amount_cents: -4500,
             label: "Fnac".to_owned(),
             category_id: None,
+            splits: Vec::new(),
             note: None,
             tags: Vec::new(),
         },

@@ -47,6 +47,7 @@ async fn enter(
             amount_cents,
             label: format!("Op {day} {amount_cents}"),
             category_id,
+            splits: Vec::new(),
             note: None,
             tags: Vec::new(),
         },

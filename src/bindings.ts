@@ -518,7 +518,7 @@ export type CategoryCount = {
 };
 
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
-export type CategoryError = { code: "notFound"; params: number } | { code: "emptyName" } | { code: "duplicateName"; params: string } | { code: "systemCategoryLocked" } | { code: "invalidParent" } | { code: "hasSubcategories" } | { code: "reassignToSelf" };
+export type CategoryError = { code: "notFound"; params: number } | { code: "emptyName" } | { code: "duplicateName"; params: string } | { code: "systemCategoryLocked" } | { code: "invalidParent" } | { code: "hasSubcategories" } | { code: "reassignToSelf" } | { code: "usedInSplits" };
 
 export type CategoryExpense = {
 	/**  `None` for uncategorized expenses. */
@@ -877,13 +877,16 @@ export type NewOperation = {
 	valueDate: string | null,
 	amountCents: number,
 	label: string,
+	/**  Ignored when `splits` is not empty. */
 	categoryId: number | null,
+	/**  Parts of a split operation; empty for a single category. */
+	splits: SplitLine[],
 	note: string | null,
 	/**  Tag names; unknown ones create a tag. */
 	tags: string[],
 };
 
-/**  An operation with its category. V1 has exactly one split per operation. */
+/**  An operation with its category, or its parts when it is split. */
 export type Operation = {
 	id: number,
 	accountId: number,
@@ -906,8 +909,10 @@ export type Operation = {
 	sourcePage: number | null,
 	/**  Line of the operation in its text file (CSV, OFX, QIF), from 1. */
 	sourceLine: number | null,
-	/**  `None` while the operation is still to categorize. */
+	/**  `None` while the operation is still to categorize, and when it is split. */
 	categoryId: number | null,
+	/**  Parts of a split operation, in entry order; empty when it has a single category. */
+	splits: SplitLine[],
 	/**  Derived from the category; excluded from income and expense statistics. */
 	isInternalTransfer: boolean,
 	/**  The other side of the internal transfer, on another account, once linked. */
@@ -919,7 +924,10 @@ export type Operation = {
 };
 
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
-export type OperationError = { code: "notFound"; params: number } | { code: "categoryNotFound"; params: number } | { code: "emptyLabel" } | { code: "zeroAmount" } | { code: "accountWithoutOperations" } | { code: "dateBeforeOpening"; params: string } | { code: "importedFieldsLocked" } | { code: "importedOperationNotDeletable" };
+export type OperationError = { code: "notFound"; params: number } | { code: "categoryNotFound"; params: number } | { code: "emptyLabel" } | { code: "zeroAmount" } | { code: "accountWithoutOperations" } | { code: "dateBeforeOpening"; params: string } | { code: "importedFieldsLocked" } | { code: "importedOperationNotDeletable" } | { code: "splitTooFewParts" } | { code: "splitInternalTransfer" } | { code: "splitPartAmount" } | { code: "splitTotalMismatch"; params: {
+	expected: number,
+	actual: number,
+} };
 
 /**  Filters combined with AND; a `None` filter keeps everything. Bounds are included. */
 export type OperationFilter = {
@@ -961,7 +969,10 @@ export type OperationUpdate = {
 	valueDate: string | null,
 	amountCents: number,
 	label: string,
+	/**  Ignored when `splits` is not empty. */
 	categoryId: number | null,
+	/**  Parts of a split operation; empty for a single category. */
+	splits: SplitLine[],
 	note: string | null,
 	/**  Tag names; unknown ones create a tag. */
 	tags: string[],
@@ -1294,6 +1305,15 @@ export type SourceDocument = {
 export type SourceDocumentError = { code: "notKept"; params: number } | { code: "fileMissing"; params: number } | { code: "notText"; params: number };
 
 export type SourceType = "CSV" | "PDF" | "OFX" | "QIF";
+
+/**
+ *  A part of a split operation: at least two parts, each with a category other than the
+ *  internal transfer one and an amount of the sign of the operation, summing to its amount.
+ */
+export type SplitLine = {
+	categoryId: number,
+	amountCents: number,
+};
 
 /**  Lines kept according to a state column, e.g. only `COMPLETED` operations. */
 export type StateFilter = {

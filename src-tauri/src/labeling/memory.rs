@@ -143,6 +143,7 @@ mod tests {
                 amount_cents: -500,
                 label: label.to_owned(),
                 category_id,
+                splits: Vec::new(),
             };
 
             // At creation, under the normalized label.
@@ -171,6 +172,7 @@ mod tests {
                     amount_cents: fnac.amount_cents,
                     label: "CB FNAC.COM".to_owned(),
                     category_id: Some(groceries),
+                    splits: Vec::new(),
                     note: None,
                     tags: Vec::new(),
                 },

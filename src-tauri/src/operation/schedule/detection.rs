@@ -170,12 +170,13 @@ pub async fn suggestions(
 ) -> AppResult<Vec<RecurringSuggestion>> {
     let rows = sqlx::query!(
         r#"SELECT o.account_id, o.payee_id AS "payee_id!", p.name AS payee_name,
-                  o.date AS "date: NaiveDate", o.amount_cents, s.category_id,
+                  o.date AS "date: NaiveDate", o.amount_cents,
+                  (SELECT CASE WHEN COUNT(*) = 1 THEN MAX(s.category_id) END
+                   FROM operation_split s WHERE s.operation_id = o.id) AS "category_id?: i64",
                   EXISTS (SELECT 1 FROM schedule_match m WHERE m.operation_id = o.id)
                       AS "matched!: bool"
            FROM operation o
            JOIN payee p ON p.id = o.payee_id
-           LEFT JOIN operation_split s ON s.operation_id = o.id
            WHERE o.date <= ?1
            ORDER BY o.date, o.id"#,
         today

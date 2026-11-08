@@ -79,6 +79,7 @@ async fn enter(
             amount_cents,
             label: label.to_owned(),
             category_id,
+            splits: Vec::new(),
             note: None,
             tags: tags.iter().map(|t| (*t).to_owned()).collect(),
         },

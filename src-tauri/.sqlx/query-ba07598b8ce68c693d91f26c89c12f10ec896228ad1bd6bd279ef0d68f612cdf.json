@@ -1,0 +1,21 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT EXISTS (\n                   SELECT 1 FROM operation_split s\n                   WHERE s.category_id = ?1\n                     AND EXISTS (SELECT 1 FROM operation_split x\n                                 WHERE x.operation_id = s.operation_id AND x.id <> s.id)\n               ) AS \"in_splits!: bool\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "in_splits!: bool",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ba07598b8ce68c693d91f26c89c12f10ec896228ad1bd6bd279ef0d68f612cdf"
+}

@@ -181,6 +181,7 @@ fn renormalizes_stored_labels() {
                 amount_cents: -1000,
                 label: "CB CARREFOUR MKT 18/10".to_owned(),
                 category_id: None,
+                splits: Vec::new(),
                 note: None,
                 tags: Vec::new(),
             },

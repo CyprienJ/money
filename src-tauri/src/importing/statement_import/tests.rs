@@ -131,6 +131,7 @@ async fn enter(pool: &SqlitePool, account_id: i64, day: &str, cents: i64, label:
             amount_cents: cents,
             label: label.to_owned(),
             category_id: None,
+            splits: Vec::new(),
             note: None,
             tags: Vec::new(),
         },
