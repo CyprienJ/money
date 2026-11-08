@@ -13,7 +13,7 @@ use sqlx::SqlitePool;
 use super::RawLine;
 use crate::error::{AppResult, ErrorKind};
 use crate::labeling::{memory, normalize_label};
-use crate::operation::{check_account, internal_transfer_flag, timestamp};
+use crate::operation::{SplitLine, check_account, internal_transfer_flag, timestamp};
 use crate::payee;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Type, sqlx::Type)]
@@ -93,6 +93,9 @@ pub enum ImportError {
 
     #[error("line {0} is already in the account and cannot be imported again")]
     DuplicateLine(u32),
+
+    #[error("the parts of a split line need categories other than none or internal transfer")]
+    InvalidSplit,
 }
 
 impl ImportError {
@@ -135,7 +138,11 @@ pub async fn backup(pool: &SqlitePool, dir: &Path) -> AppResult<PathBuf> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportLine {
     pub line: RawLine,
+    /// Ignored when `splits` is not empty.
     pub category_id: Option<i64>,
+    /// Parts of a split operation: at least two, in categories other than the internal
+    /// transfer one, non-zero and of the sign of the line, summing to its amount.
+    pub splits: Vec<SplitLine>,
     /// The user chose this category: remember it for the label (category memory).
     pub chosen: bool,
 }
@@ -163,7 +170,13 @@ pub async fn import(
     {
         let mut conn = pool.acquire().await?;
         check_account(&mut conn, batch.account_id, first_date).await?;
-        for category_id in lines.iter().map(|l| l.category_id) {
+        // Collected first: an iterator of closures cannot be held across an await.
+        let mut categories = Vec::new();
+        for line in lines {
+            categories.push(line.category_id);
+            categories.extend(line.splits.iter().map(|s| Some(s.category_id)));
+        }
+        for category_id in categories {
             if let Entry::Vacant(entry) = internal_transfer.entry(category_id) {
                 entry.insert(internal_transfer_flag(&mut conn, category_id).await?);
             }
@@ -194,16 +207,31 @@ pub async fn import(
     .await?
     .last_insert_rowid();
 
+    for ImportLine { line, splits, .. } in lines.iter().filter(|l| !l.splits.is_empty()) {
+        let consistent = splits.len() >= 2
+            && splits.iter().all(|s| {
+                s.amount_cents != 0
+                    && s.amount_cents.signum() == line.amount_cents.signum()
+                    && !internal_transfer[&Some(s.category_id)]
+            })
+            && splits.iter().map(|s| s.amount_cents).sum::<i64>() == line.amount_cents;
+        if !consistent {
+            return Err(ImportError::InvalidSplit.into());
+        }
+    }
+
     for ImportLine {
         line,
         category_id,
+        splits,
         chosen,
     } in lines
     {
+        let is_internal_transfer = splits.is_empty() && internal_transfer[category_id];
+        let category_id = if splits.is_empty() { *category_id } else { None };
         let label = line.label.trim();
         let normalized_label = normalize_label(label);
         let payee_id = payee::resolve(&mut tx, &normalized_label).await?;
-        let is_internal_transfer = internal_transfer[category_id];
         let operation_id = sqlx::query!(
             "INSERT INTO operation
              (account_id, date, value_date, amount_cents, raw_label, normalized_label, payee_id,
@@ -227,17 +255,28 @@ pub async fn import(
         .execute(&mut *tx)
         .await?
         .last_insert_rowid();
-        sqlx::query!(
-            "INSERT INTO operation_split (operation_id, category_id, amount_cents)
-             VALUES (?1, ?2, ?3)",
-            operation_id,
-            category_id,
-            line.amount_cents
-        )
-        .execute(&mut *tx)
-        .await?;
-        if *chosen {
-            memory::remember(&mut tx, &normalized_label, *category_id, &now).await?;
+        let parts: Vec<(Option<i64>, i64)> = if splits.is_empty() {
+            vec![(category_id, line.amount_cents)]
+        } else {
+            splits
+                .iter()
+                .map(|s| (Some(s.category_id), s.amount_cents))
+                .collect()
+        };
+        for (category_id, amount_cents) in parts {
+            sqlx::query!(
+                "INSERT INTO operation_split (operation_id, category_id, amount_cents)
+                 VALUES (?1, ?2, ?3)",
+                operation_id,
+                category_id,
+                amount_cents
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+        // A split is not remembered for the label.
+        if *chosen && splits.is_empty() {
+            memory::remember(&mut tx, &normalized_label, category_id, &now).await?;
         }
     }
     tx.commit().await?;

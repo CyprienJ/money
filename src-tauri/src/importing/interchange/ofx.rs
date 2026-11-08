@@ -120,6 +120,7 @@ impl Transaction {
             amount_cents,
             note,
             source_category: None,
+            splits: Vec::new(),
             source_page: None,
             source_line: Some(line_at(text, self.offset)),
         })

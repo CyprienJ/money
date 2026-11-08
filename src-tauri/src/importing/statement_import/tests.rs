@@ -117,6 +117,7 @@ async fn proposed(setup: &Setup, indexes: &[u32]) -> Vec<ImportSelection> {
                 .lines
                 .get(index as usize)
                 .and_then(|l| l.category_id),
+            split: false,
         })
         .collect()
 }
@@ -427,16 +428,19 @@ fn remembers_categories_chosen_in_the_preview() {
             ImportSelection {
                 index: 2,
                 category_id: Some(restaurants),
+                split: false,
             },
             // Proposed category kept.
             ImportSelection {
                 index: 3,
                 category_id: Some(salary),
+                split: false,
             },
             // Left to categorize.
             ImportSelection {
                 index: 1,
                 category_id: None,
+                split: false,
             },
         ];
         import(
@@ -499,6 +503,7 @@ fn previews_and_imports_a_pdf_statement() {
         let selections = [ImportSelection {
             index: 1,
             category_id: None,
+            split: false,
         }];
         let batch = import(
             &setup.pool,
@@ -623,6 +628,7 @@ fn imports_a_qif_file_with_its_categories() {
                 .map(|(index, category_id)| ImportSelection {
                     index: index as u32,
                     category_id,
+                    split: false,
                 })
                 .collect();
         let choices = [SourceCategoryChoice {
@@ -665,6 +671,105 @@ fn imports_a_qif_file_with_its_categories() {
         let again = super::preview(&setup.pool, qif_file(&setup)).await.unwrap();
         let fees = &again.source_categories[0];
         assert_eq!((fees.category_id, fees.remembered), (Some(other), true));
+    });
+}
+
+const SPLIT_QIF: &str = "!Type:Bank
+D02/09/26
+T-40,00
+PHypermarche
+MRentree
+SCourses:Alimentation
+$-30,00
+SBanque:Frais
+$-10,00
+^
+D03/09/26
+T-50,00
+PFnac
+SLoisirs
+$-20,00
+S[Livret A]
+$-30,00
+^
+";
+
+#[test]
+fn imports_the_parts_of_a_split_qif_line() {
+    run(|setup| async move {
+        let categories = category::list(&setup.pool).await.unwrap();
+        let other = categories.iter().find(|c| c.name == "Autres").unwrap().id;
+        let file = StatementFile {
+            file_name: "ventile.qif",
+            bytes: SPLIT_QIF.as_bytes(),
+            format: ImportFormat::Qif,
+            ..setup.file()
+        };
+        let preview = preview(&setup.pool, file).await.unwrap();
+        // The categories of the parts are categories of the file, transfers excepted.
+        let found: Vec<(&str, u32)> = preview
+            .source_categories
+            .iter()
+            .map(|c| (c.name.as_str(), c.line_count))
+            .collect();
+        assert_eq!(
+            found,
+            [("Banque:Frais", 1), ("Courses:Alimentation", 1), ("Loisirs", 1)]
+        );
+        let food = preview.source_categories[1].category_id.unwrap();
+        let import_with = |selections: Vec<ImportSelection>, choices: Vec<SourceCategoryChoice>| {
+            let pool = setup.pool.clone();
+            let (backups, statements) = (setup.backups.clone(), setup.statements.clone());
+            let hash = preview.file_hash.clone();
+            async move {
+                import(&pool, &backups, &statements, file, &hash, &selections, &choices).await
+            }
+        };
+        let selection = |index: u32, split: bool| ImportSelection {
+            index,
+            category_id: None,
+            split,
+        };
+
+        // A part without a category, or a transfer part, cannot be imported split.
+        for index in [0, 1] {
+            assert!(matches!(
+                import_with(vec![selection(index, true)], Vec::new()).await,
+                Err(AppError::Import(ImportError::InvalidSplit))
+            ));
+        }
+
+        let choices = vec![SourceCategoryChoice {
+            name: "Banque:Frais".to_owned(),
+            category_id: Some(other),
+        }];
+        let batch = import_with(vec![selection(0, true), selection(1, false)], choices)
+            .await
+            .unwrap();
+        assert_eq!(batch.operation_count, 2);
+        let rows = crate::operation::list(&setup.pool, setup.account_id, None, None)
+            .await
+            .unwrap();
+        let split = &rows[1].operation;
+        assert_eq!(split.raw_label, "Hypermarche");
+        assert_eq!(split.note.as_deref(), Some("Rentree"));
+        let parts: Vec<(i64, i64)> = split
+            .splits
+            .iter()
+            .map(|p| (p.category_id, p.amount_cents))
+            .collect();
+        assert_eq!(parts, [(food, -3_000), (other, -1_000)]);
+        // Imported as a single operation, its parts go to the note.
+        let single = &rows[0].operation;
+        assert_eq!((single.category_id, single.splits.len()), (None, 0));
+        assert_eq!(
+            single.note.as_deref(),
+            Some("Ventilation : Loisirs -20,00 ; [Livret A] -30,00")
+        );
+        // A split is not remembered for the label.
+        let mut conn = setup.pool.acquire().await.unwrap();
+        let remembered = memory::recall(&mut conn, &["HYPERMARCHE"]).await.unwrap();
+        assert!(remembered.is_empty());
     });
 }
 

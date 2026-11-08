@@ -23,10 +23,12 @@ fn line(day: &str, amount_cents: i64, label: &str) -> ImportLine {
             amount_cents,
             note: None,
             source_category: None,
+            splits: Vec::new(),
             source_page: None,
             source_line: None,
         },
         category_id: None,
+        splits: Vec::new(),
         chosen: false,
     }
 }
@@ -138,6 +140,7 @@ fn imports_lines_as_uncategorized_operations() {
                     ..line("2026-09-03", 245_000, "VIR SALAIRE").line
                 },
                 category_id: None,
+                splits: Vec::new(),
                 chosen: false,
             },
         ];

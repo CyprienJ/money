@@ -37,10 +37,22 @@ pub struct RawLine {
     pub note: Option<String>,
     /// Category given by a QIF file, e.g. "Alimentation:Courses"; `[Compte]` for a transfer.
     pub source_category: Option<String>,
+    /// Parts of a split line of a QIF file, consistent with its amount: at least two, in
+    /// several categories, non-zero and of its sign, summing to it. Empty otherwise.
+    pub splits: Vec<RawSplit>,
     /// Page of the line in a PDF statement, from 1.
     pub source_page: Option<u32>,
     /// Line in a text file (CSV, OFX, QIF), from 1.
     pub source_line: Option<u32>,
+}
+
+/// A part of a split line of a QIF file.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct RawSplit {
+    /// Category given by the file, as `RawLine::source_category`; `None` when empty.
+    pub source_category: Option<String>,
+    pub amount_cents: i64,
 }
 
 #[cfg(test)]

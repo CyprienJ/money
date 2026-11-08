@@ -133,6 +133,7 @@ fn raw(day: &str, value_date: Option<&str>, label: &str, amount_cents: i64) -> R
         amount_cents,
         note: None,
         source_category: None,
+        splits: Vec::new(),
         source_page: None,
         source_line: None,
     }

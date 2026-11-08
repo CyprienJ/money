@@ -11,7 +11,7 @@
 use chrono::NaiveDate;
 
 use super::{InterchangeError, decode, parse_grouped_amount};
-use crate::importing::{RawLine, Statement};
+use crate::importing::{RawLine, RawSplit, Statement};
 
 /// Payees of the opening balance record written by Money and Quicken.
 const OPENING_BALANCE_PAYEES: [&str; 4] = [
@@ -184,7 +184,7 @@ pub fn parse(bytes: &[u8]) -> Result<Statement, InterchangeError> {
         if amount_cents == 0 {
             continue;
         }
-        let (source_category, splits_note) = split_details(record)?;
+        let (source_category, splits_note, splits) = split_details(record, amount_cents)?;
         let memo = record.memo.clone().filter(|memo| !memo.is_empty());
         let payee = record.payee.clone().filter(|payee| !payee.is_empty());
         let (label, memo) = match (payee, memo) {
@@ -209,6 +209,7 @@ pub fn parse(bytes: &[u8]) -> Result<Statement, InterchangeError> {
             amount_cents,
             note: (!note.is_empty()).then(|| note.join(" · ")),
             source_category,
+            splits,
             source_page: None,
             source_line: Some(record.line),
         });
@@ -239,30 +240,71 @@ fn is_opening_balance(record: &Record) -> bool {
         && OPENING_BALANCE_PAYEES.contains(&payee.as_str())
 }
 
-/// Category of a transaction, and the detail of its splits for the note. A split transaction
-/// keeps a category only when every split has the same.
-fn split_details(record: &Record) -> Result<(Option<String>, Option<String>), InterchangeError> {
+/// Details of a transaction of `total` cents: its category, the detail of its splits for the
+/// note, and its parts. Splits consistent with the total, in several categories, are kept as
+/// parts, without note. Otherwise, a split transaction keeps a category only when every split
+/// has the same, and its splits are detailed in the note.
+type Details = (Option<String>, Option<String>, Vec<RawSplit>);
+
+fn split_details(record: &Record, total: i64) -> Result<Details, InterchangeError> {
     if record.splits.is_empty() {
-        return Ok((record.category.clone(), None));
+        return Ok((record.category.clone(), None, Vec::new()));
     }
-    let mut parts = Vec::new();
+    let mut amounts = Vec::new();
     for split in &record.splits {
-        let name = split.category.as_deref().unwrap_or("Sans catégorie");
-        match &split.amount {
-            Some((line, text)) => {
-                parts.push(format!("{name} {}", format_cents(amount(*line, text)?)))
-            }
-            None => parts.push(name.to_owned()),
-        }
+        amounts.push(match &split.amount {
+            Some((line, text)) => Some(amount(*line, text)?),
+            None => None,
+        });
     }
     let first = &record.splits[0].category;
-    let shared = record
+    let same_category = record.splits.iter().all(|split| split.category == *first);
+    let parts: Option<Vec<RawSplit>> = record
         .splits
         .iter()
-        .all(|split| split.category == *first)
-        .then(|| first.clone())
-        .flatten();
-    Ok((shared, Some(format!("Ventilation : {}", parts.join(" ; ")))))
+        .zip(&amounts)
+        .map(|(split, amount)| {
+            let amount_cents = (*amount)?;
+            (amount_cents != 0 && amount_cents.signum() == total.signum()).then(|| RawSplit {
+                source_category: split.category.clone(),
+                amount_cents,
+            })
+        })
+        .collect();
+    if let Some(parts) = parts
+        && parts.len() >= 2
+        && !same_category
+        && parts.iter().map(|part| part.amount_cents).sum::<i64>() == total
+    {
+        return Ok((None, None, parts));
+    }
+
+    let detail: Vec<String> = record
+        .splits
+        .iter()
+        .zip(&amounts)
+        .map(|(split, amount)| part_text(split.category.as_deref(), *amount))
+        .collect();
+    let shared = same_category.then(|| first.clone()).flatten();
+    Ok((shared, Some(format!("Ventilation : {}", detail.join(" ; "))), Vec::new()))
+}
+
+/// "Ventilation : Alimentation -12,00 ; Loisirs -8,00", the note of a split line imported as
+/// a single operation.
+pub(crate) fn split_note(parts: &[RawSplit]) -> String {
+    let detail: Vec<String> = parts
+        .iter()
+        .map(|part| part_text(part.source_category.as_deref(), Some(part.amount_cents)))
+        .collect();
+    format!("Ventilation : {}", detail.join(" ; "))
+}
+
+fn part_text(category: Option<&str>, amount_cents: Option<i64>) -> String {
+    let name = category.unwrap_or("Sans catégorie");
+    match amount_cents {
+        Some(cents) => format!("{name} {}", format_cents(cents)),
+        None => name.to_owned(),
+    }
 }
 
 /// "-12,50" for the note of a split transaction.

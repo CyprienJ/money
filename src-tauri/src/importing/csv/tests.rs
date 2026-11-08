@@ -21,6 +21,7 @@ fn line(day: &str, label: &str, amount_cents: i64) -> RawLine {
         amount_cents,
         note: None,
         source_category: None,
+        splits: Vec::new(),
         source_page: None,
         source_line: None,
     }

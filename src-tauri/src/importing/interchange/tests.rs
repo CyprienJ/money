@@ -1,7 +1,7 @@
 use chrono::NaiveDate;
 
 use super::*;
-use crate::importing::{RawLine, Statement};
+use crate::importing::{RawLine, RawSplit, Statement};
 
 fn date(text: &str) -> NaiveDate {
     text.parse().unwrap()
@@ -15,6 +15,7 @@ fn line(day: &str, label: &str, amount_cents: i64) -> RawLine {
         amount_cents,
         note: None,
         source_category: None,
+        splits: Vec::new(),
         source_page: None,
         source_line: None,
     }
@@ -226,11 +227,20 @@ fn reads_a_money_qif_export() {
                 Some("[Livret A]"),
                 None
             ),
-            with(
-                line("2000-12-31", "Carrefour", -2000),
-                None,
-                Some("Ventilation : Alimentation:Courses -12,00 ; Loisirs -8,00")
-            ),
+            // Splits consistent with the amount are kept as parts.
+            RawLine {
+                splits: vec![
+                    RawSplit {
+                        source_category: Some("Alimentation:Courses".to_owned()),
+                        amount_cents: -1200,
+                    },
+                    RawSplit {
+                        source_category: Some("Loisirs".to_owned()),
+                        amount_cents: -800,
+                    },
+                ],
+                ..line("2000-12-31", "Carrefour", -2000)
+            },
             with(
                 line("2001-01-02", "Fnac", -4550),
                 Some("Loisirs"),
@@ -238,6 +248,50 @@ fn reads_a_money_qif_export() {
             ),
             // Without a payee, the memo is the label.
             line("2001-01-04", "Abonnement", -990),
+        ]
+    );
+}
+
+#[test]
+fn details_inconsistent_qif_splits_in_the_note() {
+    let qif = "!Type:Bank
+D01/02/26
+T-20.00
+PCarrefour
+SCourses
+$-12.00
+SLoisirs
+$-5.00
+^
+D02/02/26
+T-20.00
+PFnac
+SCourses
+$-25.00
+SLoisirs
+$5.00
+^
+D03/02/26
+T-20.00
+PSncf
+STransport
+$-20.00
+^
+";
+    let lines = qif::parse(qif.as_bytes()).unwrap().lines;
+    let found: Vec<(Option<&str>, Option<&str>, usize)> = lines
+        .iter()
+        .map(|l| (l.source_category.as_deref(), l.note.as_deref(), l.splits.len()))
+        .collect();
+    assert_eq!(
+        found,
+        [
+            // Parts not summing to the amount.
+            (None, Some("Ventilation : Courses -12,00 ; Loisirs -5,00"), 0),
+            // A part of the other sign.
+            (None, Some("Ventilation : Courses -25,00 ; Loisirs 5,00"), 0),
+            // A single part is the category of the line.
+            (Some("Transport"), Some("Ventilation : Transport -20,00"), 0),
         ]
     );
 }

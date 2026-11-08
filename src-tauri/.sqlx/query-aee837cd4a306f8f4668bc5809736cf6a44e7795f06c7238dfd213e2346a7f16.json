@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO operation_split (operation_id, category_id, amount_cents)\n                 VALUES (?1, ?2, ?3)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "aee837cd4a306f8f4668bc5809736cf6a44e7795f06c7238dfd213e2346a7f16"
+}

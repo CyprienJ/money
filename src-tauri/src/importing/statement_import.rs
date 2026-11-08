@@ -1,7 +1,7 @@
 //! Statement import workflow, for CSV, PDF, OFX and QIF files: preview of a file, then import
 //! of the lines the user kept.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
 
 use chrono::NaiveDate;
@@ -23,7 +23,7 @@ use crate::error::AppResult;
 use crate::labeling::classifier::{Classifier, Suggestion};
 use crate::labeling::rules::Rules;
 use crate::labeling::{memory, normalize_label};
-use crate::operation::category;
+use crate::operation::{SplitLine, category};
 use crate::payee;
 
 /// A statement line in the import preview.
@@ -211,10 +211,19 @@ pub async fn preview(pool: &SqlitePool, file: StatementFile<'_>) -> AppResult<Im
         .find(|c| c.is_internal_transfer)
         .map(|c| c.id);
     let mut source_categories: BTreeMap<String, SourceCategory> = BTreeMap::new();
-    for name in raw_lines
-        .iter()
-        .filter_map(|l| l.source_category.as_deref())
-    {
+    // Each category once per line, the one of the line or of one of its parts.
+    let names = raw_lines.iter().flat_map(|l| {
+        let mut names: Vec<&str> = l
+            .source_category
+            .iter()
+            .chain(l.splits.iter().filter_map(|s| s.source_category.as_ref()))
+            .map(String::as_str)
+            .collect();
+        names.sort_unstable();
+        names.dedup();
+        names
+    });
+    for name in names {
         if source_category::is_transfer(name) {
             continue;
         }
@@ -311,8 +320,11 @@ pub fn add_suggestions(preview: &mut ImportPreview, classifier: &Classifier) {
 pub struct ImportSelection {
     /// Index of the line in the preview.
     pub index: u32,
-    /// `None`: to categorize.
+    /// `None`: to categorize. Ignored for a line imported split.
     pub category_id: Option<i64>,
+    /// Import the parts of a split QIF line, each in the category chosen for its category of
+    /// the file; otherwise the line is a single operation, its parts detailed in the note.
+    pub split: bool,
 }
 
 /// Imports the selected lines as a new batch, after a backup into `backup_dir`. The file is
@@ -335,10 +347,26 @@ pub async fn import(
         return Err(ImportError::FileChanged.into());
     }
     let preview = preview(pool, file).await?;
+    // Categories chosen for the categories of the file, else the proposed ones.
+    let mut file_categories: HashMap<String, Option<i64>> = preview
+        .source_categories
+        .iter()
+        .map(|c| (c.name.clone(), c.category_id))
+        .collect();
+    for choice in source_choices {
+        if let Some(category_id) = file_categories.get_mut(&choice.name) {
+            *category_id = choice.category_id;
+        }
+    }
 
     let mut seen = HashSet::new();
     let mut lines = Vec::new();
-    for &ImportSelection { index, category_id } in selections {
+    for &ImportSelection {
+        index,
+        category_id,
+        split,
+    } in selections
+    {
         if !seen.insert(index) {
             continue;
         }
@@ -350,10 +378,41 @@ pub async fn import(
             return Err(ImportError::DuplicateLine(index).into());
         }
         let from_file = line.line.source_category.is_some();
+        let mut raw = line.line.clone();
+        let splits = if split {
+            if raw.splits.is_empty() {
+                return Err(ImportError::InvalidSplit.into());
+            }
+            let mut parts = Vec::new();
+            for part in &raw.splits {
+                let category_id = part
+                    .source_category
+                    .as_ref()
+                    .and_then(|name| file_categories.get(name).copied().flatten())
+                    .ok_or(ImportError::InvalidSplit)?;
+                parts.push(SplitLine {
+                    category_id,
+                    amount_cents: part.amount_cents,
+                });
+            }
+            parts
+        } else {
+            if !raw.splits.is_empty() {
+                let detail = qif::split_note(&raw.splits);
+                raw.note = Some(match raw.note.take() {
+                    Some(memo) => format!("{memo} · {detail}"),
+                    None => detail,
+                });
+            }
+            Vec::new()
+        };
         lines.push(ImportLine {
-            line: line.line.clone(),
+            line: raw,
             category_id,
-            chosen: category_id.is_some() && (from_file || category_id != line.category_id),
+            chosen: splits.is_empty()
+                && category_id.is_some()
+                && (from_file || category_id != line.category_id),
+            splits,
         });
     }
 

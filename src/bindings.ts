@@ -711,7 +711,7 @@ export type ImportBatch = {
 };
 
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
-export type ImportError = { code: "notFound"; params: number } | { code: "noLine" } | { code: "invalidLine" } | { code: "fileChanged" } | { code: "lineOutOfRange"; params: number } | { code: "duplicateLine"; params: number };
+export type ImportError = { code: "notFound"; params: number } | { code: "noLine" } | { code: "invalidLine" } | { code: "fileChanged" } | { code: "lineOutOfRange"; params: number } | { code: "duplicateLine"; params: number } | { code: "invalidSplit" };
 
 /**  How to read a statement file. */
 export type ImportFormat = 
@@ -761,8 +761,13 @@ export type ImportPreview = {
 export type ImportSelection = {
 	/**  Index of the line in the preview. */
 	index: number,
-	/**  `None`: to categorize. */
+	/**  `None`: to categorize. Ignored for a line imported split. */
 	categoryId: number | null,
+	/**
+	 *  Import the parts of a split QIF line, each in the category chosen for its category of
+	 *  the file; otherwise the line is a single operation, its parts detailed in the note.
+	 */
+	split: boolean,
 };
 
 /**  Serialized for the frontend as `{ code, params }`, to show a message in French. */
@@ -1152,10 +1157,22 @@ export type RawLine = {
 	note: string | null,
 	/**  Category given by a QIF file, e.g. "Alimentation:Courses"; `[Compte]` for a transfer. */
 	sourceCategory: string | null,
+	/**
+	 *  Parts of a split line of a QIF file, consistent with its amount: at least two, in
+	 *  several categories, non-zero and of its sign, summing to it. Empty otherwise.
+	 */
+	splits: RawSplit[],
 	/**  Page of the line in a PDF statement, from 1. */
 	sourcePage: number | null,
 	/**  Line in a text file (CSV, OFX, QIF), from 1. */
 	sourceLine: number | null,
+};
+
+/**  A part of a split line of a QIF file. */
+export type RawSplit = {
+	/**  Category given by the file, as `RawLine::source_category`; `None` when empty. */
+	sourceCategory: string | null,
+	amountCents: number,
 };
 
 /**  A recurring series suggested as a scheduled operation. */

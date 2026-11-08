@@ -356,6 +356,7 @@ fn transaction(row: &[&Placed], columns: &Columns) -> Result<(RawLine, i64), Pdf
         amount_cents,
         note: None,
         source_category: None,
+        splits: Vec::new(),
         source_page: None,
         source_line: None,
     };
@@ -374,6 +375,7 @@ mod tests {
             amount_cents,
             note: None,
             source_category: None,
+            splits: Vec::new(),
             source_page: None,
             source_line: None,
         }

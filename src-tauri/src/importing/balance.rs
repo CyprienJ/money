@@ -53,6 +53,7 @@ mod tests {
                 amount_cents,
                 note: None,
                 source_category: None,
+                splits: Vec::new(),
                 source_page: None,
                 source_line: None,
             })
