@@ -30,7 +30,7 @@ import {
   toOperationFilter,
   type CategoryChoice,
 } from "../utils/operationFilters";
-import { isUncategorized, matchesSearch, summarize } from "../utils/operations";
+import { isUncategorized, matchesSearch, paginate, summarize } from "../utils/operations";
 import { periodOptions } from "../utils/periods";
 
 const route = useRoute();
@@ -104,6 +104,11 @@ const period = computed(() =>
 
 /** The free-text search runs here, ignoring accents; the other filters on the backend. */
 const visibleRows = computed(() => rows.value.filter(({ operation }) => matchesSearch(operation, search.value)));
+
+const PAGE_SIZE = 50;
+const page = ref(1);
+/** Rows of the current page; the totals cover every visible row. */
+const shown = computed(() => paginate(visibleRows.value, page.value, PAGE_SIZE));
 
 /** Account of the edit form: the tab's, or the operation's on the "Tous les comptes" tab. */
 const modalAccount = computed(() => {
@@ -311,6 +316,10 @@ onMounted(() => {
     router.replace({ query });
   }
   reload(true);
+});
+// Back to the first page when the filters change, not when an edit reloads the rows.
+watch([() => selected.value?.account.id, allAccounts, period, categoryFilter, advanced, search], () => {
+  page.value = 1;
 });
 watch([() => selected.value?.account.id, allAccounts, period, categoryFilter, advanced], () => reload(), {
   deep: true,
@@ -570,7 +579,7 @@ watch([() => selected.value?.account.id, allAccounts, period, categoryFilter, ad
         </thead>
         <tbody>
           <tr
-            v-for="{ operation, balanceCents } in visibleRows"
+            v-for="{ operation, balanceCents } in shown.items"
             :key="operation.id"
             :class="{ pending: isUncategorized(operation) }"
             tabindex="0"
@@ -579,8 +588,10 @@ watch([() => selected.value?.account.id, allAccounts, period, categoryFilter, ad
           >
             <td class="col-date">{{ formatDate(operation.date, "day-month") }}</td>
             <td>
-              <span class="label">{{ label(operation) }}</span>
-              <span v-if="operation.rawLabel !== operation.payeeName" class="raw">{{ operation.rawLabel }}</span>
+              <span class="label" :title="label(operation)">{{ label(operation) }}</span>
+              <span v-if="operation.rawLabel !== operation.payeeName" class="raw" :title="operation.rawLabel">
+                {{ operation.rawLabel }}
+              </span>
               <span v-if="operation.tags.length > 0 || operation.note || operation.attachmentCount > 0" class="annotations">
                 <span
                   v-if="operation.attachmentCount > 0"
@@ -636,6 +647,24 @@ watch([() => selected.value?.account.id, allAccounts, period, categoryFilter, ad
         </tbody>
       </table>
     </div>
+
+    <nav v-if="shown.pageCount > 1" class="pagination" aria-label="Pages des opérations">
+      <button type="button" class="btn btn-secondary" :disabled="shown.page === 1" @click="page = shown.page - 1">
+        Précédent
+      </button>
+      <span aria-live="polite">
+        {{ (shown.page - 1) * PAGE_SIZE + 1 }}–{{ (shown.page - 1) * PAGE_SIZE + shown.items.length }}
+        sur {{ visibleRows.length }} · page {{ shown.page }} / {{ shown.pageCount }}
+      </span>
+      <button
+        type="button"
+        class="btn btn-secondary"
+        :disabled="shown.page === shown.pageCount"
+        @click="page = shown.page + 1"
+      >
+        Suivant
+      </button>
+    </nav>
 
     <div class="footer">
       <span>{{ totals.count }} opération{{ totals.count > 1 ? "s" : "" }}</span>
@@ -859,9 +888,11 @@ h1 {
   border-radius: var(--radius-card);
 }
 
+/* Fixed layout: a long label is cut, it does not push the other columns away. */
 table {
   width: 100%;
   min-width: 760px;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 14px;
 }
@@ -946,13 +977,19 @@ td.col-balance {
   color: var(--color-text-muted);
 }
 
-.label {
+.label,
+.raw {
   display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.label {
   font-weight: 700;
 }
 
 .raw {
-  display: block;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
   color: var(--color-text-muted);
@@ -1027,6 +1064,16 @@ td.col-balance {
   padding: 28px 20px;
   color: var(--color-text-muted);
   text-align: center;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .footer {

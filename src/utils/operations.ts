@@ -36,6 +36,13 @@ export function summarize(operations: Operation[]): OperationTotals {
   return totals;
 }
 
+/** The items of page `page` (from 1, clamped to the existing pages) of `size` items. */
+export function paginate<T>(items: T[], page: number, size: number): { items: T[]; page: number; pageCount: number } {
+  const pageCount = Math.max(1, Math.ceil(items.length / size));
+  const current = Math.min(Math.max(1, page), pageCount);
+  return { items: items.slice((current - 1) * size, current * size), page: current, pageCount };
+}
+
 /** Still to categorize: no category and no split. */
 export function isUncategorized(operation: Operation): boolean {
   return operation.categoryId === null && operation.splits.length === 0;

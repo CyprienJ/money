@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Operation } from "../bindings";
-import { matchesSearch, summarize } from "./operations";
+import { matchesSearch, paginate, summarize } from "./operations";
 
 function operation(fields: Partial<Operation>): Operation {
   return {
@@ -75,5 +75,19 @@ describe("matchesSearch", () => {
 
   it("matches everything with an empty query", () => {
     expect(matchesSearch(carrefour, "  ")).toBe(true);
+  });
+});
+
+describe("paginate", () => {
+  const items = Array.from({ length: 120 }, (_, i) => i);
+
+  it("cuts the items into pages", () => {
+    expect(paginate(items, 1, 50)).toMatchObject({ page: 1, pageCount: 3 });
+    expect(paginate(items, 3, 50).items).toEqual(items.slice(100));
+  });
+
+  it("stays on an existing page", () => {
+    expect(paginate(items, 9, 50)).toMatchObject({ page: 3, pageCount: 3 });
+    expect(paginate([], 2, 50)).toEqual({ items: [], page: 1, pageCount: 1 });
   });
 });
