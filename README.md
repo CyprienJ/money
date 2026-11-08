@@ -134,7 +134,7 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
   - \+ dernière valorisation connue ≤ D de chaque actif
   - − dernier capital restant dû connu ≤ D de chaque dette
 - **Le disponible** (tableau de bord) est la somme des soldes des comptes courants, d'épargne et des cartes à débit différé : l'encours des cartes en est déduit.
-- **Par défaut, les comptes archivés** sont exclus des indicateurs. Un compte est pris en compte à partir de sa date d'ouverture, un compte valorisé à partir de sa première valorisation.
+- **Par défaut, les comptes archivés** sont exclus des indicateurs. Un compte est pris en compte à partir de sa date d'ouverture, un compte valorisé à partir de sa première valorisation. La date d'ouverture est facultative *(décision du 08/11/2026)* : sans elle, le solde d'ouverture compte à partir de la première opération du compte (depuis toujours s'il n'en a pas).
 - **Les montants** sont stockés en **centimes (entiers)**, jamais en virgule flottante, dans la devise de leur compte.
 - **Les statistiques sont en euros** : un flux (revenu, dépense, tiers, plus grosses dépenses) est converti au taux de son jour ; un solde, une valorisation ou le patrimoine net à une date D au taux de D ; la prévision au dernier taux connu. Le taux d'un jour est le dernier connu à cette date, sinon le premier après. Un montant dans une devise sans aucun taux compte pour zéro, et une alerte « Taux de change manquant » le signale.
 - **Le signe** est négatif pour un débit et positif pour un crédit, du point de vue du compte.
@@ -142,7 +142,7 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 ## Règles de gestion des opérations
 
 - **Comptes concernés** : seuls les comptes courants, d'épargne et les cartes à débit différé ont des opérations. Les placements, actifs et dettes sont suivis par leurs valorisations.
-- **Date** : une opération ne peut pas être antérieure à la date d'ouverture de son compte, puisqu'elle serait déjà comprise dans le solde d'ouverture.
+- **Date** : une opération ne peut pas être antérieure à la date d'ouverture de son compte, puisqu'elle serait déjà comprise dans le solde d'ouverture. Sans date d'ouverture, aucune date n'est refusée (saisie, import, valorisation, mouvement de titres).
 - **Opération importée** : sa date, son montant et son libellé brut viennent de la banque et ne sont pas modifiables (détection des doublons, contrôle des soldes). Seules sa catégorie, sa date de valeur, sa note et ses tags le sont. Elle ne se supprime pas seule : on annule le lot d'import entier.
 - **Opération saisie à la main** : entièrement modifiable et supprimable. Le texte saisi devient son libellé brut.
 
@@ -155,7 +155,7 @@ Les colonnes notées *(prévu)* sont créées dès la V1, mais ne sont exploité
 ```text
 account
   id, name, type (CHECKING | SAVINGS | CREDIT_CARD | INVESTMENT | ASSET | LIABILITY),
-  currency (default 'EUR', fixed once the account has data), institution, opening_balance_cents, opening_date, archived,
+  currency (default 'EUR', fixed once the account has data), institution, opening_balance_cents, opening_date (optional), archived,
   is_joint (default false) -- personal share: 50% if joint, 100% otherwise
 
 operation

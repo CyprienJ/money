@@ -129,7 +129,7 @@ function signedParts() {
 
 const dateError = computed(() => {
   if (form.date === "") return "La date est obligatoire.";
-  if (form.date < props.account.openingDate) {
+  if (props.account.openingDate !== null && form.date < props.account.openingDate) {
     return `Le compte a été ouvert le ${formatDate(props.account.openingDate)}.`;
   }
   return "";

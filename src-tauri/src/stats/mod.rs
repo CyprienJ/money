@@ -272,8 +272,10 @@ pub async fn balance_history(
     check_period(from, to)?;
     let accounts = accounts_json(accounts);
     let openings = sqlx::query!(
-        r#"SELECT id, opening_date AS "date!: NaiveDate", currency, is_joint AS "is_joint: bool",
-                  opening_balance_cents AS "amount_cents!: i64"
+        r#"SELECT id, COALESCE(opening_date,
+                           (SELECT MIN(o.date) FROM operation o WHERE o.account_id = account.id))
+                      AS "date: NaiveDate", currency,
+                  is_joint AS "is_joint: bool", opening_balance_cents AS "amount_cents!: i64"
            FROM account
            WHERE type IN ('CHECKING', 'SAVINGS', 'CREDIT_CARD')
              AND CASE WHEN ?1 IS NULL
@@ -299,10 +301,14 @@ pub async fn balance_history(
     .fetch_all(pool)
     .await?;
 
-    // Balance changes by date: account openings and operations.
+    // Balance changes by date: account openings and operations. An account without opening
+    // date counts from its first operation, from the start without operation.
     let mut changes: Vec<(NaiveDate, i64, String, bool, i64)> = openings
         .into_iter()
-        .map(|o| (o.date, o.id, o.currency, o.is_joint, o.amount_cents))
+        .map(|o| {
+            let date = o.date.unwrap_or(NaiveDate::MIN);
+            (date, o.id, o.currency, o.is_joint, o.amount_cents)
+        })
         .chain(
             movements
                 .into_iter()

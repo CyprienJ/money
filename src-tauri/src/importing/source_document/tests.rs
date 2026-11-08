@@ -37,7 +37,7 @@ async fn batch(pool: &SqlitePool, stored_file: Option<&str>) -> i64 {
             currency: "EUR".to_owned(),
             institution: None,
             opening_balance_cents: 0,
-            opening_date: "2026-01-01".parse().unwrap(),
+            opening_date: Some("2026-01-01".parse().unwrap()),
         },
     )
     .await

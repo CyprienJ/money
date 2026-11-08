@@ -50,7 +50,8 @@ pub struct Account {
     pub is_joint: bool,
     pub institution: Option<String>,
     pub opening_balance_cents: i64,
-    pub opening_date: NaiveDate,
+    /// `None`: the account counts from its first operation (or valuation).
+    pub opening_date: Option<NaiveDate>,
     pub archived: bool,
 }
 
@@ -65,7 +66,8 @@ pub struct NewAccount {
     pub is_joint: bool,
     pub institution: Option<String>,
     pub opening_balance_cents: i64,
-    pub opening_date: NaiveDate,
+    /// Optional: without it, the account counts from its first operation.
+    pub opening_date: Option<NaiveDate>,
 }
 
 /// Editable fields of an existing account. The type is fixed at creation, the currency once
@@ -78,7 +80,8 @@ pub struct AccountUpdate {
     pub is_joint: bool,
     pub institution: Option<String>,
     pub opening_balance_cents: i64,
-    pub opening_date: NaiveDate,
+    /// Optional: without it, the account counts from its first operation.
+    pub opening_date: Option<NaiveDate>,
 }
 
 /// Serialized for the frontend as `{ code, params }`, to show a message in French.

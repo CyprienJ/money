@@ -146,7 +146,7 @@ async fn new_account(pool: &SqlitePool) -> i64 {
             currency: "EUR".to_owned(),
             institution: None,
             opening_balance_cents: 0,
-            opening_date: date("2025-01-01"),
+            opening_date: Some(date("2025-01-01")),
         },
     )
     .await

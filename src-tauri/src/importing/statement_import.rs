@@ -254,7 +254,7 @@ pub async fn preview(pool: &SqlitePool, file: StatementFile<'_>) -> AppResult<Im
         .zip(statuses)
         .zip(normalized)
         .map(|((line, duplicate), normalized_label)| {
-            let before_opening = line.date < account.opening_date;
+            let before_opening = account.opening_date.is_some_and(|opening| line.date < opening);
             let from_file = source_category_of(&line);
             let rule = rules
                 .find(&normalized_label)

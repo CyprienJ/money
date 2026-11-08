@@ -219,7 +219,7 @@ mod tests {
                     currency: "EUR".to_owned(),
                     institution: None,
                     opening_balance_cents: 0,
-                    opening_date: date("2026-01-01"),
+                    opening_date: Some(date("2026-01-01")),
                 },
             )
             .await
@@ -358,7 +358,7 @@ mod tests {
                     currency: "EUR".to_owned(),
                     institution: None,
                     opening_balance_cents: 0,
-                    opening_date: date("2026-01-01"),
+                    opening_date: Some(date("2026-01-01")),
                 },
             )
             .await

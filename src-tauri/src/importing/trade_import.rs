@@ -124,7 +124,7 @@ pub async fn preview(pool: &SqlitePool, file: TradeFile<'_>) -> AppResult<TradeP
             };
             TradeLine {
                 security_id: securities.get(&trade.isin).copied(),
-                before_opening: trade.date < account.opening_date,
+                before_opening: account.opening_date.is_some_and(|opening| trade.date < opening),
                 duplicate,
                 trade,
             }

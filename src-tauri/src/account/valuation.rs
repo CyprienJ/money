@@ -111,8 +111,10 @@ async fn check(pool: &SqlitePool, account_id: i64, input: ValuationInput) -> App
     if input.value_cents < 0 {
         return Err(AccountError::NegativeValuation.into());
     }
-    if input.date < account.opening_date {
-        return Err(AccountError::ValuationBeforeOpening(account.opening_date).into());
+    if let Some(opening) = account.opening_date
+        && input.date < opening
+    {
+        return Err(AccountError::ValuationBeforeOpening(opening).into());
     }
     Ok(())
 }

@@ -65,7 +65,9 @@ const feesError = computed(() =>
   feesCents.value === null || feesCents.value < 0 ? "Frais invalides, par exemple 1,99." : "",
 );
 const dateError = computed(() =>
-  form.date < props.account.openingDate ? `Le compte a été ouvert le ${formatDate(props.account.openingDate)}.` : "",
+  props.account.openingDate !== null && form.date < props.account.openingDate
+    ? `Le compte a été ouvert le ${formatDate(props.account.openingDate)}.`
+    : "",
 );
 
 /** "Soit 120,00 € par part" under the amount of a buy or a sell. */

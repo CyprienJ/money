@@ -57,15 +57,20 @@ struct Data {
 async fn load(pool: &SqlitePool, to: NaiveDate) -> AppResult<Data> {
     let mut cash_changes: BTreeMap<NaiveDate, PersonalBalances> = BTreeMap::new();
     let openings = sqlx::query!(
-        r#"SELECT id, opening_date AS "date!: NaiveDate", currency, is_joint AS "is_joint: bool",
-                  opening_balance_cents AS "amount!: i64"
+        r#"SELECT id, COALESCE(opening_date,
+                           (SELECT MIN(o.date) FROM operation o WHERE o.account_id = account.id))
+                      AS "date: NaiveDate", currency,
+                  is_joint AS "is_joint: bool", opening_balance_cents AS "amount!: i64"
            FROM account
            WHERE archived = 0 AND type IN ('CHECKING', 'SAVINGS', 'CREDIT_CARD')"#
     )
     .fetch_all(pool)
     .await?;
+    // An account without opening date counts from its first operation, from the start
+    // without operation.
     for opening in openings {
-        cash_changes.entry(opening.date).or_default().add(
+        let date = opening.date.unwrap_or(NaiveDate::MIN);
+        cash_changes.entry(date).or_default().add(
             opening.id,
             &opening.currency,
             opening.is_joint,
@@ -225,7 +230,7 @@ mod tests {
                 currency: "EUR".to_owned(),
                 institution: None,
                 opening_balance_cents: opening,
-                opening_date: date("2026-01-01"),
+                opening_date: Some(date("2026-01-01")),
             },
         )
         .await

@@ -737,7 +737,7 @@ onMounted(load);
         <summary>
           {{ groups.beforeOpening.length }} ligne{{ groups.beforeOpening.length > 1 ? "s" : "" }}
           antérieure{{ groups.beforeOpening.length > 1 ? "s" : "" }} à l'ouverture du compte
-          ({{ account ? formatDate(account.openingDate) : "" }}), déjà comprise{{ groups.beforeOpening.length > 1 ? "s" : "" }}
+          ({{ account?.openingDate ? formatDate(account.openingDate) : "" }}), déjà comprise{{ groups.beforeOpening.length > 1 ? "s" : "" }}
           dans le solde d'ouverture
         </summary>
         <ul>

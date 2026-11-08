@@ -23,7 +23,7 @@ async fn new_account(pool: &SqlitePool, name: &str, currency: &str, opening: i64
             currency: currency.to_owned(),
             institution: None,
             opening_balance_cents: opening,
-            opening_date: date("2026-01-01"),
+            opening_date: Some(date("2026-01-01")),
         },
     )
     .await
@@ -145,7 +145,7 @@ fn the_currency_of_an_account_is_fixed_once_it_has_data() {
                 currency: "XYZ".to_owned(),
                 institution: None,
                 opening_balance_cents: 0,
-                opening_date: date("2026-01-01"),
+                opening_date: Some(date("2026-01-01")),
             },
         )
         .await;

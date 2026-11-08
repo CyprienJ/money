@@ -28,7 +28,7 @@ async fn new_account(pool: &SqlitePool, account_type: AccountType, opening_cents
             currency: "EUR".to_owned(),
             institution: None,
             opening_balance_cents: opening_cents,
-            opening_date: date("2026-10-01"),
+            opening_date: Some(date("2026-10-01")),
         },
     )
     .await

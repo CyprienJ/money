@@ -59,7 +59,7 @@ fn run<F: Future<Output = ()>>(test: impl FnOnce(Setup) -> F) {
                 currency: "EUR".to_owned(),
                 institution: None,
                 opening_balance_cents: 0,
-                opening_date: date("2026-09-01"),
+                opening_date: Some(date("2026-09-01")),
             },
         )
         .await

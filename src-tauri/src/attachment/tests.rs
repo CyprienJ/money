@@ -73,7 +73,7 @@ async fn new_operation(pool: &SqlitePool) -> i64 {
             currency: "EUR".to_owned(),
             institution: None,
             opening_balance_cents: 0,
-            opening_date: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+            opening_date: Some(NaiveDate::from_ymd_opt(2026, 1, 1).unwrap()),
         },
     )
     .await

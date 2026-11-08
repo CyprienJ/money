@@ -4,7 +4,7 @@ import { commands, type Account, type AccountType } from "../bindings";
 import { ACCOUNT_TYPES } from "../utils/accounts";
 import { errorMessage, unwrap } from "../utils/commands";
 import { currencyLabel, REFERENCE_CURRENCY, supportedCurrencies } from "../utils/currency";
-import { currencySymbol, formatAmountInput, parseAmount, todayIso } from "../utils/format";
+import { currencySymbol, formatAmountInput, parseAmount } from "../utils/format";
 import BaseModal from "./BaseModal.vue";
 import ValuationHistory from "./ValuationHistory.vue";
 
@@ -28,7 +28,8 @@ const form = reactive({
   isJoint: false,
   institution: "",
   openingBalance: "0",
-  openingDate: todayIso(),
+  /** Empty: no opening date, the account counts from its first operation. */
+  openingDate: "",
 });
 const submitted = ref(false);
 const saving = ref(false);
@@ -48,7 +49,6 @@ const openingBalanceCents = computed(() =>
 const balanceError = computed(() =>
   openingBalanceCents.value === null ? "Montant invalide, par exemple 1 234,56." : "",
 );
-const dateError = computed(() => (form.openingDate === "" ? "La date est obligatoire." : ""));
 
 watch(
   () => props.open,
@@ -61,7 +61,7 @@ watch(
     form.isJoint = account?.isJoint ?? false;
     form.institution = account?.institution ?? "";
     form.openingBalance = formatAmountInput(account?.openingBalanceCents ?? 0);
-    form.openingDate = account?.openingDate ?? todayIso();
+    form.openingDate = account?.openingDate ?? "";
     submitted.value = false;
     error.value = "";
   },
@@ -72,7 +72,7 @@ async function save() {
   submitted.value = true;
   error.value = "";
   const cents = openingBalanceCents.value;
-  if (nameError.value || dateError.value || cents === null) return;
+  if (nameError.value || cents === null) return;
 
   saving.value = true;
   try {
@@ -82,7 +82,7 @@ async function save() {
       isJoint: form.isJoint,
       institution: form.institution || null,
       openingBalanceCents: cents,
-      openingDate: form.openingDate,
+      openingDate: form.openingDate || null,
     };
     const saved = props.account
       ? await unwrap(commands.updateAccount(props.account.id, fields))
@@ -174,7 +174,7 @@ async function toggleArchived() {
         <label class="field">
           Date d'ouverture
           <input v-model="form.openingDate" type="date" />
-          <span v-if="submitted && dateError" class="field-error">{{ dateError }}</span>
+          <span class="field-hint">Facultative : sans date, le compte compte depuis sa première opération</span>
         </label>
       </div>
       <p v-if="!hasOperations" class="field-hint muted">

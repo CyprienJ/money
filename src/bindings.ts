@@ -320,7 +320,8 @@ export type Account = {
 	isJoint: boolean,
 	institution: string | null,
 	openingBalanceCents: number,
-	openingDate: string,
+	/**  `None`: the account counts from its first operation (or valuation). */
+	openingDate: string | null,
 	archived: boolean,
 };
 
@@ -368,7 +369,8 @@ export type AccountUpdate = {
 	isJoint: boolean,
 	institution: string | null,
 	openingBalanceCents: number,
-	openingDate: string,
+	/**  Optional: without it, the account counts from its first operation. */
+	openingDate: string | null,
 };
 
 export type Alert = { kind: "missingRate"; currency: string } | { kind: "negativeForecast"; accountId: number; 
@@ -866,7 +868,8 @@ export type NewAccount = {
 	isJoint: boolean,
 	institution: string | null,
 	openingBalanceCents: number,
-	openingDate: string,
+	/**  Optional: without it, the account counts from its first operation. */
+	openingDate: string | null,
 };
 
 /**  A mapping to save, on creation or update. */

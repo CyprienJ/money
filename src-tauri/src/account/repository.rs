@@ -147,7 +147,7 @@ mod tests {
             currency: "EUR".to_owned(),
             institution: None,
             opening_balance_cents: 0,
-            opening_date: date("2026-01-01"),
+            opening_date: Some(date("2026-01-01")),
         }
     }
 
@@ -164,7 +164,7 @@ mod tests {
                     currency: "EUR".to_owned(),
                     institution: Some(" Ma banque ".to_owned()),
                     opening_balance_cents: 41323,
-                    opening_date: date("2026-01-01"),
+                    opening_date: Some(date("2026-01-01")),
                 },
             )
             .await
@@ -175,7 +175,7 @@ mod tests {
             assert_eq!(created.currency, "EUR");
             assert_eq!(created.institution.as_deref(), Some("Ma banque"));
             assert_eq!(created.opening_balance_cents, 41323);
-            assert_eq!(created.opening_date, date("2026-01-01"));
+            assert_eq!(created.opening_date, Some(date("2026-01-01")));
             assert!(!created.archived);
             assert_eq!(get(&pool, created.id).await.unwrap(), created);
         });
@@ -210,7 +210,7 @@ mod tests {
                     currency: "EUR".to_owned(),
                     institution: Some("   ".to_owned()),
                     opening_balance_cents: 1_500_000,
-                    opening_date: date("2025-06-01"),
+                    opening_date: Some(date("2025-06-01")),
                 },
             )
             .await
@@ -219,7 +219,7 @@ mod tests {
             assert_eq!(updated.name, "Livret A");
             assert_eq!(updated.institution, None);
             assert_eq!(updated.opening_balance_cents, 1_500_000);
-            assert_eq!(updated.opening_date, date("2025-06-01"));
+            assert_eq!(updated.opening_date, Some(date("2025-06-01")));
             assert_eq!(updated.account_type, AccountType::Savings);
         });
     }

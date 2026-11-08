@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id, opening_date AS \"date!: NaiveDate\", currency, is_joint AS \"is_joint: bool\",\n                  opening_balance_cents AS \"amount_cents!: i64\"\n           FROM account\n           WHERE type IN ('CHECKING', 'SAVINGS', 'CREDIT_CARD')\n             AND CASE WHEN ?1 IS NULL\n                      THEN archived = 0\n                      ELSE id IN (SELECT value FROM json_each(?1)) END",
+  "query": "SELECT id, COALESCE(opening_date,\n                           (SELECT MIN(o.date) FROM operation o WHERE o.account_id = account.id))\n                      AS \"date: NaiveDate\", currency,\n                  is_joint AS \"is_joint: bool\", opening_balance_cents AS \"amount!: i64\"\n           FROM account\n           WHERE archived = 0 AND type IN ('CHECKING', 'SAVINGS', 'CREDIT_CARD')",
   "describe": {
     "columns": [
       {
@@ -15,15 +15,10 @@
         }
       },
       {
-        "name": "date!: NaiveDate",
+        "name": "date: NaiveDate",
         "ordinal": 1,
         "type_info": "Text",
-        "origin": {
-          "Table": {
-            "table": "account",
-            "name": "opening_date"
-          }
-        }
+        "origin": "Expression"
       },
       {
         "name": "currency",
@@ -48,7 +43,7 @@
         }
       },
       {
-        "name": "amount_cents!: i64",
+        "name": "amount!: i64",
         "ordinal": 4,
         "type_info": "Integer",
         "origin": {
@@ -60,15 +55,15 @@
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 0
     },
     "nullable": [
       false,
-      false,
+      true,
       false,
       false,
       false
     ]
   },
-  "hash": "b78f5e27f7d62f03b0dea19af108cdf64f32cec6f85332260324f5d4f540a811"
+  "hash": "f042eb1907724aa2e108c6d216518bbc30dc2e2addf92a073d01ef70483bc79d"
 }

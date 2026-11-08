@@ -381,8 +381,10 @@ pub(crate) async fn check_account(
     if !account.account_type.has_operations() {
         return Err(OperationError::AccountWithoutOperations.into());
     }
-    if date < account.opening_date {
-        return Err(OperationError::DateBeforeOpening(account.opening_date).into());
+    if let Some(opening) = account.opening_date
+        && date < opening
+    {
+        return Err(OperationError::DateBeforeOpening(opening).into());
     }
     Ok(())
 }

@@ -38,7 +38,7 @@ async fn new_account(
             currency: "EUR".to_owned(),
             institution: None,
             opening_balance_cents: opening,
-            opening_date: date("2026-01-01"),
+            opening_date: Some(date("2026-01-01")),
         },
     )
     .await
@@ -390,5 +390,56 @@ fn rejects_reversed_periods() {
             balance_history(&f.pool, from, to, None, BalanceStep::Day).await,
             Err(AppError::Stats(StatsError::InvalidPeriod { .. }))
         ));
+    });
+}
+
+#[test]
+fn an_account_without_opening_date_counts_from_its_first_operation() {
+    tauri::async_runtime::block_on(async {
+        let pool = memory_pool().await;
+        let undated = |name: &'static str| {
+            let pool = pool.clone();
+            async move {
+                account::create(
+                    &pool,
+                    NewAccount {
+                        is_joint: false,
+                        name: name.to_owned(),
+                        account_type: AccountType::Checking,
+                        currency: "EUR".to_owned(),
+                        institution: None,
+                        opening_balance_cents: 10_000,
+                        opening_date: None,
+                    },
+                )
+                .await
+                .unwrap()
+                .id
+            }
+        };
+        let account_id = undated("Courant").await;
+        // Any date is accepted without opening date.
+        enter(&pool, account_id, "1999-03-10", -1_000, None).await;
+        let balances = |accounts: Vec<i64>| {
+            let pool = pool.clone();
+            async move {
+                balance_history(
+                    &pool,
+                    date("1999-03-09"),
+                    date("1999-03-10"),
+                    Some(&accounts),
+                    BalanceStep::Day,
+                )
+                .await
+                .unwrap()
+                .into_iter()
+                .map(|p| p.balance_cents)
+                .collect::<Vec<_>>()
+            }
+        };
+        assert_eq!(balances(vec![account_id]).await, [0, 9_000]);
+        // Without operation, the opening balance counts from the start.
+        let empty = undated("Livret").await;
+        assert_eq!(balances(vec![empty]).await, [10_000, 10_000]);
     });
 }

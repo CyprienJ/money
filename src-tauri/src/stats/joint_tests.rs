@@ -19,7 +19,7 @@ async fn create(pool: &SqlitePool, joint: bool, kind: AccountType, opening: i64)
             currency: "EUR".into(),
             institution: None,
             opening_balance_cents: opening,
-            opening_date: date("2026-01-01"),
+            opening_date: Some(date("2026-01-01")),
         },
     )
     .await

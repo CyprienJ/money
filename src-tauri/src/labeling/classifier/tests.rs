@@ -128,7 +128,7 @@ fn learns_the_most_frequent_category_of_each_label_and_retrains_on_changes() {
                 currency: "EUR".to_owned(),
                 institution: None,
                 opening_balance_cents: 0,
-                opening_date: date("2026-01-01"),
+                opening_date: Some(date("2026-01-01")),
             },
         )
         .await

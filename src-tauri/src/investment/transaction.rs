@@ -252,8 +252,10 @@ async fn check(
     input: &TransactionInput,
 ) -> AppResult<Option<String>> {
     let account = investment_account(pool, account_id).await?;
-    if input.date < account.opening_date {
-        return Err(InvestmentError::DateBeforeOpening(account.opening_date).into());
+    if let Some(opening) = account.opening_date
+        && input.date < opening
+    {
+        return Err(InvestmentError::DateBeforeOpening(opening).into());
     }
     match input.kind {
         TransactionKind::Buy | TransactionKind::Sell if input.quantity_micro <= 0 => {

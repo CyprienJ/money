@@ -66,7 +66,7 @@ pub async fn balance_forecast(
     let mut balances = PersonalBalances::default();
     for summary in &included {
         let a = &summary.account;
-        if a.opening_date <= today {
+        if a.opening_date.is_none_or(|opening| opening <= today) {
             balances.add(
                 a.id,
                 &a.currency,
