@@ -106,6 +106,38 @@ export function lineCategory(
   return line.categoryId;
 }
 
+/** Category chosen for a category of the QIF file: changed in the preview, else proposed. */
+export function sourceCategoryValue(
+  preview: ImportPreview,
+  sources: Map<string, number | null>,
+  name: string,
+): number | null {
+  if (sources.has(name)) return sources.get(name) ?? null;
+  return preview.sourceCategories.find((c) => c.name === name)?.categoryId ?? null;
+}
+
+/**
+ * Whether a split line of a QIF file is imported split: no category chosen by hand for it or
+ * its label, and each part in a category of the file associated with a category other than
+ * the internal transfer one (`transferId`). Otherwise it is a single operation.
+ */
+export function importsSplit(
+  preview: ImportPreview,
+  index: number,
+  chosen: Map<number, number | null>,
+  spread: Map<string, number | null>,
+  sources: Map<string, number | null>,
+  transferId: number | null,
+): boolean {
+  const line = preview.lines[index];
+  if (line.line.splits.length === 0 || chosen.has(index) || spread.has(line.normalizedLabel)) return false;
+  return line.line.splits.every((part) => {
+    if (part.sourceCategory === null) return false;
+    const category = sourceCategoryValue(preview, sources, part.sourceCategory);
+    return category !== null && category !== transferId;
+  });
+}
+
 /** Categories to remember for the categories of a QIF file: the ones of the preview, as changed. */
 export function sourceCategoryChoices(
   preview: ImportPreview,
@@ -124,9 +156,13 @@ export function pendingSuggestions(
   chosen: Map<number, number | null> = new Map(),
   spread: Map<string, number | null> = new Map(),
   sources: Map<string, number | null> = new Map(),
+  transferId: number | null = null,
 ): number[] {
   return preview.lines.flatMap((line, index) =>
-    selected.has(index) && line.suggestion !== null && lineCategory(line, index, chosen, spread, sources) === null
+    selected.has(index) &&
+    line.suggestion !== null &&
+    lineCategory(line, index, chosen, spread, sources) === null &&
+    !importsSplit(preview, index, chosen, spread, sources, transferId)
       ? [index]
       : [],
   );
@@ -142,10 +178,16 @@ export function categoryCounts(
   chosen: Map<number, number | null> = new Map(),
   spread: Map<string, number | null> = new Map(),
   sources: Map<string, number | null> = new Map(),
+  transferId: number | null = null,
 ): { automatic: number; toCategorize: number } {
   const counts = { automatic: 0, toCategorize: 0 };
   preview.lines.forEach((line, index) => {
     if (!selected.has(index)) return;
+    // A line imported split is categorized by the categories of the file.
+    if (importsSplit(preview, index, chosen, spread, sources, transferId)) {
+      counts.automatic++;
+      return;
+    }
     const category = lineCategory(line, index, chosen, spread, sources);
     const fromFile = line.line.sourceCategory !== null && !chosen.has(index) && !spread.has(line.normalizedLabel);
     if (category === null) counts.toCategorize++;

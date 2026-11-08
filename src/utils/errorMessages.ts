@@ -273,6 +273,8 @@ function importing(error: ImportError): string {
       return `La ligne ${error.params + 1} de l'aperçu n'existe pas : recommence l'import.`;
     case "duplicateLine":
       return `La ligne ${error.params + 1} est déjà dans le compte et ne peut pas être réimportée.`;
+    case "invalidSplit":
+      return "Une ligne ventilée ne s'importe en parts que si chaque catégorie de ses parts est associée à une de tes catégories, autre que « Virement interne ».";
   }
   return unreachable(error);
 }

@@ -9,12 +9,14 @@ import {
   type ImportFormat,
   type ImportPreview,
   type MappingSuggestion,
+  type PreviewLine,
   type SavedCsvMapping,
   type SourceCategory,
   type SupportedBank,
   type TradePreview,
 } from "../bindings";
 import CategoryPicker from "../components/CategoryPicker.vue";
+import CategoryPill from "../components/CategoryPill.vue";
 import CsvMappingModal from "../components/CsvMappingModal.vue";
 import TradeImportPreview from "../components/TradeImportPreview.vue";
 import { ACCOUNT_TYPES } from "../utils/accounts";
@@ -24,6 +26,7 @@ import {
   ambiguityText,
   balanceGap,
   categoryCounts,
+  importsSplit,
   defaultSelection,
   fileKind,
   groupPreview,
@@ -112,9 +115,10 @@ const ambiguousCount = computed(
   () => groups.value?.candidates.filter((c) => c.line.duplicate.status === "ambiguous").length ?? 0,
 );
 const categoriesById = computed(() => new Map(categories.value.map((c) => [c.id, c])));
+const transferId = computed(() => categories.value.find((c) => c.isInternalTransfer)?.id ?? null);
 const counts = computed(() =>
   preview.value
-    ? categoryCounts(preview.value, selected.value, chosen.value, spread.value, sources.value)
+    ? categoryCounts(preview.value, selected.value, chosen.value, spread.value, sources.value, transferId.value)
     : { automatic: 0, toCategorize: 0 },
 );
 /** No balance mismatch: balances checked, or not available (CSV). */
@@ -288,7 +292,9 @@ function categoryHint(index: number): string {
 
 /** Lines whose suggestion can still be accepted. */
 const suggested = computed(() =>
-  preview.value ? pendingSuggestions(preview.value, selected.value, chosen.value, spread.value, sources.value) : [],
+  preview.value
+    ? pendingSuggestions(preview.value, selected.value, chosen.value, spread.value, sources.value, transferId.value)
+    : [],
 );
 
 function acceptSuggestions() {
@@ -298,7 +304,35 @@ function acceptSuggestions() {
   }
 }
 
+/** The line is imported with the parts of the file. */
+function isSplit(index: number): boolean {
+  const current = preview.value;
+  return current !== null && importsSplit(current, index, chosen.value, spread.value, sources.value, transferId.value);
+}
+
+/** "Courses:Alimentation -30,00 € · Banque:Frais -10,00 €", the parts of a split line. */
+function partsText(line: PreviewLine): string {
+  return line.line.splits
+    .map((part) => `${part.sourceCategory ?? "Sans catégorie"} ${formatAmount(part.amountCents, { currency: currency.value })}`)
+    .join(" · ");
+}
+
+/** Why a split line of the file is imported as a single operation. */
+function splitFallbackHint(index: number, line: PreviewLine): string {
+  if (chosen.value.has(index) || spread.value.has(line.normalizedLabel)) return "Ventilation du fichier en note";
+  if (line.line.splits.some((part) => part.sourceCategory?.startsWith("["))) {
+    return "Ventilation du fichier en note : une part est un virement";
+  }
+  return "Ventilation du fichier en note : associe ses catégories ci-dessus pour la garder";
+}
+
+/** Imports a split line as a single operation, to categorize on the line. */
+function unsplit(index: number) {
+  chosen.value = new Map(chosen.value).set(index, null);
+}
+
 function isInternalTransfer(index: number): boolean {
+  if (isSplit(index)) return false;
   const category = categoryOf(index);
   return category !== null && categoriesById.value.get(category)?.isInternalTransfer === true;
 }
@@ -344,6 +378,7 @@ async function runImport() {
         [...selected.value].map((index) => ({
           index,
           categoryId: lineCategory(current.lines[index], index, chosen.value, spread.value, sources.value),
+          split: importsSplit(current, index, chosen.value, spread.value, sources.value, transferId.value),
         })),
         sourceCategoryChoices(current, sources.value),
       ),
@@ -644,7 +679,14 @@ onMounted(load);
                 {{ ambiguityText(line, preview.matchedOperations) }}
               </span>
             </td>
-            <td>
+            <td v-if="isSplit(index)">
+              <CategoryPill :label="`Ventilée (${line.line.splits.length})`" :title="partsText(line)" />
+              <span class="category-hint">Parts et catégories du fichier</span>
+              <button type="button" class="btn btn-link unsplit" @click="unsplit(index)">
+                Une seule catégorie
+              </button>
+            </td>
+            <td v-else>
               <CategoryPicker
                 :model-value="categoryOf(index)"
                 :categories="categories"
@@ -664,6 +706,9 @@ onMounted(load);
               </button>
               <span v-if="isInternalTransfer(index)" class="category-hint">Exclu des statistiques</span>
               <span v-else-if="categoryHint(index)" class="category-hint">{{ categoryHint(index) }}</span>
+              <span v-if="line.line.splits.length > 0" class="category-hint" :title="partsText(line)">
+                {{ splitFallbackHint(index, line) }}
+              </span>
             </td>
             <td
               class="col-amount"
@@ -1078,6 +1123,12 @@ h1 {
   margin-top: 4px;
   font-size: 11px;
   color: var(--color-text-muted);
+}
+
+.unsplit {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
 }
 
 .chip.groceries {

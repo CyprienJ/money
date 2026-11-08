@@ -7,6 +7,7 @@ import {
   balanceGap,
   categoryCounts,
   fileKind,
+  importsSplit,
   lineCategory,
   sourceCategoryChoices,
   defaultSelection,
@@ -24,6 +25,7 @@ function line(overrides: Partial<PreviewLine> = {}): PreviewLine {
       amountCents: -420,
       note: null,
       sourceCategory: null,
+      splits: [],
       sourcePage: null,
       sourceLine: null,
     },
@@ -220,6 +222,7 @@ describe("categories of a QIF file", () => {
         amountCents: -420,
         note: null,
         sourceCategory,
+        splits: [],
         sourcePage: null,
         sourceLine: null,
       },
@@ -247,5 +250,50 @@ describe("categories of a QIF file", () => {
       automatic: 2,
       toCategorize: 0,
     });
+  });
+});
+
+describe("importsSplit", () => {
+  const TRANSFER = 1;
+  const split = line({
+    normalizedLabel: "HYPERMARCHE",
+    line: {
+      ...line().line,
+      amountCents: -4000,
+      splits: [
+        { sourceCategory: "Alimentation", amountCents: -3000 },
+        { sourceCategory: "Banque:Frais", amountCents: -1000 },
+      ],
+    },
+  });
+  const current = {
+    ...preview([split, line()]),
+    sourceCategories: [
+      { name: "Alimentation", categoryId: 3, remembered: false, lineCount: 1 },
+      { name: "Banque:Frais", categoryId: null, remembered: false, lineCount: 1 },
+    ],
+  };
+  const all = new Set([0, 1]);
+
+  it("needs every category of the parts associated, to another category than transfer", () => {
+    expect(importsSplit(current, 0, new Map(), new Map(), new Map(), TRANSFER)).toBe(false);
+    const sources = new Map([["Banque:Frais", 9]]);
+    expect(importsSplit(current, 0, new Map(), new Map(), sources, TRANSFER)).toBe(true);
+    expect(importsSplit(current, 0, new Map(), new Map(), new Map([["Banque:Frais", TRANSFER]]), TRANSFER)).toBe(
+      false,
+    );
+    // A line without parts is never split.
+    expect(importsSplit(current, 1, new Map(), new Map(), sources, TRANSFER)).toBe(false);
+    // Imported split, the line is categorized.
+    expect(categoryCounts(current, all, new Map(), new Map(), sources, TRANSFER)).toEqual({
+      automatic: 1,
+      toCategorize: 1,
+    });
+  });
+
+  it("gives way to a category chosen on the line or its label", () => {
+    const sources = new Map([["Banque:Frais", 9]]);
+    expect(importsSplit(current, 0, new Map([[0, null]]), new Map(), sources, TRANSFER)).toBe(false);
+    expect(importsSplit(current, 0, new Map(), new Map([["HYPERMARCHE", 4]]), sources, TRANSFER)).toBe(false);
   });
 });
