@@ -105,10 +105,15 @@ const period = computed(() =>
 /** The free-text search runs here, ignoring accents; the other filters on the backend. */
 const visibleRows = computed(() => rows.value.filter(({ operation }) => matchesSearch(operation, search.value)));
 
-const PAGE_SIZE = 50;
+/** Operations per page; `null` shows them all. */
+const pageSize = ref<number | null>(50);
 const page = ref(1);
 /** Rows of the current page; the totals cover every visible row. */
-const shown = computed(() => paginate(visibleRows.value, page.value, PAGE_SIZE));
+const shown = computed(() =>
+  paginate(visibleRows.value, page.value, pageSize.value ?? Math.max(1, visibleRows.value.length)),
+);
+/** Position of the first row of the page, from 1. */
+const firstShown = computed(() => (shown.value.page - 1) * (pageSize.value ?? 0) + 1);
 
 /** Account of the edit form: the tab's, or the operation's on the "Tous les comptes" tab. */
 const modalAccount = computed(() => {
@@ -318,7 +323,7 @@ onMounted(() => {
   reload(true);
 });
 // Back to the first page when the filters change, not when an edit reloads the rows.
-watch([() => selected.value?.account.id, allAccounts, period, categoryFilter, advanced, search], () => {
+watch([() => selected.value?.account.id, allAccounts, period, categoryFilter, advanced, search, pageSize], () => {
   page.value = 1;
 });
 watch([() => selected.value?.account.id, allAccounts, period, categoryFilter, advanced], () => reload(), {
@@ -648,22 +653,33 @@ watch([() => selected.value?.account.id, allAccounts, period, categoryFilter, ad
       </table>
     </div>
 
-    <nav v-if="shown.pageCount > 1" class="pagination" aria-label="Pages des opérations">
-      <button type="button" class="btn btn-secondary" :disabled="shown.page === 1" @click="page = shown.page - 1">
-        Précédent
-      </button>
-      <span aria-live="polite">
-        {{ (shown.page - 1) * PAGE_SIZE + 1 }}–{{ (shown.page - 1) * PAGE_SIZE + shown.items.length }}
-        sur {{ visibleRows.length }} · page {{ shown.page }} / {{ shown.pageCount }}
-      </span>
-      <button
-        type="button"
-        class="btn btn-secondary"
-        :disabled="shown.page === shown.pageCount"
-        @click="page = shown.page + 1"
-      >
-        Suivant
-      </button>
+    <nav v-if="visibleRows.length > 50" class="pagination" aria-label="Pages des opérations">
+      <template v-if="shown.pageCount > 1">
+        <button type="button" class="btn btn-secondary" :disabled="shown.page === 1" @click="page = shown.page - 1">
+          Précédent
+        </button>
+        <span aria-live="polite">
+          {{ firstShown }}–{{ firstShown + shown.items.length - 1 }}
+          sur {{ visibleRows.length }} · page {{ shown.page }} / {{ shown.pageCount }}
+        </span>
+        <button
+          type="button"
+          class="btn btn-secondary"
+          :disabled="shown.page === shown.pageCount"
+          @click="page = shown.page + 1"
+        >
+          Suivant
+        </button>
+      </template>
+      <span v-else>{{ visibleRows.length }} opérations</span>
+      <label class="page-size">
+        Par page
+        <select v-model="pageSize">
+          <option :value="50">50</option>
+          <option :value="100">100</option>
+          <option :value="null">Tout</option>
+        </select>
+      </label>
     </nav>
 
     <div class="footer">
@@ -989,6 +1005,13 @@ td.col-balance {
   font-weight: 700;
 }
 
+/* On hover, a cut text wraps to show in full. */
+tbody tr:hover :is(.label, .raw, .note),
+tbody tr:focus-visible :is(.label, .raw, .note) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .raw {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
@@ -1068,12 +1091,28 @@ td.col-balance {
 
 .pagination {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   align-items: center;
   gap: 16px;
   font-size: 13px;
   color: var(--color-text-muted);
   font-variant-numeric: tabular-nums;
+}
+
+.page-size {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-size select {
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-card);
+  color: var(--color-text);
 }
 
 .footer {
