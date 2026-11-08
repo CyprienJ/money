@@ -18,6 +18,7 @@ function operation(fields: Partial<Operation>): Operation {
     sourcePage: null,
     sourceLine: null,
     categoryId: 2,
+    splits: [],
     isInternalTransfer: false,
     transferPairId: null,
     note: null,
@@ -34,11 +35,20 @@ describe("summarize", () => {
       operation({ amountCents: -30000, isInternalTransfer: true }),
       operation({ amountCents: -84200 }),
       operation({ amountCents: -840, categoryId: null }),
+      // A split operation is categorized by its parts.
+      operation({
+        amountCents: -1000,
+        categoryId: null,
+        splits: [
+          { categoryId: 2, amountCents: -600 },
+          { categoryId: 3, amountCents: -400 },
+        ],
+      }),
     ]);
     expect(totals).toEqual({
-      count: 4,
+      count: 5,
       incomeCents: 328000,
-      expenseCents: -85040,
+      expenseCents: -86040,
       internalTransferCents: -30000,
       uncategorized: 1,
     });

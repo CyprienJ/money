@@ -71,6 +71,14 @@ function operation(error: OperationError): string {
       return "La date, le montant et le libellé d'une opération importée ne sont pas modifiables.";
     case "importedOperationNotDeletable":
       return "Une opération importée ne se supprime pas seule : annule son import.";
+    case "splitTooFewParts":
+      return "Une opération ventilée a au moins deux parts.";
+    case "splitInternalTransfer":
+      return "Une part d'une opération ventilée ne peut pas être un virement interne.";
+    case "splitPartAmount":
+      return "Chaque part a un montant non nul, dans le sens de l'opération.";
+    case "splitTotalMismatch":
+      return "La somme des parts doit égaler le montant de l'opération.";
   }
   return unreachable(error);
 }
@@ -91,6 +99,8 @@ function category(error: CategoryError): string {
       return "Cette catégorie a des sous-catégories : déplace-les ou supprime-les d'abord.";
     case "reassignToSelf":
       return "Choisis une autre catégorie pour reprendre les opérations.";
+    case "usedInSplits":
+      return "Des opérations ventilées ont une part dans cette catégorie : choisis une autre catégorie que « À catégoriser » ou « Virement interne » pour la reprendre.";
   }
   return unreachable(error);
 }

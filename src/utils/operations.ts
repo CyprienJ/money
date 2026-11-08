@@ -29,11 +29,16 @@ export function summarize(operations: Operation[]): OperationTotals {
     } else {
       totals.expenseCents += operation.amountCents;
     }
-    if (operation.categoryId === null) {
+    if (isUncategorized(operation)) {
       totals.uncategorized += 1;
     }
   }
   return totals;
+}
+
+/** Still to categorize: no category and no split. */
+export function isUncategorized(operation: Operation): boolean {
+  return operation.categoryId === null && operation.splits.length === 0;
 }
 
 /** Lowercase text without accents nor repeated spaces, for searches. */

@@ -14,6 +14,7 @@ import {
   type Tag,
 } from "../bindings";
 import CategoryPicker from "../components/CategoryPicker.vue";
+import CategoryPill from "../components/CategoryPill.vue";
 import OperationFormModal from "../components/OperationFormModal.vue";
 import RuleFormModal from "../components/RuleFormModal.vue";
 import TransferProposalsModal from "../components/TransferProposalsModal.vue";
@@ -29,7 +30,7 @@ import {
   toOperationFilter,
   type CategoryChoice,
 } from "../utils/operationFilters";
-import { matchesSearch, summarize } from "../utils/operations";
+import { isUncategorized, matchesSearch, summarize } from "../utils/operations";
 import { periodOptions } from "../utils/periods";
 
 const route = useRoute();
@@ -118,6 +119,14 @@ function currencyOf(operation: Operation): string {
   return accountsById.value.get(operation.accountId)?.currency ?? REFERENCE_CURRENCY;
 }
 
+/** "Courses 30,00 € · Loyer 10,00 €", for the pill of a split operation. */
+function splitDetail(operation: Operation): string {
+  const currency = currencyOf(operation);
+  return operation.splits
+    .map((part) => `${categoryName(part.categoryId)} ${formatAmount(part.amountCents, { currency })}`)
+    .join(" · ");
+}
+
 /** Currency of the totals; `null` when the operations shown have several currencies. */
 const totalsCurrency = computed(() => {
   const currencies = new Set(visibleRows.value.map((r) => currencyOf(r.operation)));
@@ -149,7 +158,7 @@ async function loadOperations() {
   const found = await unwrap(commands.searchOperations(filter));
   const batches = account ? await unwrap(commands.listImportBatches(account.account.id)) : [];
   const proposals = await unwrap(commands.listTransferProposals());
-  const uncategorized = found.filter((r) => r.operation.categoryId === null).map((r) => r.operation.id);
+  const uncategorized = found.filter((r) => isUncategorized(r.operation)).map((r) => r.operation.id);
   const suggested = uncategorized.length > 0 ? await unwrap(commands.suggestCategories(uncategorized)) : [];
   if (searchNumber !== lastSearch) return;
   rows.value = found;
@@ -563,7 +572,7 @@ watch([() => selected.value?.account.id, allAccounts, period, categoryFilter, ad
           <tr
             v-for="{ operation, balanceCents } in visibleRows"
             :key="operation.id"
-            :class="{ pending: operation.categoryId === null }"
+            :class="{ pending: isUncategorized(operation) }"
             tabindex="0"
             @click="openEdit(operation)"
             @keydown.enter="openEdit(operation)"
@@ -588,7 +597,14 @@ watch([() => selected.value?.account.id, allAccounts, period, categoryFilter, ad
               </span>
             </td>
             <td>
+              <!-- A split is edited in the form, opened by a click on the row. -->
+              <CategoryPill
+                v-if="operation.splits.length > 0"
+                :label="`Ventilée (${operation.splits.length})`"
+                :title="splitDetail(operation)"
+              />
               <CategoryPicker
+                v-else
                 :model-value="operation.categoryId"
                 :categories="categories"
                 :label="`Catégorie de ${label(operation)}`"
