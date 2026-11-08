@@ -86,6 +86,7 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 #### Opérations
 - **Tags et notes** libres *(décisions du 21/10/2026)* : un tag se crée en le tapant sur une opération, sans tenir compte des majuscules pour retrouver un tag existant, et se renomme ou se supprime depuis l'écran Catégories. Les tags n'ont pas de couleur (pastille neutre). Tags et note s'affichent sous le libellé dans la liste des opérations et sont couverts par la recherche libre ; ils sont modifiables sur toutes les opérations, importées comprises.
 - **Pièces jointes** (factures, justificatifs), copiées à côté du fichier de données *(décisions du 21/10/2026)* : 25 Mo au plus par fichier, ouverture avec l'application par défaut du système. Les fichiers d'une opération supprimée ou d'un import annulé sont supprimés avec elle ; les fichiers orphelins sont aussi nettoyés au démarrage. La sauvegarde avant import ne copie que le fichier de données : les pièces jointes relèvent de la sauvegarde complète.
+- **Opérations ventilées** *(décisions du 08/11/2026, avancé depuis « Plus tard »)* : une opération, importée ou saisie, se répartit sur plusieurs catégories depuis sa fiche (« Ventiler sur plusieurs catégories »), qui affiche le reste à répartir. Une ventilation a au moins deux parts ; chaque part a une catégorie, autre que « Virement interne », et un montant non nul du sens de l'opération ; la somme des parts égale le montant de l'opération (celui d'une opération saisie ne change qu'avec ses parts). Une opération ventilée n'est jamais « à catégoriser » : règles, mémoire des libellés, suggestions et propagation de catégorie l'ignorent, et sa ventilation n'est pas retenue pour le libellé. Lui donner une seule catégorie (fiche, liste ou liaison d'un virement) remplace ses parts. Dans la liste, elle porte une pastille « Ventilée (n) » avec le détail des parts en infobulle ; le filtre par catégorie la retient si une de ses parts correspond. Les statistiques de catégories comptent chaque part ; top tiers et plus grosses dépenses comptent l'opération une fois (plus grosse dépense dans la catégorie de sa plus grosse part). Une catégorie utilisée par une part ne peut être supprimée qu'en reprenant ses opérations dans une autre catégorie. L'import des ventilations QIF en vraies parts viendra ensuite.
 - **Recherche et filtres avancés** : montant, période, tiers, catégorie, tag, compte *(décisions du 21/10/2026)*. Dans l'écran Opérations : un onglet « Tous les comptes » (comptes archivés exclus, colonne Compte à la place du solde), une période personnalisée en plus des périodes prédéfinies, et un panneau « Plus de filtres » : sens (dépenses, recettes) et fourchette de montant en valeur absolue, tiers, tag. Une seule valeur par filtre ; les filtres se combinent (ET). Une catégorie principale inclut ses sous-catégories.
 
 #### Suivi
@@ -112,7 +113,6 @@ Son objectif est de **comprendre où va l'argent** : importer ses relevés banca
 
 - Synchronisation bancaire automatique (agrégateur DSP2)
 - Catégorisation par embeddings ou LLM local
-- Opérations ventilées (une opération répartie sur plusieurs catégories)
 - Rapports personnalisables exportables (PDF, CSV, Excel)
 - Export complet des données dans un format ouvert
 - Annuler / rétablir et historique des modifications
@@ -170,7 +170,7 @@ operation
   transfer_pair_id     -- V2 other side of an internal transfer, both ways
   note, created_at, updated_at
 
-operation_split          -- one row per operation in V1; several rows once splitting is supported
+operation_split          -- one row per operation, several for a split operation
   id, operation_id, category_id, amount_cents
 
 category
